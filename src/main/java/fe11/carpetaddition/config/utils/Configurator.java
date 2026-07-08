@@ -3,7 +3,12 @@ package fe11.carpetaddition.config.utils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import fe11.carpetaddition.Feca;
+import fe11.carpetaddition.utils.MinecraftServerUtils;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.storage.LevelResource;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -14,9 +19,25 @@ public class Configurator<T> {
     private final Path CONFIG_PATH;
     private final Class<T> clazz;
 
-    public Configurator(String configFilename, Class<T> clazz) {
-        this.CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve(configFilename);
+    private Configurator(Path configPath, Class<T> clazz) {
+        this.CONFIG_PATH = configPath;
         this.clazz = clazz;
+    }
+
+    @Contract("_, _, _ -> new")
+    public static <T> @NotNull Configurator<T> everySaves(@NotNull MinecraftServer server, String configFilename, Class<T> clazz) {
+        return new Configurator<>(
+                server.getWorldPath(LevelResource.ROOT).normalize().toAbsolutePath().resolve(configFilename),
+                clazz
+        );
+    }
+
+    @Contract("_, _ -> new")
+    public static <T> @NotNull Configurator<T> global(String configFilename, Class<T> clazz) {
+        return new Configurator<>(
+                FabricLoader.getInstance().getConfigDir().resolve(configFilename),
+                clazz
+        );
     }
 
     public Optional<T> load() {

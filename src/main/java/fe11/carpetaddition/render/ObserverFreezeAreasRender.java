@@ -1,5 +1,6 @@
 package fe11.carpetaddition.render;
 
+import fe11.carpetaddition.Feca;
 import fe11.carpetaddition.config.ClientConfigs;
 import fe11.carpetaddition.config.ServerConfigs;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
@@ -25,7 +26,7 @@ public class ObserverFreezeAreasRender implements WorldRenderEvents.AfterTranslu
             return;
         }
 
-        ServerConfigs.read(data -> {
+        ClientConfigs.tryReadSync(data -> {
             if (data.observerFreezeAreas.isEmpty()) return;
 
             var bufferSource = Objects.requireNonNull(ctx.consumers());

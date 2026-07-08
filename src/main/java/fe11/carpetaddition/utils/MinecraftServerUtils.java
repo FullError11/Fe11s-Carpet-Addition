@@ -1,6 +1,10 @@
 package fe11.carpetaddition.utils;
 
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.Objects;
 
 public class MinecraftServerUtils {
     private static MinecraftServer server;
@@ -15,5 +19,14 @@ public class MinecraftServerUtils {
 
     public static boolean serverIsRunning(MinecraftServer server) {
         return server != null && server.isRunning();
+    }
+
+    public static boolean isSingleplayerServerMaster(@NotNull ServerPlayer player) {
+        var server = Objects.requireNonNull(player.getServer());
+        return server.isSingleplayer() && server.isSingleplayerOwner(player.getGameProfile());
+    }
+
+    public static boolean isSingleplayerServerMaster(@NotNull MinecraftServer server, @NotNull ServerPlayer player) {
+        return server.isSingleplayer() && server.isSingleplayerOwner(player.getGameProfile());
     }
 }

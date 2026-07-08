@@ -58,9 +58,6 @@ public class Feca implements ModInitializer, ClientModInitializer, CarpetExtensi
 		// Carpet
 		CarpetServer.manageExtension(this);
 
-		// Config
-		ServerConfigs.load();
-
 		// Network
 		fe11.carpetaddition.network.ServerToClient.registerSend();
 		fe11.carpetaddition.network.ClientToServer.registerReceive();
@@ -75,10 +72,10 @@ public class Feca implements ModInitializer, ClientModInitializer, CarpetExtensi
 	@Override
 	public void onInitializeClient() {
 		// Events Callback
-		// WorldRenderEvents.AFTER_TRANSLUCENT.register(new ObserverFreezeAreasRender());
+		WorldRenderEvents.AFTER_TRANSLUCENT.register(new ObserverFreezeAreasRender());
 
 		// Config
-		ClientConfigs.load();
+		// ClientConfigs.load();
 
 		// Network
 		fe11.carpetaddition.network.ClientToServer.registerSend();
@@ -100,6 +97,8 @@ public class Feca implements ModInitializer, ClientModInitializer, CarpetExtensi
 	public void onServerLoaded(MinecraftServer server) {
 		MinecraftServerUtils.setServer(server);
 		CarpetServer.settingsManager.registerRuleObserver(new FecaCarpetSettings.OnRecipeRuleChanged());
+		ServerConfigs.init(server);
+		ServerConfigs.load();
 	}
 
 	@Override
@@ -117,6 +116,8 @@ public class Feca implements ModInitializer, ClientModInitializer, CarpetExtensi
 
 	@Override
 	public void onPlayerLoggedIn(ServerPlayer player) {
-		Recipes.onPlayerLoggedIn(MinecraftServerUtils.getServer(), player);
+		var server = MinecraftServerUtils.getServer();
+		Recipes.onPlayerLoggedIn(server, player);
+		ObserverFreezeAreas.syncOnPlayerLogin(player);
 	}
 }

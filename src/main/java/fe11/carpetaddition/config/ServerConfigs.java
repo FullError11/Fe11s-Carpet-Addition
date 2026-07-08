@@ -1,6 +1,7 @@
 package fe11.carpetaddition.config;
 
 import fe11.carpetaddition.config.utils.Configurator;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.NotNull;
 
@@ -15,8 +16,11 @@ public class ServerConfigs {
 
     private static Data data = new Data();
     private static final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-    private static final Configurator<Data> configurator =
-            new Configurator<>("feca_config@server.json", Data.class);
+    private static Configurator<Data> configurator = null;
+
+    public static void init(MinecraftServer server) {
+        configurator = Configurator.everySaves(server,"feca_config@server.json", Data.class);
+    }
 
     public static void load() {
         lock.writeLock().lock();

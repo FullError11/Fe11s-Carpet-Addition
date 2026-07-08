@@ -4,24 +4,17 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 public class AABBCodec {
-    public static final StreamCodec<RegistryFriendlyByteBuf, AABB> CODEC = new StreamCodec<RegistryFriendlyByteBuf, AABB>() {
+    public static final StreamCodec<RegistryFriendlyByteBuf, AABB> CODEC = new StreamCodec<>() {
         @Override
-        public void encode(@NotNull RegistryFriendlyByteBuf buf, @Nullable AABB aabb) {
-            if (aabb != null) {
-                buf.writeDouble(aabb.minX);
-                buf.writeDouble(aabb.minY);
-                buf.writeDouble(aabb.minZ);
-                buf.writeDouble(aabb.maxX);
-                buf.writeDouble(aabb.maxY);
-                buf.writeDouble(aabb.maxZ);
-            } else {
-                for (int i = 0; i < 6; i++) {
-                    buf.writeDouble(0);
-                }
-            }
+        public void encode(@NotNull RegistryFriendlyByteBuf buf, @NotNull AABB aabb) {
+            buf.writeDouble(aabb.minX);
+            buf.writeDouble(aabb.minY);
+            buf.writeDouble(aabb.minZ);
+            buf.writeDouble(aabb.maxX);
+            buf.writeDouble(aabb.maxY);
+            buf.writeDouble(aabb.maxZ);
         }
 
         @Override

@@ -8,6 +8,7 @@ import com.mojang.brigadier.context.CommandContext;
 import fe11.carpetaddition.FecaCarpetSettings;
 import fe11.carpetaddition.config.ClientConfigs;
 import fe11.carpetaddition.config.ServerConfigs;
+import fe11.carpetaddition.network.ServerToClient;
 import fe11.carpetaddition.network.payload.ObserverFreezeAreasChange;
 import fe11.carpetaddition.network.payload.utils.ArrayChanges;
 import fe11.carpetaddition.utils.DelayedTaskExecutor;
@@ -17,9 +18,18 @@ import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Optional;
 
 
 public class ObserverFreezeAreas {
@@ -42,12 +52,13 @@ public class ObserverFreezeAreas {
             if (!data.observerFreezeAreas.contains(area)) {
                 data.observerFreezeAreas.add(area);
                 syncChangeToClient(ctx, ArrayChanges.Add, area);
-                ctx.getSource().sendSystemMessage(Component.literal(String.format(
-                        "Add observer freeze area: [%s] ~ [%s]", pos[0].toShortString(), pos[1].toShortString()
-                )).withStyle(ChatFormatting.GREEN));
+                ctx.getSource().sendSystemMessage(Component.translatable(
+                        "feca.message.command.observerFreezeAreas.add.successful",
+                        pos[0].toShortString(), pos[1].toShortString()
+                ).withStyle(ChatFormatting.GREEN));
             } else {
-                ctx.getSource().sendSystemMessage(Component.literal(
-                        "Failed to add the area, it already exists!"
+                ctx.getSource().sendSystemMessage(Component.translatable(
+                        "feca.message.command.observerFreezeAreas.add.failed"
                 ).withStyle(ChatFormatting.RED));
             }
         });
@@ -60,12 +71,12 @@ public class ObserverFreezeAreas {
         ServerConfigs.write(data -> {
             if (data.observerFreezeAreas.remove(area)) {
                 syncChangeToClient(ctx, ArrayChanges.Remove, area);
-                ctx.getSource().sendSystemMessage(Component.literal(String.format(
-                        "Remove observer freeze area: [%s] ~ [%s]", pos[0].toShortString(), pos[1].toShortString()
-                )).withStyle(ChatFormatting.GREEN));
+                ctx.getSource().sendSystemMessage(Component.translatable(
+                        "feca.message.command.observerFreezeAreas.remove.successful", pos[0].toShortString(), pos[1].toShortString()
+                ).withStyle(ChatFormatting.GREEN));
             } else {
-                ctx.getSource().sendSystemMessage(Component.literal(
-                        "Failed to remove the area, it is not exists!"
+                ctx.getSource().sendSystemMessage(Component.translatable(
+                        "feca.message.command.observerFreezeAreas.remove.failed"
                 ).withStyle(ChatFormatting.RED));
             }
         });
@@ -78,23 +89,23 @@ public class ObserverFreezeAreas {
     private static int removeAll(CommandContext<CommandSourceStack> ctx) {
         if (!removeAllConfirm) {
             removeAllConfirm = true;
-            ctx.getSource().sendSystemMessage(Component.literal(
-                    "Run this command again within 10 seconds to confirm."
+            ctx.getSource().sendSystemMessage(Component.translatable(
+                    "feca.message.command.observerFreezeAreas.removeAll.confirm.requires"
             ).withStyle(ChatFormatting.RED));
             DelayedTaskExecutor.createTask()
                     .perTickDo(task -> task.discardIf(!removeAllConfirm))
                     .afterSecondDo(10, task -> {
-                        ctx.getSource().sendSystemMessage(Component.literal(
-                                "Delete all observer freeze areas that timed out without confirmation."
+                        ctx.getSource().sendSystemMessage(Component.translatable(
+                                "feca.message.command.observerFreezeAreas.removeAll.confirm.timeout"
                         ).withStyle(ChatFormatting.GRAY));
                         removeAllConfirm = false;
                     });
         } else {
             removeAllConfirm = false;
             ServerConfigs.write(data -> data.observerFreezeAreas.clear());
-            syncChangeToClient(ctx, ArrayChanges.RemoveAll);
-            ctx.getSource().sendSystemMessage(Component.literal(
-                    "Remove all observer freeze areas!"
+            syncChangeToClient(ctx, ArrayChanges.RemoveAll, null);
+            ctx.getSource().sendSystemMessage(Component.translatable(
+                    "feca.message.command.observerFreezeAreas.removeAll.successful"
             ));
         }
         return Command.SINGLE_SUCCESS;
@@ -103,15 +114,29 @@ public class ObserverFreezeAreas {
     private static int list(@NotNull CommandContext<CommandSourceStack> ctx) {
         var src = ctx.getSource();
         var areas = ServerConfigs.unsafeGet().observerFreezeAreas;
-        src.sendSystemMessage(Component.literal("Observer freeze area list: "));
+        src.sendSystemMessage(Component.translatable("feca.message.command.observerFreezeAreas.list.tittle"));
         if (areas.isEmpty()) {
-            src.sendSystemMessage(Component.literal("nothing!"));
+            src.sendSystemMessage(Component.translatable("feca.message.command.observerFreezeAreas.list.nothing"));
         } else {
             for (int i = 0; i < areas.size(); i++) {
                 var area = areas.get(i);
-                src.sendSystemMessage(Component.literal(String.format(
-                        "[%d] %s ~ %s", i, area.getMinPosition(), area.getMaxPosition()
-                )));
+                var minPos = area.getMinPosition();
+                var maxPos = area.getMaxPosition().add(-1, -1, -1);
+                var message = minPos == maxPos
+                        ? String.format("[%d] %s ~ %s", i + 1, minPos, maxPos)
+                        : String.format("[%d] %s", i + 1, minPos);
+                var command = removeAreaCommand(minPos, maxPos);
+                src.sendSystemMessage(
+                        Component.literal(message)
+                                .append(Component.translatable(
+                                        "feca.message.command.observerFreezeAreas.list.remove.button")
+                                        .withStyle(Style.EMPTY
+                                        .withColor(ChatFormatting.RED)
+                                        .withClickEvent(new ClickEvent.RunCommand(command))
+                                        .withHoverEvent(new HoverEvent.ShowText(Component.translatable(
+                                                "feca.message.command.observerFreezeAreas.list.remove.tips",
+                                                minPos.toString(), maxPos.toString())))
+                                )));
             }
         }
 
@@ -121,12 +146,12 @@ public class ObserverFreezeAreas {
         ClientConfigs.write(data -> {
             if (data.observerFreezeAreasHighlight) {
                 data.observerFreezeAreasHighlight = false;
-                ctx.getSource().sendSystemMessage(Component.literal("Observer freeze area highlight is disabled now"));
+                ctx.getSource().sendSystemMessage(Component.translatable("feca.message.command.observerFreezeAreas.highlight.disabled"));
             } else {
                 data.observerFreezeAreasHighlight = true;
                 var src = ctx.getSource();
-                src.sendSystemMessage(Component.literal("Observer freeze area highlight is enabled now"));
-                src.sendSystemMessage(Component.literal("Only works on clients where `Feca Mod` is installed"));
+                src.sendSystemMessage(Component.translatable("feca.message.command.observerFreezeAreas.highlight.enabled"));
+                src.sendSystemMessage(Component.translatable("feca.message.command.observerFreezeAreas.highlight.tips"));
             }
         });
 
@@ -153,12 +178,25 @@ public class ObserverFreezeAreas {
         return Commands.literal(subcommand).executes(execute);
     }
 
-    private static void syncChangeToClient(@NotNull CommandContext<CommandSourceStack> ctx, ArrayChanges changes, @NotNull AABB area) {
-        for (var player : ctx.getSource().getServer().getPlayerList().getPlayers()) {
-            ServerPlayNetworking.send(player, new ObserverFreezeAreasChange(changes, area));
-        }
+    private static void syncChangeToClient(@NotNull CommandContext<CommandSourceStack> ctx, ArrayChanges changes, @Nullable AABB area) {
+        ServerToClient.broadcast(ctx.getSource().getServer(), new ObserverFreezeAreasChange(changes, Optional.ofNullable(area)));
     }
-    private static void syncChangeToClient(@NotNull CommandContext<CommandSourceStack> ctx, ArrayChanges changes) {
-        syncChangeToClient(ctx, changes, new AABB(0d, 0d, 0d, 0d, 0d, 0d));
+
+    @Contract(pure = true)
+    private static @NotNull String removeAreaCommand(@NotNull Vec3 minPos, @NotNull Vec3 maxPos) {
+        return String.format(
+                "/observerFreezeAreas remove %d %d %d %d %d %d",
+                (int)minPos.x, (int)minPos.y, (int)minPos.z,
+                (int)maxPos.x, (int)maxPos.y, (int)maxPos.z
+        );
+    }
+
+    public static void syncOnPlayerLogin(ServerPlayer player) {
+        ServerPlayNetworking.send(player, new ObserverFreezeAreasChange(ArrayChanges.RemoveAll, Optional.empty()));
+        ServerConfigs.read(data -> {
+            data.observerFreezeAreas.forEach(area -> {
+                ServerPlayNetworking.send(player, new ObserverFreezeAreasChange(ArrayChanges.Add, Optional.of(area)));
+            });
+        });
     }
 }

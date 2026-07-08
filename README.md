@@ -6,4 +6,3 @@
 [项目文档](./docs/index.md)
 
 ## TODO
-ObserverFreezeAreas 的配置文件区分存档
