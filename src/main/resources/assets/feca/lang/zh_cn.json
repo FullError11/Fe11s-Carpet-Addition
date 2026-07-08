@@ -1,0 +1,66 @@
+{
+  "feca.message.command.common.mustRunByUser": "该命令必须由玩家执行！",
+
+  "feca.message.command.fly.enabled": "飞行已启用，双击跳跃键以开始飞行。",
+  "feca.message.command.fly.disabled": "飞行已禁用。",
+
+  "feca.message.command.home.countdownMessage": "%d 秒后传送，移动以取消。",
+  "feca.message.command.home.cancelled": "传送已取消。",
+  "feca.message.command.home.done": "传送已完成。",
+
+  "feca.message.command.scale.info": "你的 scale 基值是 %.2f，可用的范围是 %.2f 到 %.2f。",
+  "feca.message.command.scale.outOfRange": "缩放值必须在范围 %.2f 到 %.2f 内，但输入值是 %.2f。",
+  "feca.message.command.scale.successful": "将自身的 scale 基值设置为 %.2f。",
+
+  "carpet.rule.commandFly.name": "启用 fly 指令",
+  "carpet.rule.commandFly.desc": "允许玩家执行 /fly 指令以飞行。",
+  "carpet.rule.flyDisableSprinting.name": "使用 /fly 飞行时禁止冲刺",
+  "carpet.rule.flyDisableSprinting.desc": "当玩家使用 /fly 进行飞行时，禁用冲刺。",
+
+  "carpet.rule.commandScale.name": "启用 scale 指令",
+  "carpet.rule.commandScale.desc": "允许玩家执行 /scale 指令以缩放自身体型。",
+  "carpet.rule.playerScaleMinValue.name": "玩家缩放最小值",
+  "carpet.rule.playerScaleMinValue.desc": "设置玩家缩放的最小值。",
+  "carpet.rule.playerScaleMaxValue.name": "玩家缩放最大值",
+  "carpet.rule.playerScaleMaxValue.desc": "设置玩家缩放的最大值。",
+
+  "carpet.rule.commandHome.name": "启用 home 指令",
+  "carpet.rule.commandHome.desc": "允许玩家执行 /home 指令以传送至自身重生点。",
+  "carpet.rule.commandHomeWorld.name": "启用 home 指令的 world 选项",
+  "carpet.rule.commandHomeWorld.desc": "允许玩家执行 /home world 指令以传送至世界重生点。",
+  "carpet.rule.commandHomeCountdown.name": "home 指令的传送倒计时",
+  "carpet.rule.commandHomeCountdown.desc": "在执行 home 指令后，倒计时结束后进行传送。",
+
+  "carpet.rule.commandObserverFreezeAreas.name": "启用 observerFreezeAreas 指令",
+  "carpet.rule.commandObserverFreezeAreas.desc": "允许玩家执行 /observerFreezeAreas 指令以冻结区域内的侦测器",
+  "carpet.rule.commandObserverFreezeAreas.extra.0": "[注意] 客户端安装Feca模组后可使用 highlight 子选项",
+
+  "carpet.rule.boneMealRipenSmallFlowers.name": "骨粉催熟小型花",
+  "carpet.rule.boneMealRipenSmallFlowers.desc": "允许使用骨粉催熟小型花。",
+  "carpet.rule.boneMealRipenSmallFlowers.extra.0": "此功能可能被 carpet-AMS 的 可催熟小花(fertilizableSmallFlower)覆盖，若不生效请同时开启两个选项",
+
+  "carpet.rule.boneMealRipenChorusFlower.name": "骨粉催熟紫颂花",
+  "carpet.rule.boneMealRipenChorusFlower.desc": "允许使用骨粉催熟紫颂花。",
+
+  "carpet.rule.chorusFruitAsSeed.name": "紫颂果种子",
+  "carpet.rule.chorusFruitAsSeed.desc": "允许紫颂果作为种子，对末地石上表面右键进行种植。",
+
+  "carpet.rule.mineableBuddingAmethyst.name": "可采集的紫水晶母岩",
+  "carpet.rule.mineableBuddingAmethyst.desc": "允许玩家采集紫水晶母岩。",
+
+  "carpet.rule.activeMending.name": "主动经验修补",
+  "carpet.rule.activeMending.desc": "玩家装备的带有经验修补的物品会主动消耗经验修补自身 (主手/副手/盔甲栏)。",
+
+  "carpet.rule.craftableReinforcedDeepSlate.name": "可合成强化深板岩",
+  "carpet.rule.craftableReinforcedDeepSlate.desc": "允许玩家合成强化深板岩",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.0": "合成配方",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.1": "[黑曜石][黑曜石][黑曜石]",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.2": "[黑曜石][深板岩][黑曜石]",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.3": "[黑曜石][黑曜石][黑曜石]",
+
+  "carpet.rule.craftableEndPortalFrame.name": "可合成末地传送门框架",
+  "carpet.rule.craftableEndPortalFrame.desc": "允许玩家合成末地传送门框架",
+  "carpet.rule.craftableEndPortalFrame.extra.0": "合成配方",
+  "carpet.rule.craftableEndPortalFrame.extra.1": "[末地石][下界之星][末地石]",
+  "carpet.rule.craftableEndPortalFrame.extra.2": "[末地石][末地石][末地石]"
+}

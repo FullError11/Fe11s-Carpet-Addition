@@ -1,0 +1,66 @@
+{
+  "feca.message.command.common.mustRunByUser": "This command has to be executed by the player!",
+
+  "feca.message.command.fly.enabled": "Flight enabled. Double-tap jump to start flying.",
+  "feca.message.command.fly.disabled": "Flight disabled.",
+
+  "feca.message.command.home.countdownMessage": "Teleporting in %d seconds. Move to cancel.",
+  "feca.message.command.home.cancelled": "Teleport cancelled.",
+  "feca.message.command.home.done": "Teleport complete.",
+
+  "feca.message.command.scale.info": "Your base scale is %.2f. Available range is %.2f to %.2f.",
+  "feca.message.command.scale.outOfRange": "Scale value must be between %.2f and %.2f, but the input was %.2f.",
+  "feca.message.command.scale.successful": "Your base scale has been set to %.2f.",
+
+  "carpet.rule.commandFly.name": "Enable fly command",
+  "carpet.rule.commandFly.desc": "Allows players to execute the /fly command to fly.",
+  "carpet.rule.flyDisableSprinting.name": "Disable sprinting when flying with /fly",
+  "carpet.rule.flyDisableSprinting.desc": "Disables sprinting for players while they are flying using /fly.",
+
+  "carpet.rule.commandScale.name": "Enable scale command",
+  "carpet.rule.commandScale.desc": "Allows players to execute the /scale command to scale their own size.",
+  "carpet.rule.playerScaleMinValue.name": "Player scale minimum value",
+  "carpet.rule.playerScaleMinValue.desc": "Sets the minimum value for player scaling.",
+  "carpet.rule.playerScaleMaxValue.name": "Player scale maximum value",
+  "carpet.rule.playerScaleMaxValue.desc": "Sets the maximum value for player scaling.",
+
+  "carpet.rule.commandHome.name": "Enable home command",
+  "carpet.rule.commandHome.desc": "Allows players to execute the /home command to teleport to their spawn point.",
+  "carpet.rule.commandHomeWorld.name": "Enable home command world option",
+  "carpet.rule.commandHomeWorld.desc": "Allows players to execute /home world to teleport to the world spawn point.",
+  "carpet.rule.commandHomeCountdown.name": "Home command teleport countdown",
+  "carpet.rule.commandHomeCountdown.desc": "After executing the home command, teleportation occurs after a countdown.",
+
+  "carpet.rule.commandObserverFreezeAreas.name": "",
+  "carpet.rule.commandObserverFreezeAreas.desc": "",
+  "carpet.rule.commandObserverFreezeAreas.extra.0": "",
+
+  "carpet.rule.boneMealRipenSmallFlowers.name": "Bone meal ripens small flowers",
+  "carpet.rule.boneMealRipenSmallFlowers.desc": "Allows bone meal to be used to ripen small flowers.",
+
+  "carpet.rule.boneMealRipenChorusFlower.name": "Bone meal ripens chorus flowers",
+  "carpet.rule.boneMealRipenChorusFlower.desc": "Allows bone meal to be used to ripen chorus flowers.",
+  "carpet.rule.boneMealRipenSmallFlowers.extra.0": "This feature may be overridden by carpet-AMS's fertilizableSmallFlower. If it does not take effect, please enable both options at the same time.",
+
+  "carpet.rule.chorusFruitAsSeed.name": "Chorus fruit as seed",
+  "carpet.rule.chorusFruitAsSeed.desc": "Allows chorus fruit to be used as a seed, planted by right-clicking on the top surface of end stone.",
+
+  "carpet.rule.mineableBuddingAmethyst.name": "Mineable budding amethyst",
+  "carpet.rule.mineableBuddingAmethyst.desc": "Allows players to mine budding amethyst blocks.",
+
+  "carpet.rule.activeMending.name": "Active Mending",
+  "carpet.rule.activeMending.desc": "Items with Mending equipped by the player (main hand/offhand/armor slots) will actively consume XP to repair themselves.",
+
+  "carpet.rule.craftableReinforcedDeepSlate.name": "Craftable reinforced deepslate",
+  "carpet.rule.craftableReinforcedDeepSlate.desc": "Allows players to craft reinforced deepslate.",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.0": "Crafting recipe",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.1": "[Obsidian][Obsidian][Obsidian]",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.2": "[Obsidian][Deepslate][Obsidian]",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.3": "[Obsidian][Obsidian][Obsidian]",
+
+  "carpet.rule.craftableEndPortalFrame.name": "Craftable end portal frame",
+  "carpet.rule.craftableEndPortalFrame.desc": "Allows players to craft end portal frames.",
+  "carpet.rule.craftableEndPortalFrame.extra.0": "Crafting recipe",
+  "carpet.rule.craftableEndPortalFrame.extra.1": "[End Stone][Nether Star][End Stone]",
+  "carpet.rule.craftableEndPortalFrame.extra.2": "[End Stone][End Stone][End Stone]"
+}

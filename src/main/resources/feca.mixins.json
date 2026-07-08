@@ -1,0 +1,23 @@
+{
+  "required": true,
+  "package": "fe11.carpetaddition.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ActiveMendingMixin",
+    "BuddingAmethystMixin",
+    "ChorusFlowerBlockMixin",
+    "ChorusFruitAsSeedMixin",
+    "FlowerBlockMinix",
+    "FlyDisableSprintingMixin",
+    "FlyPermFixMixin",
+    "MinecraftServerMixin",
+    "ObserverFreezeAreasMixin",
+    "RecipeManagerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}
