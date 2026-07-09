@@ -25,7 +25,7 @@ import fe11.carpetaddition.third_party.recipe.template.ShapelessRecipeTemplate;
 import fe11.carpetaddition.third_party.recipe.template.SmeltingRecipeTemplate;
 import fe11.carpetaddition.third_party.utils.ChainableHashMap;
 import fe11.carpetaddition.third_party.utils.ChainableList;
-import fe11.carpetaddition.third_party.utils.ResourceLocationUtil;
+import fe11.carpetaddition.third_party.utils.IdentifierUtil;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -57,14 +57,14 @@ public class AmsRecipeBuilder {
     }
 
     public void addShapedRecipe(String id, String[][] pattern, ChainableHashMap<Character, String> ingredients, String result, int count) {
-        shapedRecipeList.add(new ShapedRecipeTemplate(ResourceLocationUtil.of(MOD_ID, id), pattern, ingredients, result, count));
+        shapedRecipeList.add(new ShapedRecipeTemplate(IdentifierUtil.of(MOD_ID, id), pattern, ingredients, result, count));
     }
 
     public void addShapelessRecipe(String id, ChainableList<String> ingredients, String result, int count) {
-        shapelessRecipeList.add(new ShapelessRecipeTemplate(ResourceLocationUtil.of(MOD_ID, id), ingredients, result, count));
+        shapelessRecipeList.add(new ShapelessRecipeTemplate(IdentifierUtil.of(MOD_ID, id), ingredients, result, count));
     }
 
     public void addSmeltingRecipe(String id, String input, String output, float experience, int cookingTime) {
-        smeltingRecipeList.add(new SmeltingRecipeTemplate(ResourceLocationUtil.of(MOD_ID, id), input, output, experience, cookingTime));
+        smeltingRecipeList.add(new SmeltingRecipeTemplate(IdentifierUtil.of(MOD_ID, id), input, output, experience, cookingTime));
     }
 }

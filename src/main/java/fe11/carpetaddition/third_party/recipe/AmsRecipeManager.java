@@ -35,7 +35,7 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -54,13 +54,13 @@ public class AmsRecipeManager {
         this.smeltingRecipes = builder.getSmeltingRecipeList();
     }
 
-    public void registerRecipes(Map<ResourceLocation, Recipe<?>> map, HolderLookup.Provider wrapperLookup) {
-        Map<ResourceLocation, JsonElement> recipeMap = new HashMap<>();
+    public void registerRecipes(Map<Identifier, Recipe<?>> map, HolderLookup.Provider wrapperLookup) {
+        Map<Identifier, JsonElement> recipeMap = new HashMap<>();
         registerAllRecipes(recipeMap);
         recipeMap.forEach((id, json) -> addRecipe(map, wrapperLookup, id, json));
     }
 
-    private void addRecipe(@NotNull Map<ResourceLocation, Recipe<?>> map, HolderLookup.Provider wrapperLookup, ResourceLocation id, @NotNull JsonElement json) {
+    private void addRecipe(@NotNull Map<Identifier, Recipe<?>> map, HolderLookup.Provider wrapperLookup, Identifier id, @NotNull JsonElement json) {
         RecipeHolder<?> recipeEntry = this.deserializeRecipe(ResourceKey.create(Registries.RECIPE, id), json.getAsJsonObject(), wrapperLookup);
         map.put(id, recipeEntry.value());
     }
@@ -70,7 +70,7 @@ public class AmsRecipeManager {
         return new RecipeHolder<>(key, Recipe.CODEC.parse(registries.createSerializationContext(JsonOps.INSTANCE), json).getOrThrow(JsonParseException::new));
     }
 
-    private void registerAllRecipes(Map<ResourceLocation, JsonElement> recipeMap) {
+    private void registerAllRecipes(Map<Identifier, JsonElement> recipeMap) {
         shapelessRecipes.forEach(recipe -> recipe.addToRecipeMap(recipeMap));
         shapedRecipes.forEach(recipe -> recipe.addToRecipeMap(recipeMap));
         smeltingRecipes.forEach(recipe -> recipe.addToRecipeMap(recipeMap));

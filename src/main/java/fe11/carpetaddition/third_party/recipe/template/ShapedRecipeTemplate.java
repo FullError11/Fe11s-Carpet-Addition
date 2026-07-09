@@ -23,7 +23,7 @@ package fe11.carpetaddition.third_party.recipe.template;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.Map;
 
@@ -31,7 +31,7 @@ public class ShapedRecipeTemplate extends AbstractRecipeTemplate {
     private final String[][] pattern;
     private final Map<Character, String> ingredients;
 
-    public ShapedRecipeTemplate(ResourceLocation recipeId, String[][] pattern, Map<Character, String> ingredients, String resultItem, int resultCount) {
+    public ShapedRecipeTemplate(Identifier recipeId, String[][] pattern, Map<Character, String> ingredients, String resultItem, int resultCount) {
         super(recipeId, resultItem, resultCount);
         this.pattern = pattern;
         this.ingredients = ingredients;

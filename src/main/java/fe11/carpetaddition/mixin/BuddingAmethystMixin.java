@@ -33,7 +33,7 @@ public class BuddingAmethystMixin {
         if (Objects.equals(FecaCarpetSettings.mineableBuddingAmethyst, MineableBuddingAmethystOptions.FALSE)) return;
 
         ci.cancel();
-        if (level.isClientSide) return;
+        if (level.isClientSide()) return;
         if (!tool.isCorrectToolForDrops(state)) return;
         if (Objects.equals(FecaCarpetSettings.mineableBuddingAmethyst, MineableBuddingAmethystOptions.SILK_TOUCH)) {
             if (!EnchantmentUtils.hasEnchantment(tool, level.registryAccess(), Enchantments.SILK_TOUCH)) {

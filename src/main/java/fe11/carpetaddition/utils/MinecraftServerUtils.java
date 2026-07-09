@@ -22,11 +22,11 @@ public class MinecraftServerUtils {
     }
 
     public static boolean isSingleplayerServerMaster(@NotNull ServerPlayer player) {
-        var server = Objects.requireNonNull(player.getServer());
-        return server.isSingleplayer() && server.isSingleplayerOwner(player.getGameProfile());
+        var server = Objects.requireNonNull(player.level().getServer());
+        return server.isSingleplayer() && server.isSingleplayerOwner(player.nameAndId());
     }
 
     public static boolean isSingleplayerServerMaster(@NotNull MinecraftServer server, @NotNull ServerPlayer player) {
-        return server.isSingleplayer() && server.isSingleplayerOwner(player.getGameProfile());
+        return server.isSingleplayer() && server.isSingleplayerOwner(player.nameAndId());
     }
 }

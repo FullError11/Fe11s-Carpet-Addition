@@ -3,7 +3,7 @@ package fe11.carpetaddition.mixin;
 import com.llamalad7.mixinextras.sugar.Local;
 import fe11.carpetaddition.recipe.Recipes;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.item.crafting.Recipe;
@@ -31,7 +31,7 @@ public abstract class RecipeManagerMixin {
                     target = "Ljava/util/ArrayList;<init>(I)V"
             )
     )
-    private void addCustomRecipes(ResourceManager resourceManager, ProfilerFiller profilerFiller, CallbackInfoReturnable<RecipeMap> cir, @Local SortedMap<ResourceLocation, Recipe<?>> recipes) {
+    private void addCustomRecipes(ResourceManager resourceManager, ProfilerFiller profilerFiller, CallbackInfoReturnable<RecipeMap> cir, @Local SortedMap<Identifier, Recipe<?>> recipes) {
         Recipes.registerCustomRecipes(recipes, registries);
     }
 }

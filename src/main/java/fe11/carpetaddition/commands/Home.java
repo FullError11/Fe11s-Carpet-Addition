@@ -86,7 +86,7 @@ public class Home {
 
     @Contract("_ -> new")
     private static @NotNull TeleportTransition worldRespawn(ServerPlayer player) {
-        return new TeleportTransition(Objects.requireNonNull(player.getServer()).overworld(), player, Home::postTeleportTransition);
+        return TeleportTransition.createDefault(player, Home::postTeleportTransition);
     }
 
     private static void postTeleportTransition(Entity entity) {}

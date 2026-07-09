@@ -4,7 +4,7 @@ import fe11.carpetaddition.FecaCarpetSettings;
 import fe11.carpetaddition.third_party.recipe.AmsRecipeBuilder;
 import fe11.carpetaddition.third_party.recipe.AmsRecipeManager;
 import net.minecraft.core.HolderLookup;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.crafting.Recipe;
@@ -19,7 +19,7 @@ import java.util.Map;
 import static fe11.carpetaddition.Feca.MOD_ID;
 
 public class Recipes {
-    public static void registerCustomRecipes(Map<ResourceLocation, Recipe<?>> map, HolderLookup.Provider wrapperLookup) {
+    public static void registerCustomRecipes(Map<Identifier, Recipe<?>> map, HolderLookup.Provider wrapperLookup) {
         AmsRecipeManager amsRecipeManager = new AmsRecipeManager(AmsRecipeBuilder.getInstance());
         AmsRecipeManager.clearRecipeListMemory(AmsRecipeBuilder.getInstance());
         FecaCarpetSettings.buildRecipes();
@@ -34,7 +34,7 @@ public class Recipes {
         if (serverIsRunning(server) && FecaCarpetSettings.hasRecipeRuleActivate()) {
             Collection<RecipeHolder<?>> allRecipes = getServerRecipeManager(server).getRecipes();
             for (RecipeHolder<?> recipe : allRecipes) {
-                if (recipe.id().location().getNamespace().equals(MOD_ID) && !player.getRecipeBook().contains(recipe.id())) {
+                if (recipe.id().identifier().getNamespace().equals(MOD_ID) && !player.getRecipeBook().contains(recipe.id())) {
                     player.awardRecipes(List.of(recipe));
                 }
             }
@@ -49,7 +49,7 @@ public class Recipes {
                 reloadServerResources(server);
                 Collection<RecipeHolder<?>> allRecipes = getServerRecipeManager(server).getRecipes();
                 for (RecipeHolder<?> recipe : allRecipes) {
-                    if (recipe.id().location().getNamespace().equals(MOD_ID)) {
+                    if (recipe.id().identifier().getNamespace().equals(MOD_ID)) {
                         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                             if (!player.getRecipeBook().contains(recipe.id())) {
                                 player.awardRecipes(List.of(recipe));

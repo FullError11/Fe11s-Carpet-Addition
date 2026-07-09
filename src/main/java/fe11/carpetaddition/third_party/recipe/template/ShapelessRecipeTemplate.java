@@ -3,14 +3,14 @@ package fe11.carpetaddition.third_party.recipe.template;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.List;
 
 public class ShapelessRecipeTemplate extends AbstractRecipeTemplate {
     private final List<String> ingredients;
 
-    public ShapelessRecipeTemplate(ResourceLocation recipeId, List<String> ingredients, String resultItem, int resultCount) {
+    public ShapelessRecipeTemplate(Identifier recipeId, List<String> ingredients, String resultItem, int resultCount) {
         super(recipeId, resultItem, resultCount);
         this.ingredients = ingredients;
     }

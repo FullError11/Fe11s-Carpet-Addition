@@ -33,7 +33,7 @@ public class ServerToClient {
             boolean owner_found = false;
             for (var player : server.getPlayerList().getPlayers()) {
                 if (!owner_found) {
-                    if (server.isSingleplayerOwner(player.getGameProfile())) {
+                    if (server.isSingleplayerOwner(player.nameAndId())) {
                         owner_found = true;
                         continue;
                     }

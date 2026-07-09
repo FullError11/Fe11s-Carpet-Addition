@@ -17,11 +17,11 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.ModInitializer;
 
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -41,8 +41,8 @@ public class Feca implements ModInitializer, ClientModInitializer, CarpetExtensi
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
 	@Contract("_ -> new")
-	public static @NotNull ResourceLocation id(String path) {
-		return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+	public static @NotNull Identifier id(String path) {
+		return Identifier.fromNamespaceAndPath(MOD_ID, path);
 	}
 
 	// ========================================== //
@@ -72,7 +72,7 @@ public class Feca implements ModInitializer, ClientModInitializer, CarpetExtensi
 	@Override
 	public void onInitializeClient() {
 		// Events Callback
-		WorldRenderEvents.AFTER_TRANSLUCENT.register(new ObserverFreezeAreasRender());
+		WorldRenderEvents.BEFORE_ENTITIES.register(new ObserverFreezeAreasRender());
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, dedicated) ->
 				ObserverFreezeAreas.registerClientCommand(dispatcher)
 		);

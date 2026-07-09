@@ -2,14 +2,14 @@ package fe11.carpetaddition.third_party.recipe.template;
 
 import com.google.gson.JsonObject;
 
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public class SmeltingRecipeTemplate extends AbstractRecipeTemplate {
     private final String ingredient;
     private final float experience;
     private final int cookingTime;
 
-    public SmeltingRecipeTemplate(ResourceLocation recipeId, String ingredient, String resultItem, float experience, int cookingTime) {
+    public SmeltingRecipeTemplate(Identifier recipeId, String ingredient, String resultItem, float experience, int cookingTime) {
         super(recipeId, resultItem, 1);
         this.ingredient = ingredient;
         this.experience = experience;

@@ -3,7 +3,7 @@ package fe11.carpetaddition.utils;
 import fe11.carpetaddition.Feca;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentType;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import org.jetbrains.annotations.Contract;
@@ -15,7 +15,7 @@ public class Attachment<T> {
     private final AttachmentType<T> DATA;
 
     @Contract("_ -> new")
-    private @NotNull ResourceLocation id(String id) {
+    private @NotNull Identifier id(String id) {
         return Feca.id(id);
     }
 
