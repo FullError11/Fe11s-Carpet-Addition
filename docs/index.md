@@ -1,5 +1,3 @@
-# Fe11's Carpet Addition
+# Fe11's Carpet Addition DOCS
 
-这是 [FullError11](https://www.github.com/fullerror11) 
-开发的 carpet 模组拓展，
-主要包含个人需要的功能。
+待编写

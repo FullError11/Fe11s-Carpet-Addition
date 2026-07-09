@@ -2,16 +2,15 @@
 	"schemaVersion": 1,
 	"id": "feca",
 	"version": "${version}",
-	"name": "Fe11CarpetAddition",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"name": "Fe11'sCarpetAddition",
+	"description": "FullError11的Carpet拓展模组",
 	"authors": [
-		"Me!"
+		"FullError11"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"sources": "https://github.com/FullError11/Fe11s-Carpet-Addition"
 	},
-	"license": "CC0-1.0",
+	"license": "MIT",
 	"icon": "assets/feca/icon.png",
 	"environment": "*",
 	"entrypoints": {
@@ -27,8 +26,8 @@
 	],
 	"accessWidener": "feca.accesswidener",
 	"depends": {
-		"fabricloader": ">=0.19.2",
-		"minecraft": "~1.21.8",
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~1.21.11",
 		"java": ">=21",
 		"fabric-api": "*"
 	}
