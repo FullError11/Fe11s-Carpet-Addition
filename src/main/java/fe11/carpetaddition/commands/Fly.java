@@ -36,9 +36,7 @@ public class Fly {
 
     private static final Attachment<Boolean> isFlyMode = new Attachment<>(
             "player_fly_mode",
-            builder -> builder
-                .initializer(() -> false)
-                .persistent(Codec.BOOL)
+            builder -> builder.initializer(() -> false).persistent(Codec.BOOL)
     );
 
     private static int switchFlyMode(CommandContext<CommandSourceStack> ctx) {

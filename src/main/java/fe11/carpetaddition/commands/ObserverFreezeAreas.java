@@ -12,6 +12,8 @@ import fe11.carpetaddition.network.ServerToClient;
 import fe11.carpetaddition.network.payload.ObserverFreezeAreasChange;
 import fe11.carpetaddition.network.payload.utils.ArrayChanges;
 import fe11.carpetaddition.utils.DelayedTaskExecutor;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
@@ -41,7 +43,12 @@ public class ObserverFreezeAreas {
                         .then(SubCommandWithPos("remove",ObserverFreezeAreas::remove))
                         .then(subCommand("removeAll", ObserverFreezeAreas::removeAll))
                         .then(subCommand("list", ObserverFreezeAreas::list))
-                        .then(subCommand("highlight", ObserverFreezeAreas::highlight))
+        );
+    }
+
+    public static void registerClientCommand(@NotNull CommandDispatcher<FabricClientCommandSource> dispatcher) {
+        dispatcher.register(
+                ClientCommandManager.literal("observerFreezeAreasHighlight").executes(ObserverFreezeAreas::highlight)
         );
     }
 
@@ -142,21 +149,22 @@ public class ObserverFreezeAreas {
 
         return Command.SINGLE_SUCCESS;
     }
-    private static int highlight(@NotNull CommandContext<CommandSourceStack> ctx) {
+    private static int highlight(@NotNull CommandContext<FabricClientCommandSource> ctx) {
         ClientConfigs.write(data -> {
             if (data.observerFreezeAreasHighlight) {
                 data.observerFreezeAreasHighlight = false;
-                ctx.getSource().sendSystemMessage(Component.translatable("feca.message.command.observerFreezeAreas.highlight.disabled"));
+                ctx.getSource().sendFeedback(Component.translatable("feca.message.command.observerFreezeAreas.highlight.disabled"));
             } else {
                 data.observerFreezeAreasHighlight = true;
                 var src = ctx.getSource();
-                src.sendSystemMessage(Component.translatable("feca.message.command.observerFreezeAreas.highlight.enabled"));
-                src.sendSystemMessage(Component.translatable("feca.message.command.observerFreezeAreas.highlight.tips"));
+                src.sendFeedback(Component.translatable("feca.message.command.observerFreezeAreas.highlight.enabled"));
+                src.sendFeedback(Component.translatable("feca.message.command.observerFreezeAreas.highlight.tips"));
             }
         });
 
         return Command.SINGLE_SUCCESS;
     }
+
 
     private static @NotNull BlockPos @NotNull [] getPosFormArgument(CommandContext<CommandSourceStack> ctx) {
         var pos1 = BlockPosArgument.getBlockPos(ctx, "pos");
@@ -193,10 +201,10 @@ public class ObserverFreezeAreas {
 
     public static void syncOnPlayerLogin(ServerPlayer player) {
         ServerPlayNetworking.send(player, new ObserverFreezeAreasChange(ArrayChanges.RemoveAll, Optional.empty()));
-        ServerConfigs.read(data -> {
-            data.observerFreezeAreas.forEach(area -> {
-                ServerPlayNetworking.send(player, new ObserverFreezeAreasChange(ArrayChanges.Add, Optional.of(area)));
-            });
-        });
+        ServerConfigs.read(data ->
+                data.observerFreezeAreas.forEach(area ->
+                        ServerPlayNetworking.send(player, new ObserverFreezeAreasChange(ArrayChanges.Add, Optional.of(area)))
+                )
+        );
     }
 }

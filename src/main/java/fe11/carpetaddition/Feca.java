@@ -8,7 +8,6 @@ import fe11.carpetaddition.commands.Home;
 import fe11.carpetaddition.commands.ObserverFreezeAreas;
 import fe11.carpetaddition.commands.Scale;
 import fe11.carpetaddition.config.ServerConfigs;
-import fe11.carpetaddition.config.ClientConfigs;
 import fe11.carpetaddition.recipe.Recipes;
 import fe11.carpetaddition.render.ObserverFreezeAreasRender;
 import fe11.carpetaddition.utils.DelayedTaskExecutor;
@@ -17,6 +16,7 @@ import fe11.carpetaddition.utils.RuleTranslator;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.ModInitializer;
 
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.commands.CommandBuildContext;
@@ -51,9 +51,9 @@ public class Feca implements ModInitializer, ClientModInitializer, CarpetExtensi
 	@Override
 	public void onInitialize() {
 		// Events Callback
-		ServerTickEvents.END_SERVER_TICK.register((server) -> {
-			DelayedTaskExecutor.tick();
-		});
+		ServerTickEvents.END_SERVER_TICK.register((server) ->
+				DelayedTaskExecutor.tick()
+		);
 
 		// Carpet
 		CarpetServer.manageExtension(this);
@@ -73,6 +73,9 @@ public class Feca implements ModInitializer, ClientModInitializer, CarpetExtensi
 	public void onInitializeClient() {
 		// Events Callback
 		WorldRenderEvents.AFTER_TRANSLUCENT.register(new ObserverFreezeAreasRender());
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, dedicated) ->
+				ObserverFreezeAreas.registerClientCommand(dispatcher)
+		);
 
 		// Config
 		// ClientConfigs.load();

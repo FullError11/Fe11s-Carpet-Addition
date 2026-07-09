@@ -19,7 +19,7 @@ public class Executor {
             return Optional.of(player);
         }
 
-        src.sendSystemMessage(Component.translatable(
+        src.sendFailure(Component.translatable(
                 "feca.message.command.common.mustRunByUser").withStyle(ChatFormatting.RED));
         return Optional.empty();
     }

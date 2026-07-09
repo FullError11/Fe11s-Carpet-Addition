@@ -2,7 +2,6 @@ package fe11.carpetaddition.network;
 
 import fe11.carpetaddition.Feca;
 import fe11.carpetaddition.config.ClientConfigs;
-import fe11.carpetaddition.config.ServerConfigs;
 import fe11.carpetaddition.network.payload.ObserverFreezeAreasChange;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -31,11 +30,11 @@ public class ServerToClient {
 
     public static void broadcastSkipOwner(@NotNull MinecraftServer server, @NotNull CustomPacketPayload payload) {
         if (server.isSingleplayer()) {
-            boolean owner_skiped = false;
+            boolean owner_found = false;
             for (var player : server.getPlayerList().getPlayers()) {
-                if (!owner_skiped) {
+                if (!owner_found) {
                     if (server.isSingleplayerOwner(player.getGameProfile())) {
-                        owner_skiped = true;
+                        owner_found = true;
                         continue;
                     }
                 }
