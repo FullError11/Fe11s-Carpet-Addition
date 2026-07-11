@@ -50,6 +50,9 @@
   "carpet.rule.commandObserverFreezeAreas.desc": "允许玩家执行 /observerFreezeAreas 指令以冻结区域内的侦测器",
   "carpet.rule.commandObserverFreezeAreas.extra.0": "[注意] 客户端安装Feca模组后可使用 highlight 子选项",
 
+  "carpet.rule.boneMealCopySapling.name": "骨粉复制树苗",
+  "carpet.rule.boneMealCopySapling.desc": "当树苗正上方一格为黑曜石时，对其使用骨粉将有概率掉落一个该树苗，此概率等同于树苗被催熟的概率",
+
   "carpet.rule.boneMealRipenSmallFlowers.name": "骨粉催熟小型花",
   "carpet.rule.boneMealRipenSmallFlowers.desc": "允许使用骨粉催熟小型花。",
   "carpet.rule.boneMealRipenSmallFlowers.extra.0": "此功能可能被 carpet-AMS 的 可催熟小花(fertilizableSmallFlower)覆盖，若不生效请同时开启两个选项",
@@ -65,6 +68,9 @@
 
   "carpet.rule.activeMending.name": "主动经验修补",
   "carpet.rule.activeMending.desc": "玩家装备的带有经验修补的物品会主动消耗经验修补自身 (主手/副手/盔甲栏)。",
+
+  "carpet.rule.betterGlowLichenCopy.name": "更好的发光地衣复制",
+  "carpet.rule.betterGlowLichenCopy.desc": "当对发光地衣使用骨粉时，将使其直接生成掉落物",
 
   "carpet.rule.craftableReinforcedDeepSlate.name": "可合成强化深板岩",
   "carpet.rule.craftableReinforcedDeepSlate.desc": "允许玩家合成强化深板岩",

@@ -10,9 +10,11 @@
     "FlowerBlockMinix",
     "FlyDisableSprintingMixin",
     "FlyPermFixMixin",
+    "GlowLichenBlockMixin",
     "MinecraftServerMixin",
     "ObserverFreezeAreasMixin",
-    "RecipeManagerMixin"
+    "RecipeManagerMixin",
+    "SaplingBlockMixin"
   ],
   "injectors": {
     "defaultRequire": 1

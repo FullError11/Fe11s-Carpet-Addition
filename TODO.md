@@ -12,9 +12,9 @@
     - disallowClosing
 - [ ] quickMaterialProcessing
   材料快速处理，允许在工作台快速进行 石头->圆石，原木去皮，沙砾->燧石 等操作
-- [ ] betterGlowLichenRipen
-  更好的发光地衣催熟，在对发光地衣使用骨粉时，直接创建掉落物
-- [ ] seedlingCloning
+- [x] betterGlowLichenCopy
+  更好的发光地衣复制，在对发光地衣使用骨粉时，直接创建掉落物
+- [x] boneMealCopySapling
   对正上方一格为黑曜石的树苗使用骨粉时，有概率(等同于树苗催熟概率)掉落一个该树苗的掉落物
 - [ ] coralNoDie
   珊瑚在主世界即使不接触水也不会枯萎，在下界时不受此规则影响

@@ -50,12 +50,15 @@
   "carpet.rule.commandObserverFreezeAreas.desc": "Allows players to execute the /observerFreezeAreas command to freeze observers within an area",
   "carpet.rule.commandObserverFreezeAreas.extra.0": "[Note] The highlight sub-option is available after installing the Feca mod on the client",
 
+  "carpet.rule.boneMealCopySapling.name": "Bone meal copies saplings",
+  "carpet.rule.boneMealCopySapling.desc": "When the block directly above a sapling is obsidian, using bone meal on it has a chance to drop one sapling of that type. The probability is equal to the sapling's growth chance.",
+
   "carpet.rule.boneMealRipenSmallFlowers.name": "Bone meal ripens small flowers",
   "carpet.rule.boneMealRipenSmallFlowers.desc": "Allows bone meal to be used to ripen small flowers.",
+  "carpet.rule.boneMealRipenSmallFlowers.extra.0": "This feature may be overridden by carpet-AMS's fertilizableSmallFlower. If it does not take effect, please enable both options at the same time.",
 
   "carpet.rule.boneMealRipenChorusFlower.name": "Bone meal ripens chorus flowers",
   "carpet.rule.boneMealRipenChorusFlower.desc": "Allows bone meal to be used to ripen chorus flowers.",
-  "carpet.rule.boneMealRipenSmallFlowers.extra.0": "This feature may be overridden by carpet-AMS's fertilizableSmallFlower. If it does not take effect, please enable both options at the same time.",
 
   "carpet.rule.chorusFruitAsSeed.name": "Chorus fruit as seed",
   "carpet.rule.chorusFruitAsSeed.desc": "Allows chorus fruit to be used as a seed, planted by right-clicking on the top surface of end stone.",
@@ -65,6 +68,9 @@
 
   "carpet.rule.activeMending.name": "Active Mending",
   "carpet.rule.activeMending.desc": "Items with Mending equipped by the player (main hand/offhand/armor slots) will actively consume XP to repair themselves.",
+
+  "carpet.rule.betterGlowLichenCopy.name": "Better glow lichen copying",
+  "carpet.rule.betterGlowLichenCopy.desc": "When bone meal is used on glow lichen, it will directly produce item drops.",
 
   "carpet.rule.craftableReinforcedDeepSlate.name": "Craftable reinforced deepslate",
   "carpet.rule.craftableReinforcedDeepSlate.desc": "Allows players to craft reinforced deepslate.",

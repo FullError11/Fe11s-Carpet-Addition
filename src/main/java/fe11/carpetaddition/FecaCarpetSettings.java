@@ -101,6 +101,10 @@ public class FecaCarpetSettings {
     // 规则 # 未分类
     // ==================================================== //
 
+    // 骨粉复制树苗
+    @Rule(categories = {FECA, SURVIVAL})
+    static public boolean boneMealCopySapling = false;
+
     // 允许骨粉催熟小型花
     @Rule(categories = {FECA, SURVIVAL})
     static public boolean boneMealRipenSmallFlowers = false;
@@ -152,6 +156,11 @@ public class FecaCarpetSettings {
     )
     public static String activeMending = ActiveMendingOptions.FALSE;
 
+    // 更好的 发光地衣 复制
+    @Rule(categories = {FECA, SURVIVAL})
+    public static boolean betterGlowLichenCopy = false;
+
+
     // ==================================================== //
     // 规则 # 配方
     // ==================================================== //
@@ -168,6 +177,7 @@ public class FecaCarpetSettings {
         return true;
     }
     public static void buildRecipes() {
+        // 强化深板岩
         new ShapedRecipeBuilder(craftableReinforcedDeepSlate, "reinforced_deep_slate")
                 .pattern("###", "#D#", "###")
                 .define(
@@ -175,6 +185,7 @@ public class FecaCarpetSettings {
                         new Pair<>('D', Items.DEEPSLATE)
                 )
                 .output(REINFORCED_DEEPSLATE, 1).build();
+        // 末地传送门框架
         new ShapedRecipeBuilder(craftableEndPortalFrame, "end_portal_frame")
                 .pattern("#*#", "###")
                 .define(
@@ -186,8 +197,7 @@ public class FecaCarpetSettings {
     static class OnRecipeRuleChanged implements SettingsManager.RuleObserver {
         @Override
         public void ruleChanged(CommandSourceStack source, @NotNull CarpetRule<?> changedRule, String userInput) {
-            var ruleName = changedRule.name();
-            if (ruleName.startsWith("craftable")) {
+            if (changedRule.name().startsWith("craftable")) {
                 Recipes.onValueChange(source.getServer());
             }
         }

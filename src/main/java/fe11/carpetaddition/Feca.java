@@ -7,6 +7,7 @@ import fe11.carpetaddition.commands.Fly;
 import fe11.carpetaddition.commands.Home;
 import fe11.carpetaddition.commands.ObserverFreezeAreas;
 import fe11.carpetaddition.commands.Scale;
+import fe11.carpetaddition.config.ClientConfigs;
 import fe11.carpetaddition.config.ServerConfigs;
 import fe11.carpetaddition.recipe.Recipes;
 import fe11.carpetaddition.render.ObserverFreezeAreasRender;
@@ -77,8 +78,8 @@ public class Feca implements ModInitializer, ClientModInitializer, CarpetExtensi
 				ObserverFreezeAreas.registerClientCommand(dispatcher)
 		);
 
-		// Config
-		// ClientConfigs.load();
+		 // Config
+		 ClientConfigs.load();
 
 		// Network
 		fe11.carpetaddition.network.ClientToServer.registerSend();
