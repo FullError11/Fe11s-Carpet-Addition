@@ -178,7 +178,7 @@ public class ObserverFreezeAreas {
 
     private static LiteralArgumentBuilder<CommandSourceStack> SubCommandWithPos(String subcommand, Command<CommandSourceStack> execute) {
         return Commands.literal(subcommand)
-                .then(Commands.argument("pos", BlockPosArgument.blockPos()).executes(execute)
+                .then(Commands.argument("pos", BlockPosArgument.blockPos())
                         .then(Commands.argument("pos2", BlockPosArgument.blockPos()).executes(execute))
                 );
     }

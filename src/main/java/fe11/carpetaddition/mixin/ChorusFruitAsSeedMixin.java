@@ -25,6 +25,7 @@ public class ChorusFruitAsSeedMixin {
             var pos = context.getClickedPos();
             if (level.getBlockState(pos).is(Blocks.END_STONE) && context.getClickedFace() == Direction.UP) {
                 level.setBlock(pos.above(), Blocks.CHORUS_FLOWER.defaultBlockState(), 3);
+                itemStack.shrink(1);
                 cir.setReturnValue(InteractionResult.SUCCESS);
             }
         }
