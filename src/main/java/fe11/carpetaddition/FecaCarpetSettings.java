@@ -109,6 +109,11 @@ public class FecaCarpetSettings {
     @Rule(categories = {FECA, SURVIVAL})
     static public boolean boneMealRipenSmallFlowers = false;
 
+    // 允许骨粉催熟甘蔗
+    @Rule(categories = {FECA, SURVIVAL})
+    static public boolean boneMealRipenSugarCane = false;
+
+
     // 允许骨粉催熟紫颂花
     public interface BoneMealRipenChorusFlowerOptions extends BoolFalseOption {
         String GROW = "grow";
@@ -159,6 +164,10 @@ public class FecaCarpetSettings {
     // 更好的 发光地衣 复制
     @Rule(categories = {FECA, SURVIVAL})
     public static boolean betterGlowLichenCopy = false;
+
+    // 可堆叠不死图腾
+    @Rule(categories = {FECA, SURVIVAL})
+    public static boolean stackableTotemOfUndying = false;
 
 
     // ==================================================== //

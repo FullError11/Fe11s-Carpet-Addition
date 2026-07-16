@@ -57,6 +57,9 @@
   "carpet.rule.boneMealRipenSmallFlowers.desc": "Allows bone meal to be used to ripen small flowers.",
   "carpet.rule.boneMealRipenSmallFlowers.extra.0": "This feature may be overridden by carpet-AMS's fertilizableSmallFlower. If it does not take effect, please enable both options at the same time.",
 
+  "carpet.rule.boneMealRipenSugarCane.name": "Bone meal ripens sugar cane",
+  "carpet.rule.boneMealRipenSugarCane.desc": "Allows bone meal to be used to ripen sugar cane.",
+
   "carpet.rule.boneMealRipenChorusFlower.name": "Bone meal ripens chorus flowers",
   "carpet.rule.boneMealRipenChorusFlower.desc": "Allows bone meal to be used to ripen chorus flowers.",
 
@@ -72,6 +75,9 @@
   "carpet.rule.betterGlowLichenCopy.name": "Better glow lichen copying",
   "carpet.rule.betterGlowLichenCopy.desc": "When bone meal is used on glow lichen, it will directly produce item drops.",
 
+  "carpet.rule.stackableTotemOfUndying.name": "Stackable totem of undying",
+  "carpet.rule.stackableTotemOfUndying.desc": "Changes the stack size of the totem of undying to 64.",
+  
   "carpet.rule.craftableReinforcedDeepSlate.name": "Craftable reinforced deepslate",
   "carpet.rule.craftableReinforcedDeepSlate.desc": "Allows players to craft reinforced deepslate.",
   "carpet.rule.craftableReinforcedDeepSlate.extra.0": "Crafting recipe",

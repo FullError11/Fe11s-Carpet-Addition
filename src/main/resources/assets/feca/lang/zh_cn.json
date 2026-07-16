@@ -57,6 +57,9 @@
   "carpet.rule.boneMealRipenSmallFlowers.desc": "允许使用骨粉催熟小型花。",
   "carpet.rule.boneMealRipenSmallFlowers.extra.0": "此功能可能被 carpet-AMS 的 可催熟小花(fertilizableSmallFlower)覆盖，若不生效请同时开启两个选项",
 
+  "carpet.rule.boneMealRipenSugarCane.name": "骨粉催熟甘蔗",
+  "carpet.rule.boneMealRipenSugarCane.desc": "允许骨粉催熟甘蔗。",
+
   "carpet.rule.boneMealRipenChorusFlower.name": "骨粉催熟紫颂花",
   "carpet.rule.boneMealRipenChorusFlower.desc": "允许使用骨粉催熟紫颂花。",
 
@@ -71,6 +74,9 @@
 
   "carpet.rule.betterGlowLichenCopy.name": "更好的发光地衣复制",
   "carpet.rule.betterGlowLichenCopy.desc": "当对发光地衣使用骨粉时，将使其直接生成掉落物",
+
+  "carpet.rule.stackableTotemOfUndying.name": "可堆叠不死图腾",
+  "carpet.rule.stackableTotemOfUndying.desc": "。",
 
   "carpet.rule.craftableReinforcedDeepSlate.name": "可合成强化深板岩",
   "carpet.rule.craftableReinforcedDeepSlate.desc": "允许玩家合成强化深板岩",
