@@ -25,7 +25,6 @@
   "feca.message.command.observerFreezeAreas.list.remove.tips": "Remove %s ~ %s",
   "feca.message.command.observerFreezeAreas.highlight.enabled": "Observer freeze area highlight is enabled now",
   "feca.message.command.observerFreezeAreas.highlight.disabled": "Observer freeze area highlight is disabled now",
-  "feca.message.command.observerFreezeAreas.highlight.tips": "Only works on clients where `Feca Mod` is installed",
 
   "carpet.rule.commandFly.name": "Enable fly command",
   "carpet.rule.commandFly.desc": "Allows players to execute the /fly command to fly.",
@@ -77,7 +76,7 @@
 
   "carpet.rule.stackableTotemOfUndying.name": "Stackable totem of undying",
   "carpet.rule.stackableTotemOfUndying.desc": "Changes the stack size of the totem of undying to 64.",
-  
+
   "carpet.rule.craftableReinforcedDeepSlate.name": "Craftable reinforced deepslate",
   "carpet.rule.craftableReinforcedDeepSlate.desc": "Allows players to craft reinforced deepslate.",
   "carpet.rule.craftableReinforcedDeepSlate.extra.0": "Crafting recipe",

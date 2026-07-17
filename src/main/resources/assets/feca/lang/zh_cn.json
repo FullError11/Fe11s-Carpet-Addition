@@ -25,7 +25,6 @@
   "feca.message.command.observerFreezeAreas.list.remove.tips": "移除 %s ~ %s",
   "feca.message.command.observerFreezeAreas.highlight.enabled": "侦测器冻结区域高亮现已开启",
   "feca.message.command.observerFreezeAreas.highlight.disabled": "侦测器冻结区域高亮现已关闭",
-  "feca.message.command.observerFreezeAreas.highlight.tips": "仅在安装了 `Feca 模组` 的客户端上生效",
 
   "carpet.rule.commandFly.name": "启用 fly 指令",
   "carpet.rule.commandFly.desc": "允许玩家执行 /fly 指令以飞行。",

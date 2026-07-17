@@ -1,21 +1,32 @@
 package fe11.carpetaddition.config.utils;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
+import com.google.gson.*;
 import fe11.carpetaddition.Feca;
-import fe11.carpetaddition.utils.MinecraftServerUtils;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.storage.LevelResource;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.NonNull;
 
 import java.io.*;
+import java.lang.reflect.Type;
 import java.nio.file.Path;
 import java.util.Optional;
 
 public class Configurator<T> {
-    private final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static class IdentifierKeyDeserializer implements JsonDeserializer<Identifier> {
+        @Override
+        public @NonNull Identifier deserialize(@NonNull JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
+            String keyString = json.getAsString();
+            return Identifier.parse(keyString);
+        }
+    }
+    private final Gson GSON = new GsonBuilder()
+            .setPrettyPrinting()
+            .registerTypeAdapter(Identifier.class, new IdentifierKeyDeserializer())
+            .create();
     private final Path CONFIG_PATH;
     private final Class<T> clazz;
 

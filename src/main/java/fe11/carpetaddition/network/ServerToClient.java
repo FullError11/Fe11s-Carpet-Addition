@@ -18,11 +18,12 @@ public class ServerToClient {
     public static void registerReceive() {
         ClientPlayNetworking.registerGlobalReceiver(ObserverFreezeAreasChange.TYPE,
                 ((payload, context) -> context.client().execute(() -> {
+            var dimension = payload.dimension();
             var area = payload.area();
             switch (payload.change()) {
-                case Add -> ClientConfigs.writeSync(data -> data.observerFreezeAreas.add(area.orElseThrow()));
-                case Remove -> ClientConfigs.writeSync(data -> data.observerFreezeAreas.remove(area.orElseThrow()));
-                case RemoveAll -> ClientConfigs.writeSync(data -> data.observerFreezeAreas.clear());
+                case Add -> ClientConfigs.writeSync(data -> data.observerFreezeAreas.add(dimension, area.orElseThrow()));
+                case Remove -> ClientConfigs.writeSync(data -> data.observerFreezeAreas.remove(dimension, area.orElseThrow()));
+                case RemoveAll -> ClientConfigs.writeSync(data -> data.observerFreezeAreas.clearDimension(dimension));
                 default -> Feca.LOGGER.warn("Unknown change: {}", payload.change());
             }
         })));
