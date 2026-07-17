@@ -3,17 +3,13 @@ package fe11.carpetaddition.network.payload;
 import fe11.carpetaddition.Feca;
 import fe11.carpetaddition.network.payload.utils.AABBCodec;
 import fe11.carpetaddition.network.payload.utils.ArrayChanges;
-import fe11.carpetaddition.network.payload.utils.ResourceKeyStreamCodec;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Optional;
 
