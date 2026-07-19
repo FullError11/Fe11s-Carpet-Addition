@@ -169,6 +169,14 @@ public class FecaCarpetSettings {
     @Rule(categories = {FECA, SURVIVAL})
     public static boolean stackableTotemOfUndying = false;
 
+    // 可堆叠水桶
+    @Rule(categories = {FECA, SURVIVAL})
+    public static boolean stackableWaterBucket = false;
+
+    // 空桶堆叠增强
+    @Rule(categories = {FECA, SURVIVAL})
+    public static boolean bucketStackingBoost = false;
+
 
     // ==================================================== //
     // 规则 # 配方

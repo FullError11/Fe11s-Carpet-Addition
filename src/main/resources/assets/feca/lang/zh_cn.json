@@ -75,7 +75,13 @@
   "carpet.rule.betterGlowLichenCopy.desc": "当对发光地衣使用骨粉时，将使其直接生成掉落物",
 
   "carpet.rule.stackableTotemOfUndying.name": "可堆叠不死图腾",
-  "carpet.rule.stackableTotemOfUndying.desc": "。",
+  "carpet.rule.stackableTotemOfUndying.desc": "修改不死图腾的堆叠上限为64个。",
+
+  "carpet.rule.stackableWaterBucket.name": "可堆叠水桶",
+  "carpet.rule.stackableWaterBucket.desc": "修改水桶的堆叠上限为64个。",
+
+  "carpet.rule.bucketStackingBoost.name": "空桶堆叠增强",
+  "carpet.rule.bucketStackingBoost.desc": "修改桶的堆叠上限为64个。",
 
   "carpet.rule.craftableReinforcedDeepSlate.name": "可合成强化深板岩",
   "carpet.rule.craftableReinforcedDeepSlate.desc": "允许玩家合成强化深板岩",
