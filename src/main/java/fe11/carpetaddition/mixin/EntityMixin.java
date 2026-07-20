@@ -1,6 +1,6 @@
 package fe11.carpetaddition.mixin;
 
-import fe11.carpetaddition.mixin.functions.Fly;
+import fe11.carpetaddition.mixinFunctions.Fly;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;
 import org.spongepowered.asm.mixin.Mixin;

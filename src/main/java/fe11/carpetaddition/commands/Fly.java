@@ -3,10 +3,12 @@ package fe11.carpetaddition.commands;
 import carpet.utils.CommandHelper;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.serialization.Codec;
 import fe11.carpetaddition.FecaCarpetSettings;
 import fe11.carpetaddition.commands.utils.Executor;
+import fe11.carpetaddition.server.CommandRegisterServer;
 import fe11.carpetaddition.utils.Attachment;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -16,22 +18,21 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import org.jetbrains.annotations.NotNull;
 
-public class Fly {
-    public static void registerCommand(@NotNull CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(
-            Commands.literal("fly")
-            .requires(stack -> CommandHelper.canUseCommand(stack, FecaCarpetSettings.commandFly))
+public class Fly implements CommandRegisterServer.ServerCommandRegister {
+    @Override
+    public LiteralArgumentBuilder<CommandSourceStack> registerServerCommand() {
+        return Commands.literal("fly")
+                .requires(stack -> CommandHelper.canUseCommand(stack, FecaCarpetSettings.commandFly))
                 .executes(Fly::switchFlyMode)
                 .then(Commands.literal("switch")
-                    .executes(Fly::switchFlyMode)
+                        .executes(Fly::switchFlyMode)
                 )
                 .then(Commands.literal("enable")
-                    .executes(Fly::enableFlyMode)
+                        .executes(Fly::enableFlyMode)
                 )
                 .then(Commands.literal("disable")
-                    .executes(Fly::disableFlyMode)
-                )
-        );
+                        .executes(Fly::disableFlyMode)
+                );
     }
 
     private static final Attachment<Boolean> isFlyMode = new Attachment<>(

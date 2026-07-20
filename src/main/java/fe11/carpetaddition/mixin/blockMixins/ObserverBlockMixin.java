@@ -1,7 +1,7 @@
 package fe11.carpetaddition.mixin.blockMixins;
 
 import fe11.carpetaddition.Feca;
-import fe11.carpetaddition.mixin.functions.ObserverFreezeAreas;
+import fe11.carpetaddition.mixinFunctions.ObserverFreezeAreas;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;

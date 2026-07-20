@@ -8,6 +8,8 @@ import fe11.carpetaddition.config.ClientConfigs;
 import fe11.carpetaddition.config.ServerConfigs;
 import fe11.carpetaddition.recipe.Recipes;
 import fe11.carpetaddition.render.ObserverFreezeAreasRender;
+import fe11.carpetaddition.server.AnvilRegisterServer;
+import fe11.carpetaddition.server.CommandRegisterServer;
 import fe11.carpetaddition.utils.DelayedTaskExecutor;
 import fe11.carpetaddition.utils.MinecraftServerUtils;
 import fe11.carpetaddition.utils.RuleTranslator;
@@ -16,6 +18,7 @@ import net.fabricmc.api.ModInitializer;
 
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.item.v1.EnchantingContext;
 import net.fabricmc.fabric.api.item.v1.EnchantmentEvents;
@@ -60,11 +63,10 @@ public class Feca implements ModInitializer, ClientModInitializer, CarpetExtensi
 
 		EnchantmentEvents.ALLOW_ENCHANTING.register((enchantment, target, context) -> {
 			if (context == EnchantingContext.ACCEPTABLE) {
-				if ((target.is(Items.WATER_BUCKET) || target.is(Items.BUCKET)) && enchantment.is(Enchantments.INFINITY)) {
-					return TriState.TRUE;
-				}
+				return AnvilRegisterServer.INSTANCE.get(enchantment)
+						.map(validator -> TriState.of(validator.validate(target)))
+						.orElse(TriState.DEFAULT);
 			}
-
 			return TriState.DEFAULT;
 		});
 
@@ -87,7 +89,7 @@ public class Feca implements ModInitializer, ClientModInitializer, CarpetExtensi
 		// Events Callback
 		WorldRenderEvents.BEFORE_ENTITIES.register(new ObserverFreezeAreasRender());
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, dedicated) ->
-				ObserverFreezeAreas.registerClientCommand(dispatcher)
+				CommandRegisterServer.INSTANCE.registerClientCommands(dispatcher)
 		);
 
 		 // Config
@@ -119,10 +121,7 @@ public class Feca implements ModInitializer, ClientModInitializer, CarpetExtensi
 
 	@Override
 	public void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext commandBuildContext) {
-		Fly.registerCommand(dispatcher);
-		Scale.registerCommand(dispatcher);
-		Home.registerCommand(dispatcher);
-		ObserverFreezeAreas.registerCommand(dispatcher);
+		CommandRegisterServer.INSTANCE.registerServerCommands(dispatcher);
 	}
 
 	@Override

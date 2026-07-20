@@ -1,6 +1,7 @@
 package fe11.carpetaddition.mixin.itemMixins;
 
 import fe11.carpetaddition.FecaCarpetSettings;
+import fe11.carpetaddition.server.AnvilRegisterServer;
 import fe11.carpetaddition.utils.EnchantmentUtils;
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.BlockPos;
@@ -11,10 +12,7 @@ import net.minecraft.stats.Stats;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.BucketItem;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ItemUtils;
+import net.minecraft.world.item.*;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -47,6 +45,12 @@ public class BucketItemMixin {
     @Final
     @Shadow
     private Fluid content;
+
+    static {
+        AnvilRegisterServer.INSTANCE.add(Enchantments.INFINITY, itemStack
+                -> (FecaCarpetSettings.voidBucket && itemStack.is(Items.BUCKET))
+                || (FecaCarpetSettings.infiniteWaterBucket && itemStack.is(Items.WATER_BUCKET)));
+    }
 
 
     /**

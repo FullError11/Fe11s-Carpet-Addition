@@ -4,9 +4,11 @@ import carpet.utils.CommandHelper;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import fe11.carpetaddition.FecaCarpetSettings;
 import fe11.carpetaddition.commands.utils.Executor;
+import fe11.carpetaddition.server.CommandRegisterServer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -17,19 +19,18 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import org.jetbrains.annotations.NotNull;
 
 
-public class Scale {
-    private static final String SCALE_VALUE = "scale";
-
-    public static void registerCommand(@NotNull CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(
-            Commands.literal("scale")
-            .requires(stack -> CommandHelper.canUseCommand(stack, FecaCarpetSettings.commandScale))
+public class Scale implements CommandRegisterServer.ServerCommandRegister {
+    @Override
+    public LiteralArgumentBuilder<CommandSourceStack> registerServerCommand() {
+        return Commands.literal("scale")
+                .requires(stack -> CommandHelper.canUseCommand(stack, FecaCarpetSettings.commandScale))
                 .executes(Scale::info)
                 .then(Commands.argument(SCALE_VALUE, DoubleArgumentType.doubleArg())
-                    .executes(Scale::execute)
-                )
-        );
+                        .executes(Scale::execute)
+                );
     }
+
+    private static final String SCALE_VALUE = "scale";
 
     private static int info(CommandContext<CommandSourceStack> ctx) {
         return Executor.runIfFromPlayer(ctx, player -> {

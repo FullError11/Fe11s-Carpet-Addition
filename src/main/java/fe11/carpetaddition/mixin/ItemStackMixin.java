@@ -1,6 +1,6 @@
 package fe11.carpetaddition.mixin;
 
-import fe11.carpetaddition.mixin.functions.StackableItem;
+import fe11.carpetaddition.mixinFunctions.StackableItem;
 import org.jspecify.annotations.NonNull;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

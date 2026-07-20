@@ -3,10 +3,12 @@ package fe11.carpetaddition.commands;
 import carpet.utils.CommandHelper;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import fe11.carpetaddition.Feca;
 import fe11.carpetaddition.FecaCarpetSettings;
 import fe11.carpetaddition.commands.utils.Executor;
+import fe11.carpetaddition.server.CommandRegisterServer;
 import fe11.carpetaddition.utils.DelayedTaskExecutor;
 import fe11.carpetaddition.utils.PlayerUtils;
 import net.minecraft.ChatFormatting;
@@ -22,20 +24,19 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class Home {
-    public static void registerCommand(@NotNull CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(
-            Commands.literal("home")
-            .requires(stack -> CommandHelper.canUseCommand(stack, FecaCarpetSettings.commandHome))
+public class Home implements CommandRegisterServer.ServerCommandRegister {
+    @Override
+    public LiteralArgumentBuilder<CommandSourceStack> registerServerCommand() {
+        return Commands.literal("home")
+                .requires(stack -> CommandHelper.canUseCommand(stack, FecaCarpetSettings.commandHome))
                 .executes(Home::homeSelf)
                 .then(Commands.literal("self")
-                    .executes(Home::homeSelf)
+                        .executes(Home::homeSelf)
                 )
                 .then(Commands.literal("world")
-                    .requires(stack -> CommandHelper.canUseCommand(stack, FecaCarpetSettings.commandHomeWorld))
-                    .executes(Home::homeWorld)
-                )
-        );
+                        .requires(stack -> CommandHelper.canUseCommand(stack, FecaCarpetSettings.commandHomeWorld))
+                        .executes(Home::homeWorld)
+                );
     }
 
     private static int homeSelf(CommandContext<CommandSourceStack> ctx) {

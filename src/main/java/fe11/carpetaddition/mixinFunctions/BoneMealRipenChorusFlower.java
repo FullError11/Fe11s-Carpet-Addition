@@ -1,12 +1,10 @@
-package fe11.carpetaddition.mixin.functions;
+package fe11.carpetaddition.mixinFunctions;
 
 import fe11.carpetaddition.FecaCarpetSettings;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jspecify.annotations.NonNull;

@@ -3,22 +3,22 @@
   "package": "fe11.carpetaddition.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
-    "ServerPlayerMixin",
-    "itemMixins.BucketItemMixin",
-    "BucketItemMixin$ItemAccessor",
-    "blockMixins.BlockMixin",
-    "blockMixins.ChorusFlowerBlockMixin",
-    "itemMixins.ItemMixin",
-    "blockMixins.FlowerBlockMinix",
     "EntityMixin",
-    "ServerPlayerGameModeMixin",
-    "blockMixins.GlowLichenBlockMixin",
     "ItemStackMixin",
     "MinecraftServerMixin",
-    "blockMixins.ObserverBlockMixin",
     "RecipeManagerMixin",
+    "ServerPlayerGameModeMixin",
+    "ServerPlayerMixin",
+    "blockMixins.BlockMixin",
+    "blockMixins.ChorusFlowerBlockMixin",
+    "blockMixins.FlowerBlockMinix",
+    "blockMixins.GlowLichenBlockMixin",
+    "blockMixins.ObserverBlockMixin",
     "blockMixins.SaplingBlockMixin",
-    "blockMixins.SugarCaneBlockMixin"
+    "blockMixins.SugarCaneBlockMixin",
+    "itemMixins.BucketItemMixin",
+    "itemMixins.BucketItemMixin$ItemAccessor",
+    "itemMixins.ItemMixin"
   ],
   "injectors": {
     "defaultRequire": 1

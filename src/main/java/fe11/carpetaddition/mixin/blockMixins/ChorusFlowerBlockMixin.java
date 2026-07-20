@@ -1,6 +1,6 @@
 package fe11.carpetaddition.mixin.blockMixins;
 
-import fe11.carpetaddition.mixin.functions.BoneMealRipenChorusFlower;
+import fe11.carpetaddition.mixinFunctions.BoneMealRipenChorusFlower;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;

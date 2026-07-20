@@ -3,6 +3,7 @@ package fe11.carpetaddition.commands;
 import carpet.utils.CommandHelper;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import fe11.carpetaddition.Feca;
 import fe11.carpetaddition.FecaCarpetSettings;
@@ -12,6 +13,7 @@ import fe11.carpetaddition.config.ServerConfigs;
 import fe11.carpetaddition.network.ServerToClient;
 import fe11.carpetaddition.network.payload.ObserverFreezeAreasChange;
 import fe11.carpetaddition.network.payload.utils.ArrayChanges;
+import fe11.carpetaddition.server.CommandRegisterServer;
 import fe11.carpetaddition.utils.DelayedTaskExecutor;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
@@ -34,47 +36,45 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Optional;
 
 
-public class ObserverFreezeAreas {
+public class ObserverFreezeAreas implements CommandRegisterServer.ServerCommandRegister, CommandRegisterServer.ClientCommandRegister {
+    @Override
+    public LiteralArgumentBuilder<CommandSourceStack> registerServerCommand() {
+        return Commands.literal("observerFreezeAreas")
+                .requires(stack -> CommandHelper.canUseCommand(stack, FecaCarpetSettings.commandObserverFreezeAreas))
+                .then(Commands.literal("add")
+                        .then(areaUtil.require(ctx -> modifyAreas(ctx, ArrayChanges.Add)))
+                )
+                .then(Commands.literal("remove")
+                        .then(areaUtil.require(ctx -> modifyAreas(ctx, ArrayChanges.Remove)))
+                )
+                .then(Commands.literal("removeAll")
+                        .executes(ObserverFreezeAreas::removeAll)
+                )
+                .then(Commands.literal("list")
+                        .executes(ObserverFreezeAreas::list)
+                );
+    }
+
+    @Override
+    public LiteralArgumentBuilder<FabricClientCommandSource> registerClientCommand() {
+        return ClientCommandManager.literal("observerFreezeAreasHighlight")
+                .executes(ctx -> {
+                    ClientConfigs.write(data -> {
+                        if (data.observerFreezeAreasHighlight) {
+                            data.observerFreezeAreasHighlight = false;
+                            ctx.getSource().sendFeedback(Component.translatable("feca.message.command.observerFreezeAreas.highlight.disabled"));
+                        } else {
+                            data.observerFreezeAreasHighlight = true;
+                            var src = ctx.getSource();
+                            src.sendFeedback(Component.translatable("feca.message.command.observerFreezeAreas.highlight.enabled"));
+                        }
+                    });
+
+                    return Command.SINGLE_SUCCESS;
+                });
+    }
+
     private static final AreaList.ArgumentUtil areaUtil = new AreaList.ArgumentUtil("pos1", "po2");
-
-    public static void registerCommand(@NotNull CommandDispatcher<CommandSourceStack> dispatcher) {
-        dispatcher.register(
-                Commands.literal("observerFreezeAreas")
-                        .requires(stack -> CommandHelper.canUseCommand(stack, FecaCarpetSettings.commandObserverFreezeAreas))
-                        .then(Commands.literal("add")
-                                .then(areaUtil.require(ctx -> modifyAreas(ctx, ArrayChanges.Add)))
-                        )
-                        .then(Commands.literal("remove")
-                                .then(areaUtil.require(ctx -> modifyAreas(ctx, ArrayChanges.Remove)))
-                        )
-                        .then(Commands.literal("removeAll")
-                                .executes(ObserverFreezeAreas::removeAll)
-                        )
-                        .then(Commands.literal("list")
-                                .executes(ObserverFreezeAreas::list)
-                        )
-        );
-    }
-
-    public static void registerClientCommand(@NotNull CommandDispatcher<FabricClientCommandSource> dispatcher) {
-        dispatcher.register(
-                ClientCommandManager.literal("observerFreezeAreasHighlight")
-                        .executes(ctx -> {
-                            ClientConfigs.write(data -> {
-                                if (data.observerFreezeAreasHighlight) {
-                                    data.observerFreezeAreasHighlight = false;
-                                    ctx.getSource().sendFeedback(Component.translatable("feca.message.command.observerFreezeAreas.highlight.disabled"));
-                                } else {
-                                    data.observerFreezeAreasHighlight = true;
-                                    var src = ctx.getSource();
-                                    src.sendFeedback(Component.translatable("feca.message.command.observerFreezeAreas.highlight.enabled"));
-                                }
-                            });
-
-                            return Command.SINGLE_SUCCESS;
-                        })
-        );
-    }
 
     private static int modifyAreas(CommandContext<CommandSourceStack> ctx, ArrayChanges changes) {
         var posPair = areaUtil.getPosSafely(ctx).orElseThrow();

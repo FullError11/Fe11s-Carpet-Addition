@@ -1,6 +1,6 @@
 package fe11.carpetaddition.mixin.itemMixins;
 
-import fe11.carpetaddition.mixin.functions.ChorusFruitAsSeed;
+import fe11.carpetaddition.mixinFunctions.ChorusFruitAsSeed;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.context.UseOnContext;

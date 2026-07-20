@@ -1,4 +1,4 @@
-package fe11.carpetaddition.mixin.functions;
+package fe11.carpetaddition.mixinFunctions;
 
 import fe11.carpetaddition.FecaCarpetSettings;
 import fe11.carpetaddition.utils.EnchantmentUtils;

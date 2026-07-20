@@ -1,6 +1,6 @@
 package fe11.carpetaddition.mixin.blockMixins;
 
-import fe11.carpetaddition.mixin.functions.MineableBuddingAmethyst;
+import fe11.carpetaddition.mixinFunctions.MineableBuddingAmethyst;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
