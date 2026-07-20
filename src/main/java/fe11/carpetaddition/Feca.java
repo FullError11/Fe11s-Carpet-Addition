@@ -17,12 +17,17 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.item.v1.EnchantingContext;
+import net.fabricmc.fabric.api.item.v1.EnchantmentEvents;
+import net.fabricmc.fabric.api.util.TriState;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.resources.Identifier;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.enchantment.Enchantments;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -52,6 +57,16 @@ public class Feca implements ModInitializer, ClientModInitializer, CarpetExtensi
 		ServerTickEvents.END_SERVER_TICK.register((server) ->
 				DelayedTaskExecutor.tick()
 		);
+
+		EnchantmentEvents.ALLOW_ENCHANTING.register((enchantment, target, context) -> {
+			if (context == EnchantingContext.ACCEPTABLE) {
+				if ((target.is(Items.WATER_BUCKET) || target.is(Items.BUCKET)) && enchantment.is(Enchantments.INFINITY)) {
+					return TriState.TRUE;
+				}
+			}
+
+			return TriState.DEFAULT;
+		});
 
 		// Carpet
 		CarpetServer.manageExtension(this);

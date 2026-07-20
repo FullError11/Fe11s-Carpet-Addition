@@ -1,9 +1,11 @@
 package fe11.carpetaddition.mixin;
 
 import fe11.carpetaddition.FecaCarpetSettings;
+import fe11.carpetaddition.utils.EnchantmentUtils;
 import net.minecraft.advancements.CriteriaTriggers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.InteractionHand;
@@ -13,6 +15,8 @@ import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUtils;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -74,8 +78,9 @@ public class BucketItemMixin {
                         ItemStack itemStack2 = autoSelectResultItemStack(
                                 itemStack.copy(), bucketPickup.pickupBlock(player, level, blockPos, blockState),
                                 FecaCarpetSettings.voidBucket,
-                                "VoidBucket"
+                                level.registryAccess()
                         );
+
                         // 修改 ↑↑↑
 
                         if (!itemStack2.isEmpty()) {
@@ -113,7 +118,7 @@ public class BucketItemMixin {
                         ItemStack itemStack2 = autoSelectResultItemStack(
                                 rawItemStack, ItemUtils.createFilledResult(itemStack, player, getEmptySuccessItem(itemStack, player)),
                                 isWaterBucket && FecaCarpetSettings.infiniteWaterBucket,
-                                "InfiniteWaterBucket"
+                                level.registryAccess()
                         );
                         // 修改 ↑↑↑
                         return InteractionResult.SUCCESS.heldItemTransformedTo(itemStack2);
@@ -128,10 +133,9 @@ public class BucketItemMixin {
     }
 
     @Unique
-    private ItemStack autoSelectResultItemStack(ItemStack originalItemStackCopy, ItemStack newItemStack, boolean enabled, String activeName) {
+    private ItemStack autoSelectResultItemStack(ItemStack originalItemStackCopy, ItemStack newItemStack, boolean enabled, RegistryAccess registryAccess) {
         if (enabled) {
-            var name = originalItemStackCopy.getCustomName();
-            if (name != null && name.getString().equals(activeName)) {
+            if (EnchantmentUtils.hasEnchantment(originalItemStackCopy, registryAccess, Enchantments.INFINITY)) {
                 return originalItemStackCopy.split(newItemStack.getCount());
             }
         }
