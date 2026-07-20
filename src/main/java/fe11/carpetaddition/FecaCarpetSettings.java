@@ -177,6 +177,14 @@ public class FecaCarpetSettings {
     @Rule(categories = {FECA, SURVIVAL})
     public static boolean bucketStackingBoost = false;
 
+    // 虚空桶
+    @Rule(categories = {FECA, CREATIVE})
+    public static boolean voidBucket = false;
+
+    // 无限水桶
+    @Rule(categories = {FECA, CREATIVE})
+    public static boolean infiniteWaterBucket = false;
+
 
     // ==================================================== //
     // 规则 # 配方

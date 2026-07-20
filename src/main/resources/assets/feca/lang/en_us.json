@@ -83,6 +83,12 @@
   "carpet.rule.bucketStackingBoost.name": "Empty Bucket Stacking Boost",
   "carpet.rule.bucketStackingBoost.desc": "Modifies the maximum stack size of Empty Buckets to 64.",
 
+  "carpet.rule.voidBucket.name": "Void Bucket",
+  "carpet.rule.voidBucket.desc": "A bucket named \"VoidBucket\" will be able to collect fluids indefinitely (but with no output).",
+
+  "carpet.rule.infiniteWaterBucket.name": "Infinite Water Bucket",
+  "carpet.rule.infiniteWaterBucket.desc": "A water bucket named \"InfiniteWaterBucket\" will be able to place water indefinitely.",
+
   "carpet.rule.craftableReinforcedDeepSlate.name": "Craftable reinforced deepslate",
   "carpet.rule.craftableReinforcedDeepSlate.desc": "Allows players to craft reinforced deepslate.",
   "carpet.rule.craftableReinforcedDeepSlate.extra.0": "Crafting recipe",

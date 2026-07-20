@@ -83,6 +83,12 @@
   "carpet.rule.bucketStackingBoost.name": "空桶堆叠增强",
   "carpet.rule.bucketStackingBoost.desc": "修改桶的堆叠上限为64个。",
 
+  "carpet.rule.voidBucket.name": "虚空桶",
+  "carpet.rule.voidBucket.desc": "被命名为 \"VoidBucket\" 的桶将能无限收起流体(但无产出)。",
+
+  "carpet.rule.infiniteWaterBucket.name": "无限水桶",
+  "carpet.rule.infiniteWaterBucket.desc": "被命名为 \"InfiniteWaterBucket\" 的水桶将能无限放出水。",
+
   "carpet.rule.craftableReinforcedDeepSlate.name": "可合成强化深板岩",
   "carpet.rule.craftableReinforcedDeepSlate.desc": "允许玩家合成强化深板岩",
   "carpet.rule.craftableReinforcedDeepSlate.extra.0": "合成配方",
