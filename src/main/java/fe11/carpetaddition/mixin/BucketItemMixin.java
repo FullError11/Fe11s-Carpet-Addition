@@ -112,7 +112,7 @@ public class BucketItemMixin {
                         // 修改 ↓↓↓
                         ItemStack itemStack2 = autoSelectResultItemStack(
                                 rawItemStack, ItemUtils.createFilledResult(itemStack, player, getEmptySuccessItem(itemStack, player)),
-                                isWaterBucket && FecaCarpetSettings.voidBucket,
+                                isWaterBucket && FecaCarpetSettings.infiniteWaterBucket,
                                 "InfiniteWaterBucket"
                         );
                         // 修改 ↑↑↑
