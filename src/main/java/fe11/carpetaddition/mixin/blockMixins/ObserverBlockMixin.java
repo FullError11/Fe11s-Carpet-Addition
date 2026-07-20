@@ -1,7 +1,7 @@
-package fe11.carpetaddition.mixin;
+package fe11.carpetaddition.mixin.blockMixins;
 
 import fe11.carpetaddition.Feca;
-import fe11.carpetaddition.config.ServerConfigs;
+import fe11.carpetaddition.mixin.functions.ObserverFreezeAreas;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ObserverBlock.class)
-public class ObserverFreezeAreasMixin {
+public class ObserverBlockMixin {
     @Inject(
             method = "startSignal",
             at = @At("HEAD"),
@@ -21,17 +21,8 @@ public class ObserverFreezeAreasMixin {
     )
     private void onStartSignal(LevelReader levelReader, ScheduledTickAccess scheduledTickAccess, BlockPos blockPos, CallbackInfo ci) {
         if (levelReader instanceof Level level) {
-            ServerConfigs.read(data -> {
-                data.observerFreezeAreas.access(level.dimension(), areas -> {
-                    for (var area : areas) {
-                        if (area.intersects(blockPos)) {
-                            ci.cancel();
-                            return;
-                        }
-                    }
-                });
-            });
-        } else {
+            ObserverFreezeAreas.isFreezeThen(level.dimension(), blockPos, ci::cancel);
+        } else if (Feca.DEBUG_MODE) {
             Feca.LOGGER.error("observer: LevelReader is not instanceof Level");
         }
     }

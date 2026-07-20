@@ -1,7 +1,6 @@
-package fe11.carpetaddition.mixin;
+package fe11.carpetaddition.mixin.functions;
 
 import fe11.carpetaddition.FecaCarpetSettings;
-import fe11.carpetaddition.FecaCarpetSettings.ActiveMendingOptions;
 import fe11.carpetaddition.utils.EnchantmentUtils;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.server.level.ServerPlayer;
@@ -9,21 +8,12 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.enchantment.Enchantments;
-import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Objects;
 
-@Mixin(ServerPlayer.class)
-public class ActiveMendingMixin {
-    @Unique
+public class ActiveMending {
     private static final int SINGLE_USE_XP = 2;
-    @Unique
     private static final EquipmentSlot[] PATCH_QUEUE = {
             EquipmentSlot.MAINHAND,     // 主手
             EquipmentSlot.OFFHAND,      // 副手
@@ -33,13 +23,11 @@ public class ActiveMendingMixin {
             EquipmentSlot.HEAD,         // 头盔
     };
 
-    @Inject(method = "tick", at = @At("TAIL"))
-    private void onTick(CallbackInfo ci) {
-        if (Objects.equals(FecaCarpetSettings.activeMending, ActiveMendingOptions.FALSE)) {
+    public static void everyTick(ServerPlayer player) {
+        if (Objects.equals(FecaCarpetSettings.activeMending, FecaCarpetSettings.ActiveMendingOptions.FALSE)) {
             return;
         }
-        var player = (ServerPlayer)(Object)this;
-        if (Objects.equals(FecaCarpetSettings.activeMending, ActiveMendingOptions.CROUCHING_ONLY)
+        if (Objects.equals(FecaCarpetSettings.activeMending, FecaCarpetSettings.ActiveMendingOptions.CROUCHING_ONLY)
                 && !player.isCrouching()) {
             return;
         }
@@ -52,13 +40,10 @@ public class ActiveMendingMixin {
         }
     }
 
-    @Contract(pure = true)
-    @Unique
     private static boolean canMending(@NotNull Player player) {
         return player.totalExperience >= SINGLE_USE_XP;
     }
 
-    @Unique
     private static boolean doMending(RegistryAccess registryAccess, ItemStack stack) {
         if (EnchantmentUtils.hasEnchantment(stack, registryAccess, Enchantments.MENDING)) {
             if (stack.isDamageableItem()) {

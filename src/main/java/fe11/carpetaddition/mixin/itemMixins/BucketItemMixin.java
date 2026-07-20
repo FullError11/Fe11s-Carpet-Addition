@@ -1,4 +1,4 @@
-package fe11.carpetaddition.mixin;
+package fe11.carpetaddition.mixin.itemMixins;
 
 import fe11.carpetaddition.FecaCarpetSettings;
 import fe11.carpetaddition.utils.EnchantmentUtils;
@@ -15,7 +15,6 @@ import net.minecraft.world.item.BucketItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemUtils;
-import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
