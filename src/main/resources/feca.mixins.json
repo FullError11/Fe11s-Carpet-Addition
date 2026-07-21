@@ -5,6 +5,7 @@
   "mixins": [
     "EntityMixin",
     "ItemStackMixin",
+    "ItemUtilsMixin",
     "MinecraftServerMixin",
     "RecipeManagerMixin",
     "ServerPlayerGameModeMixin",
@@ -16,8 +17,6 @@
     "blockMixins.ObserverBlockMixin",
     "blockMixins.SaplingBlockMixin",
     "blockMixins.SugarCaneBlockMixin",
-    "itemMixins.BucketItemMixin",
-    "itemMixins.BucketItemMixin$ItemAccessor",
     "itemMixins.ItemMixin"
   ],
   "injectors": {
