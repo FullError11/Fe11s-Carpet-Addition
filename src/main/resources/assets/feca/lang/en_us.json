@@ -49,6 +49,19 @@
   "carpet.rule.commandObserverFreezeAreas.desc": "Allows players to execute the /observerFreezeAreas command to freeze observers within an area",
   "carpet.rule.commandObserverFreezeAreas.extra.0": "[Note] The highlight sub-option is available after installing the Feca mod on the client",
 
+  "carpet.rule.craftableReinforcedDeepSlate.name": "Craftable reinforced deepslate",
+  "carpet.rule.craftableReinforcedDeepSlate.desc": "Allows players to craft reinforced deepslate.",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.0": "Crafting recipe",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.1": "[Obsidian][Obsidian][Obsidian]",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.2": "[Obsidian][Deepslate][Obsidian]",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.3": "[Obsidian][Obsidian][Obsidian]",
+
+  "carpet.rule.craftableEndPortalFrame.name": "Craftable end portal frame",
+  "carpet.rule.craftableEndPortalFrame.desc": "Allows players to craft end portal frames.",
+  "carpet.rule.craftableEndPortalFrame.extra.0": "Crafting recipe",
+  "carpet.rule.craftableEndPortalFrame.extra.1": "[End Stone][Nether Star][End Stone]",
+  "carpet.rule.craftableEndPortalFrame.extra.2": "[End Stone][End Stone][End Stone]",
+
   "carpet.rule.boneMealCopySapling.name": "Bone meal copies saplings",
   "carpet.rule.boneMealCopySapling.desc": "When the block directly above a sapling is obsidian, using bone meal on it has a chance to drop one sapling of that type. The probability is equal to the sapling's growth chance.",
 
@@ -89,16 +102,15 @@
   "carpet.rule.infiniteWaterBucket.name": "Infinite Water Bucket",
   "carpet.rule.infiniteWaterBucket.desc": "A water bucket with the Infinity enchantment can place water indefinitely.",
 
-  "carpet.rule.craftableReinforcedDeepSlate.name": "Craftable reinforced deepslate",
-  "carpet.rule.craftableReinforcedDeepSlate.desc": "Allows players to craft reinforced deepslate.",
-  "carpet.rule.craftableReinforcedDeepSlate.extra.0": "Crafting recipe",
-  "carpet.rule.craftableReinforcedDeepSlate.extra.1": "[Obsidian][Obsidian][Obsidian]",
-  "carpet.rule.craftableReinforcedDeepSlate.extra.2": "[Obsidian][Deepslate][Obsidian]",
-  "carpet.rule.craftableReinforcedDeepSlate.extra.3": "[Obsidian][Obsidian][Obsidian]",
+  "carpet.rule.goldenCarrotCompost.name": "Golden Carrot Composting",
+  "carpet.rule.goldenCarrotCompost.desc": "Allows golden carrots to be used for composting, with a guaranteed success rate.",
 
-  "carpet.rule.craftableEndPortalFrame.name": "Craftable end portal frame",
-  "carpet.rule.craftableEndPortalFrame.desc": "Allows players to craft end portal frames.",
-  "carpet.rule.craftableEndPortalFrame.extra.0": "Crafting recipe",
-  "carpet.rule.craftableEndPortalFrame.extra.1": "[End Stone][Nether Star][End Stone]",
-  "carpet.rule.craftableEndPortalFrame.extra.2": "[End Stone][End Stone][End Stone]"
+  "carpet.rule.villagerDropSpawnEgg.name": "Villager Drops Spawn Egg",
+  "carpet.rule.villagerDropSpawnEgg.desc": "Adult villagers (non-nitwits) who have never traded and are killed by a player drop a spawn egg upon death.",
+
+  "carpet.rule.stopCreeperGriefing.name": "Stop Creeper Griefing",
+  "carpet.rule.stopCreeperGriefing.desc": "Prevents creeper explosions from destroying terrain and damaging villagers.",
+
+  "carpet.rule.quicklyPutBoatToDispenser.name": "快速填充船到发射器",
+  "carpet.rule.quicklyPutBoatToDispenser.desc": "在玩家手持船右键发射器时，若发射器内不存在船，则从背包内移动一个(规则开启时会阻止玩家打开发射器界面)"
 }

@@ -3,17 +3,14 @@ package fe11.carpetaddition.config;
 import fe11.carpetaddition.commands.utils.AreaList;
 import fe11.carpetaddition.config.utils.Configurator;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class ServerConfigs {
     public static class Data {
         // public List<AABB> observerFreezeAreas = new ArrayList<>();
-        public AreaList observerFreezeAreas = AreaList.newDefault();
+        public final AreaList observerFreezeAreas = AreaList.newDefault();
     }
 
     private static Data data = new Data();
@@ -71,11 +68,4 @@ public class ServerConfigs {
         save();
         lock.writeLock().unlock();
     }
-
-//    public interface AccessorEx<T> {
-//        T visit(Data data);
-//    }
-//    public static <T> T write(@NotNull AccessorEx<T> accessor) {
-//        return accessor.visit(data);
-//    }
 }

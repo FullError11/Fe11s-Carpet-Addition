@@ -1,15 +1,26 @@
 package fe11.carpetaddition;
 
-import carpet.api.settings.CarpetRule;
 import carpet.api.settings.Rule;
-import carpet.api.settings.SettingsManager;
 import carpet.api.settings.Validators;
 import com.mojang.datafixers.util.Pair;
+import fe11.carpetaddition.carpet.RuleChangedEvents;
 import fe11.carpetaddition.recipe.Recipes;
+import fe11.carpetaddition.third_party.recipe.builder.AbstractRecipeBuilder;
 import fe11.carpetaddition.third_party.recipe.builder.ShapedRecipeBuilder;
-import net.minecraft.commands.CommandSourceStack;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.monster.Creeper;
+import net.minecraft.world.entity.npc.villager.Villager;
+import net.minecraft.world.entity.npc.villager.VillagerProfession;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
-import org.jetbrains.annotations.NotNull;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.ComposterBlock;
+import org.jspecify.annotations.NonNull;
+
+import java.util.*;
+import java.util.function.Supplier;
 
 import static carpet.api.settings.RuleCategory.*;
 import static net.minecraft.world.item.Items.*;
@@ -98,6 +109,53 @@ public class FecaCarpetSettings {
     static public String commandObserverFreezeAreas = "false";
 
     // ==================================================== //
+    // 规则 # 配方
+    // ==================================================== //
+
+    // 可合成 强化深板岩
+    @Rule(categories = {FECA, SURVIVAL})
+    public static boolean craftableReinforcedDeepSlate = false;
+    static {
+        RuleChangedEvents.add("craftableReinforcedDeepSlate",
+                (v, src) -> Recipes.onValueChange(src.getServer()));
+        CustomRecipes.add(() -> new ShapedRecipeBuilder(craftableReinforcedDeepSlate, "reinforced_deep_slate")
+                .pattern("###", "#D#", "###")
+                .define(
+                        new Pair<>('#', OBSIDIAN),
+                        new Pair<>('D', DEEPSLATE)
+                )
+                .output(REINFORCED_DEEPSLATE, 1));
+    }
+
+    // 可合成 末地传送门框架
+    @Rule(categories = {FECA, SURVIVAL})
+    public static boolean craftableEndPortalFrame = false;
+    static {
+        RuleChangedEvents.add("craftableEndPortalFrame",
+                (v, src) -> Recipes.onValueChange(src.getServer()));
+        CustomRecipes.add(() -> new ShapedRecipeBuilder(craftableEndPortalFrame, "end_portal_frame")
+                .pattern("#*#", "###")
+                .define(
+                        new Pair<>('#', END_STONE),
+                        new Pair<>('*', NETHER_STAR)
+                )
+                .output(END_PORTAL_FRAME, 1));
+    }
+
+    public static boolean hasRecipeRuleActivate() {
+        return craftableReinforcedDeepSlate && craftableEndPortalFrame;
+    }
+    public static class CustomRecipes {
+        private static final List<Supplier<AbstractRecipeBuilder>> RECIPES = new ArrayList<>();
+
+        public static void add(Supplier<AbstractRecipeBuilder> recipeBuilderSupplier) {
+            RECIPES.add(recipeBuilderSupplier);
+        }
+        public static void buildRecipes() {
+            RECIPES.forEach(recipe -> recipe.get().build());
+        }
+    }
+    // ==================================================== //
     // 规则 # 未分类
     // ==================================================== //
 
@@ -185,46 +243,42 @@ public class FecaCarpetSettings {
     @Rule(categories = {FECA, CREATIVE})
     public static boolean infiniteWaterBucket = false;
 
-
-    // ==================================================== //
-    // 规则 # 配方
-    // ==================================================== //
-
-    // 可合成 强化深板岩
+    // 金胡萝卜堆肥
     @Rule(categories = {FECA, SURVIVAL})
-    public static boolean craftableReinforcedDeepSlate = false;
-
-    // 可合成 末地传送门框架
-    @Rule(categories = {FECA, SURVIVAL})
-    public static boolean craftableEndPortalFrame = false;
-
-    public static boolean hasRecipeRuleActivate() {
-        return true;
-    }
-    public static void buildRecipes() {
-        // 强化深板岩
-        new ShapedRecipeBuilder(craftableReinforcedDeepSlate, "reinforced_deep_slate")
-                .pattern("###", "#D#", "###")
-                .define(
-                        new Pair<>('#', Items.OBSIDIAN),
-                        new Pair<>('D', Items.DEEPSLATE)
-                )
-                .output(REINFORCED_DEEPSLATE, 1).build();
-        // 末地传送门框架
-        new ShapedRecipeBuilder(craftableEndPortalFrame, "end_portal_frame")
-                .pattern("#*#", "###")
-                .define(
-                        new Pair<>('#', END_STONE),
-                        new Pair<>('*', NETHER_STAR)
-                )
-                .output(END_PORTAL_FRAME, 1).build();
-    }
-    static class OnRecipeRuleChanged implements SettingsManager.RuleObserver {
-        @Override
-        public void ruleChanged(CommandSourceStack source, @NotNull CarpetRule<?> changedRule, String userInput) {
-            if (changedRule.name().startsWith("craftable")) {
-                Recipes.onValueChange(source.getServer());
+    public static boolean goldenCarrotCompost = false;
+    static {
+        RuleChangedEvents.add("goldenCarrotCompost", (v, src) -> {
+            if ((boolean) v) {
+                ComposterBlock.COMPOSTABLES.put(GOLDEN_CARROT, 1.0f);
+            } else {
+                ComposterBlock.COMPOSTABLES.remove(GOLDEN_CARROT, 1.0f);
             }
+        });
+    }
+
+    // 村民掉落刷怪蛋
+    @Rule(categories = {FECA, SURVIVAL})
+    public static boolean villagerDropSpawnEgg = false;
+    public static class VillagerDeathEvent implements ServerLivingEntityEvents.AfterDeath {
+        @Override
+        public void afterDeath(@NonNull LivingEntity entity, @NonNull DamageSource damageSource) {
+            if (villagerDropSpawnEgg && damageSource.getEntity() instanceof Player && entity instanceof Villager villager) {
+                if (!villager.isBaby()
+                        && !villager.getVillagerData().profession().is(VillagerProfession.NITWIT)
+                        && villager.getVillagerXp() <= 0) {
+                    Block.popResource(villager.level(), villager.blockPosition(), Items.VILLAGER_SPAWN_EGG.getDefaultInstance());
+                }
+            }
+        }
+    }
+
+    // 阻止苦力怕破坏地形
+    @Rule(categories = {FECA, SURVIVAL})
+    public static boolean stopCreeperGriefing = false;
+    public static class AllowCreeperDamage implements ServerLivingEntityEvents.AllowDamage {
+        @Override
+        public boolean allowDamage(@NonNull LivingEntity entity, @NonNull DamageSource src, float amount) {
+            return !(FecaCarpetSettings.stopCreeperGriefing && src.getEntity() instanceof Creeper && entity instanceof Villager);
         }
     }
 }

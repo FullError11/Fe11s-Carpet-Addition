@@ -104,8 +104,8 @@ public class AreaList {
     }
 
     public static class ArgumentUtil {
-        String firstPosID, secondPosID;
-        String dimensionID = "dimension";
+        private final String firstPosID, secondPosID;
+        private final String dimensionID = "dimension";
 
         public ArgumentUtil(String firstID, String secondID) {
             this.firstPosID = firstID;

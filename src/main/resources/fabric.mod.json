@@ -15,10 +15,10 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"fe11.carpetaddition.Feca"
+			"fe11.carpetaddition.FecaServerEntry"
 		],
 		"client": [
-			"fe11.carpetaddition.Feca"
+			"fe11.carpetaddition.FecaClientEntry"
 		]
 	},
 	"mixins": [

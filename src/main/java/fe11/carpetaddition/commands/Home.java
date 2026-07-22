@@ -2,7 +2,6 @@ package fe11.carpetaddition.commands;
 
 import carpet.utils.CommandHelper;
 import com.mojang.brigadier.Command;
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import fe11.carpetaddition.Feca;
@@ -21,7 +20,6 @@ import net.minecraft.world.level.portal.TeleportTransition;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class Home implements CommandRegisterServer.ServerCommandRegister {

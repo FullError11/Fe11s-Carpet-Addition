@@ -25,7 +25,6 @@ import fe11.carpetaddition.third_party.recipe.AmsRecipeBuilder;
 import fe11.carpetaddition.third_party.utils.ChainableHashMap;
 
 import net.minecraft.world.item.Item;
-import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;

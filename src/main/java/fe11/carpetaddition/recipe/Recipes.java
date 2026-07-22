@@ -22,7 +22,7 @@ public class Recipes {
     public static void registerCustomRecipes(Map<Identifier, Recipe<?>> map, HolderLookup.Provider wrapperLookup) {
         AmsRecipeManager amsRecipeManager = new AmsRecipeManager(AmsRecipeBuilder.getInstance());
         AmsRecipeManager.clearRecipeListMemory(AmsRecipeBuilder.getInstance());
-        FecaCarpetSettings.buildRecipes();
+        FecaCarpetSettings.CustomRecipes.buildRecipes();
         amsRecipeManager.registerRecipes(map, wrapperLookup);
     }
 
@@ -45,7 +45,7 @@ public class Recipes {
         if (serverIsRunning(server)) {
             server.execute(() -> {
                 AmsRecipeManager.clearRecipeListMemory(AmsRecipeBuilder.getInstance());
-                FecaCarpetSettings.buildRecipes();
+                FecaCarpetSettings.CustomRecipes.buildRecipes();
                 reloadServerResources(server);
                 Collection<RecipeHolder<?>> allRecipes = getServerRecipeManager(server).getRecipes();
                 for (RecipeHolder<?> recipe : allRecipes) {

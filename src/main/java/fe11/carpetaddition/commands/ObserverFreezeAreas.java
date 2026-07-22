@@ -2,7 +2,6 @@ package fe11.carpetaddition.commands;
 
 import carpet.utils.CommandHelper;
 import com.mojang.brigadier.Command;
-import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import fe11.carpetaddition.Feca;
@@ -91,7 +90,7 @@ public class ObserverFreezeAreas implements CommandRegisterServer.ServerCommandR
                     successful = areas.remove(area);
                     break;
                 default:
-                    Feca.LOGGER.error("Illegal ArrayChanges status: {}", changes.toString());
+                    Feca.LOGGER.error("Illegal ArrayChanges status: {}", changes);
                     return;
             }
 

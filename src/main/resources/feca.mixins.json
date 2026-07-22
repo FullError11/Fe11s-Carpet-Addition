@@ -3,6 +3,7 @@
   "package": "fe11.carpetaddition.mixin",
   "compatibilityLevel": "JAVA_21",
   "mixins": [
+    "CreeperMixin",
     "EntityMixin",
     "ItemStackMixin",
     "ItemUtilsMixin",
