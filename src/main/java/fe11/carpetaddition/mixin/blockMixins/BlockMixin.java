@@ -1,6 +1,6 @@
 package fe11.carpetaddition.mixin.blockMixins;
 
-import fe11.carpetaddition.mixinFunctions.MineableBuddingAmethyst;
+import fe11.carpetaddition.mixinFunctions.MineableBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
@@ -22,7 +22,7 @@ public class BlockMixin {
             cancellable = true
     )
     private void onPlayerDestroy(Level level, Player player, BlockPos pos, @NotNull BlockState state, BlockEntity blockEntity, ItemStack tool, CallbackInfo ci)  {
-        if (MineableBuddingAmethyst.tryProcess(level, tool, state, pos)) {
+        if (MineableBlock.tryProcess(level, tool, state, pos)) {
             ci.cancel();
         }
     }

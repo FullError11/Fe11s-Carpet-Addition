@@ -192,18 +192,28 @@ public class FecaCarpetSettings {
     static public boolean chorusFruitAsSeed = false;
 
     // 可开采的紫水晶母岩
-    public interface MineableBuddingAmethystOptions extends BoolOptions {
+    public interface MineableBlockOptions extends BoolOptions {
         String SILK_TOUCH = "silkTouch";
     }
     @Rule(
             categories = {FECA, SURVIVAL},
             options = {
-                    MineableBuddingAmethystOptions.FALSE,
-                    MineableBuddingAmethystOptions.TRUE,
-                    MineableBuddingAmethystOptions.SILK_TOUCH
+                    MineableBlockOptions.FALSE,
+                    MineableBlockOptions.TRUE,
+                    MineableBlockOptions.SILK_TOUCH
             }
     )
-    static public String mineableBuddingAmethyst = MineableBuddingAmethystOptions.FALSE;
+    static public String mineableBuddingAmethyst = MineableBlockOptions.FALSE;
+
+    @Rule(
+            categories = {FECA, SURVIVAL},
+            options = {
+                    MineableBlockOptions.FALSE,
+                    MineableBlockOptions.TRUE,
+                    MineableBlockOptions.SILK_TOUCH
+            }
+    )
+    static public String mineableReinforcedDeepslate = MineableBlockOptions.FALSE;
 
     // 主动经验修补
     public interface ActiveMendingOptions extends BoolOptions {
@@ -248,7 +258,7 @@ public class FecaCarpetSettings {
     public static boolean goldenCarrotCompost = false;
     static {
         RuleChangedEvents.add("goldenCarrotCompost", (v, src) -> {
-            if ((boolean) v) {
+            if (v instanceof Boolean enable && enable) {
                 ComposterBlock.COMPOSTABLES.put(GOLDEN_CARROT, 1.0f);
             } else {
                 ComposterBlock.COMPOSTABLES.remove(GOLDEN_CARROT, 1.0f);
@@ -272,7 +282,7 @@ public class FecaCarpetSettings {
         }
     }
 
-    // 阻止苦力怕破坏地形
+    // 阻止苦力怕捣乱
     @Rule(categories = {FECA, SURVIVAL})
     public static boolean stopCreeperGriefing = false;
     public static class AllowCreeperDamage implements ServerLivingEntityEvents.AllowDamage {

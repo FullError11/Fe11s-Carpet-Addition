@@ -81,6 +81,9 @@
   "carpet.rule.mineableBuddingAmethyst.name": "Mineable budding amethyst",
   "carpet.rule.mineableBuddingAmethyst.desc": "Allows players to mine budding amethyst blocks.",
 
+  "carpet.rule.mineableReinforcedDeepslate.name": "Mineable reinforced deepslate",
+  "carpet.rule.mineableReinforcedDeepslate.desc": "Allows players to mine reinforced deepslate blocks.",
+
   "carpet.rule.activeMending.name": "Active Mending",
   "carpet.rule.activeMending.desc": "Items with Mending equipped by the player (main hand/offhand/armor slots) will actively consume XP to repair themselves.",
 
@@ -109,8 +112,5 @@
   "carpet.rule.villagerDropSpawnEgg.desc": "Adult villagers (non-nitwits) who have never traded and are killed by a player drop a spawn egg upon death.",
 
   "carpet.rule.stopCreeperGriefing.name": "Stop Creeper Griefing",
-  "carpet.rule.stopCreeperGriefing.desc": "Prevents creeper explosions from destroying terrain and damaging villagers.",
-
-  "carpet.rule.quicklyPutBoatToDispenser.name": "快速填充船到发射器",
-  "carpet.rule.quicklyPutBoatToDispenser.desc": "在玩家手持船右键发射器时，若发射器内不存在船，则从背包内移动一个(规则开启时会阻止玩家打开发射器界面)"
+  "carpet.rule.stopCreeperGriefing.desc": "Prevents creeper explosions from destroying terrain and damaging villagers."
 }

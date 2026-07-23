@@ -78,8 +78,11 @@
   "carpet.rule.chorusFruitAsSeed.name": "紫颂果种子",
   "carpet.rule.chorusFruitAsSeed.desc": "允许紫颂果作为种子，对末地石上表面右键进行种植。",
 
-  "carpet.rule.mineableBuddingAmethyst.name": "可采集的紫水晶母岩",
+  "carpet.rule.mineableBuddingAmethyst.name": "可采集紫水晶母岩",
   "carpet.rule.mineableBuddingAmethyst.desc": "允许玩家采集紫水晶母岩。",
+
+  "carpet.rule.mineableReinforcedDeepslate.name": "可采集强化深板岩",
+  "carpet.rule.mineableReinforcedDeepslate.desc": "允许玩家采集强化深板岩。",
 
   "carpet.rule.activeMending.name": "主动经验修补",
   "carpet.rule.activeMending.desc": "玩家装备的带有经验修补的物品会主动消耗经验修补自身 (主手/副手/盔甲栏)。",
