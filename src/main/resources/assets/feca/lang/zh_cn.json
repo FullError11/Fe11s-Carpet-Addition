@@ -112,5 +112,14 @@
   "carpet.rule.villagerDropSpawnEgg.desc": "被玩家杀死的未交易的成年村民(非傻子)死亡时掉落刷怪蛋",
 
   "carpet.rule.stopCreeperGriefing.name": "阻止苦力怕捣乱",
-  "carpet.rule.stopCreeperGriefing.desc": "阻止苦力怕爆炸破坏地形及伤害村民"
+  "carpet.rule.stopCreeperGriefing.desc": "阻止苦力怕爆炸破坏地形及伤害村民",
+
+  "carpet.rule.playerCannotPushBoat.name": "阻止玩家推动船",
+  "carpet.rule.playerCannotPushBoat.desc": "阻止玩家推动船。",
+
+  "carpet.rule.entityCannotPushBoat.name": "阻止实体推动船",
+  "carpet.rule.entityCannotPushBoat.desc": "阻止任何实体推动船。",
+
+  "carpet.rule.projectileCantBreakDecoratedPot.name": "阻止弹射物破坏陶罐",
+  "carpet.rule.projectileCantBreakDecoratedPot.desc": "阻止弹射物破坏陶罐。"
 }

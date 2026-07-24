@@ -112,5 +112,14 @@
   "carpet.rule.villagerDropSpawnEgg.desc": "Adult villagers (non-nitwits) who have never traded and are killed by a player drop a spawn egg upon death.",
 
   "carpet.rule.stopCreeperGriefing.name": "Stop Creeper Griefing",
-  "carpet.rule.stopCreeperGriefing.desc": "Prevents creeper explosions from destroying terrain and damaging villagers."
+  "carpet.rule.stopCreeperGriefing.desc": "Prevents creeper explosions from destroying terrain and damaging villagers.",
+
+  "carpet.rule.playerCannotPushBoat.name": "Prevent players from pushing boats",
+  "carpet.rule.playerCannotPushBoat.desc": "Prevents players from pushing boats.",
+
+  "carpet.rule.entityCannotPushBoat.name": "Prevent entities from pushing boats",
+  "carpet.rule.entityCannotPushBoat.desc": "Prevents any entity from pushing boats.",
+
+  "carpet.rule.projectileCantBreakDecoratedPot.name": "Prevent projectiles from breaking decorated pots",
+  "carpet.rule.projectileCantBreakDecoratedPot.desc": "Prevents projectiles from breaking decorated pots."
 }

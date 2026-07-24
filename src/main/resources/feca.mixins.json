@@ -18,6 +18,7 @@
     "blockMixins.ObserverBlockMixin",
     "blockMixins.SaplingBlockMixin",
     "blockMixins.SugarCaneBlockMixin",
+    "blockMixins.DecoratedPotBlockMixin",
     "itemMixins.ItemMixin"
   ],
   "injectors": {

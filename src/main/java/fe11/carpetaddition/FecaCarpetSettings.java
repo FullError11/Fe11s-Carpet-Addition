@@ -291,4 +291,16 @@ public class FecaCarpetSettings {
             return !(FecaCarpetSettings.stopCreeperGriefing && src.getEntity() instanceof Creeper && entity instanceof Villager);
         }
     }
+
+    // 玩家无法推动船
+    @Rule(categories = {FECA, SURVIVAL})
+    public static boolean playerCannotPushBoat = false;
+
+    // 实体无法推动船
+    @Rule(categories = {FECA, SURVIVAL})
+    public static boolean entityCannotPushBoat = false;
+
+    //
+    @Rule(categories = {FECA, SURVIVAL})
+    public static boolean projectileCantBreakDecoratedPot = false;
 }
