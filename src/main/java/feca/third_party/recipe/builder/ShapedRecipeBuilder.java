@@ -1,0 +1,91 @@
+/*
+ * This file is part of the Carpet AMS Addition project, licensed under the
+ * GNU Lesser General Public License v3.0
+ *
+ * Copyright (C) 2025 A Minecraft Server and contributors
+ *
+ * Carpet AMS Addition is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Carpet AMS Addition is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with Carpet AMS Addition. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+package feca.third_party.recipe.builder;
+
+import com.mojang.datafixers.util.Pair;
+
+import feca.third_party.recipe.AmsRecipeBuilder;
+import net.minecraft.world.item.Item;
+import org.jetbrains.annotations.NotNull;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class ShapedRecipeBuilder extends AbstractRecipeBuilder {
+    private final List<String> patternRows = new ArrayList<>();
+    private final Map<Character, Item> ingredients = new HashMap<>();
+
+    public ShapedRecipeBuilder(boolean enabled, String recipeName) {
+        super(enabled, recipeName);
+    }
+
+    private void patternImpl(@NotNull String row) {
+        if (row.length() != 3) {
+            throw new IllegalArgumentException("Pattern row must be 3 characters");
+        }
+        patternRows.add(row);
+    }
+
+    @SuppressWarnings("unused")
+    public ShapedRecipeBuilder pattern(@NotNull String row) {
+        patternImpl(row);
+        return this;
+    }
+
+    @SuppressWarnings("unused")
+    public ShapedRecipeBuilder pattern(String @NotNull ... rows) {
+        for (var row : rows) {
+            patternImpl(row);
+        }
+        return this;
+    }
+
+    @SuppressWarnings("unused")
+    public ShapedRecipeBuilder define(char symbol, Item item) {
+        ingredients.put(symbol, item);
+        return this;
+    }
+
+    @SuppressWarnings("unused")
+    @SafeVarargs
+    public final ShapedRecipeBuilder define(Pair<Character, Item> @NotNull ... symbolMaps) {
+        for (var symbolMap : symbolMaps) {
+            ingredients.put(symbolMap.getFirst(), symbolMap.getSecond());
+        }
+        return this;
+    }
+
+    @Override
+    public void build() {
+        if (!enabled || resultItem == null) {
+            return;
+        }
+        String[][] pattern = new String[patternRows.size()][];
+        for (int i = 0; i < patternRows.size(); i++) {
+            pattern[i] = patternRows.get(i).split("");
+        }
+        HashMap<Character, String> ingredientMap = new HashMap<>();
+        ingredients.forEach((k, v) -> ingredientMap.put(k, item(v)));
+        AmsRecipeBuilder.getInstance().addShapedRecipe(recipeName, pattern, ingredientMap, item(resultItem), resultCount);
+    }
+}

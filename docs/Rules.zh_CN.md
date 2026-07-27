@@ -28,18 +28,18 @@
 **规则选项**：[权限选项集](#权限选项集)  
 **默认选项**: `false`  
 **相关规则**：
-- [playerScaleMinValue](#playerScaleMinValue)  
-- [playerScaleMaxValue](#playerScaleMaxValue)  
+- [commandScaleMin](#commandScaleMin)  
+- [commandScaleMax](#commandScaleMax)  
 **相关指令**: [scale](Commands.zh_CN.md#scale)
 
-### playerScaleMinValue
+### commandScaleMin
 **规则名**: 玩家缩放最小值  
 **规则作用**: 设置玩家执行 `/scale` 缩放的最小值。  
 **规则选项**：任意`double`值  
 **默认选项**: `0.5`  
 **相关规则**：[commandScale](#commandScale)
 
-### playerScaleMaxValue
+### commandScaleMax
 **规则名**: 玩家缩放最大值  
 **规则作用**: 设置玩家执行 `/scale` 缩放的最大值。  
 **规则选项**：任意`double`值  

@@ -1,0 +1,30 @@
+{
+  "required": true,
+  "package": "feca.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ItemStackMixin",
+    "ItemUtilsMixin",
+    "MinecraftServerMixin",
+    "RecipeManagerMixin",
+    "ServerPlayerGameModeMixin",
+    "block.BlockMixin",
+    "block.ChorusFlowerBlockMixin",
+    "block.DecoratedPotBlockMixin",
+    "block.FlowerBlockMinix",
+    "block.GlowLichenBlockMixin",
+    "block.ObserverBlockMixin",
+    "block.SaplingBlockMixin",
+    "block.SugarCaneBlockMixin",
+    "entity.CreeperMixin",
+    "entity.EntityMixin",
+    "entity.ServerPlayerMixin",
+    "item.ItemMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+	}
+}

@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"id": "feca",
+	"id": "fe11scarpetaddition",
 	"version": "${version}",
 	"name": "Fe11'sCarpetAddition",
 	"description": "FullError11的Carpet拓展模组",
@@ -11,20 +11,19 @@
 		"sources": "https://github.com/FullError11/Fe11s-Carpet-Addition"
 	},
 	"license": "MIT",
-	"icon": "assets/feca/icon.png",
+	"icon": "assets/fe11scarpetaddition/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"fe11.carpetaddition.FecaServerEntry"
+			"feca.FECAServerEntry"
 		],
 		"client": [
-			"fe11.carpetaddition.FecaClientEntry"
+			"feca.FECAClientEntry"
 		]
 	},
 	"mixins": [
-		"feca.mixins.json"
+		"fe11scarpetaddition.mixins.json"
 	],
-	"accessWidener": "feca.accesswidener",
 	"depends": {
 		"fabricloader": ">=0.19.3",
 		"minecraft": "~1.21.11",

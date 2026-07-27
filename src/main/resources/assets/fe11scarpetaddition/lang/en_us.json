@@ -1,0 +1,124 @@
+{
+  "feca.cmd.common.mustRunByPlayer": "This command must be executed by a player!",
+
+  "feca.cmd.fly.enabled": "Flight enabled. Double-tap jump to start flying.",
+  "feca.cmd.fly.disabled": "Flight disabled.",
+  "feca.cmd.fly.nochange": "Flight mode unchanged, it is already %s.",
+
+  "feca.cmd.home.countdown": "Teleporting in %d seconds. Move to cancel.",
+  "feca.cmd.home.cancelled": "Teleport cancelled.",
+  "feca.cmd.home.done": "Teleport completed.",
+
+  "feca.cmd.scale.status": "Your base scale is %.2f. The available range is %.2f to %.2f.",
+  "feca.cmd.scale.outOfRange": "Scale value must be within the range %.2f to %.2f, but the input was %.2f.",
+  "feca.cmd.scale.successful": "Set your own base scale to %.2f.",
+
+  "feca.cmd.observerFreezeAreas.add.successful": "Observer freeze area added: [%s] ~ [%s]",
+  "feca.cmd.observerFreezeAreas.add.failed": "Failed to add area, it already exists!",
+  "feca.cmd.observerFreezeAreas.remove.successful": "Observer freeze area removed: [%s] ~ [%s]",
+  "feca.cmd.observerFreezeAreas.remove.failed": "Failed to remove area, it does not exist!",
+  "feca.cmd.observerFreezeAreas.removeAll.successful": "All observer freeze areas have been removed!",
+  "feca.cmd.observerFreezeAreas.removeAll.confirm.requires": "Please run this command again within 10 seconds to confirm.",
+  "feca.cmd.observerFreezeAreas.removeAll.confirm.timeout": "Removal of all observer freeze areas timed out due to lack of confirmation.",
+  "feca.cmd.observerFreezeAreas.list.tittle": "Observer freeze area list:",
+  "feca.cmd.observerFreezeAreas.list.nothing": "Nothing here :)",
+  "feca.cmd.observerFreezeAreas.list.remove.button": "[Remove]",
+  "feca.cmd.observerFreezeAreas.list.remove.tips": "Remove %s ~ %s",
+  "feca.cmd.observerFreezeAreas.highlight.enabled": "Observer freeze area highlight is now ON",
+  "feca.cmd.observerFreezeAreas.highlight.disabled": "Observer freeze area highlight is now OFF",
+
+  "carpet.rule.commandFly.name": "Enable fly command",
+  "carpet.rule.commandFly.desc": "Allows players to use the /fly command to fly.",
+
+  "carpet.rule.commandScale.name": "Enable scale command",
+  "carpet.rule.commandScale.desc": "Allows players to use the /scale command to scale their own size.",
+  "carpet.rule.commandScaleMin.name": "Minimum player scale",
+  "carpet.rule.commandScaleMin.desc": "Sets the minimum value for player scaling.",
+  "carpet.rule.commandScaleMax.name": "Maximum player scale",
+  "carpet.rule.commandScaleMax.desc": "Sets the maximum value for player scaling.",
+
+  "carpet.rule.commandHome.name": "Enable home command",
+  "carpet.rule.commandHome.desc": "Allows players to use the /home command to teleport to their spawn point.",
+  "carpet.rule.commandHomeWorld.name": "Enable home command world option",
+  "carpet.rule.commandHomeWorld.desc": "Allows players to use the /home world command to teleport to the world spawn point.",
+  "carpet.rule.commandHomeCountdown.name": "Home command teleport countdown",
+  "carpet.rule.commandHomeCountdown.desc": "After executing the home command, teleportation occurs after the countdown finishes.",
+
+  "carpet.rule.commandObserverFreezeAreas.name": "Enable observerFreezeAreas command",
+  "carpet.rule.commandObserverFreezeAreas.desc": "Allows players to use the /observerFreezeAreas command to freeze observers within the area.",
+  "carpet.rule.commandObserverFreezeAreas.extra.0": "[Note] The highlight sub-option is available when the client has the Feca mod installed.",
+
+  "carpet.rule.craftableReinforcedDeepSlate.name": "Craftable Reinforced Deepslate",
+  "carpet.rule.craftableReinforcedDeepSlate.desc": "Allows players to craft Reinforced Deepslate.",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.0": "Crafting recipe",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.1": "[Obsidian][Obsidian][Obsidian]",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.2": "[Obsidian][Deepslate][Obsidian]",
+  "carpet.rule.craftableReinforcedDeepSlate.extra.3": "[Obsidian][Obsidian][Obsidian]",
+
+  "carpet.rule.craftableEndPortalFrame.name": "Craftable End Portal Frame",
+  "carpet.rule.craftableEndPortalFrame.desc": "Allows players to craft End Portal Frames.",
+  "carpet.rule.craftableEndPortalFrame.extra.0": "Crafting recipe",
+  "carpet.rule.craftableEndPortalFrame.extra.1": "[End Stone][Nether Star][End Stone]",
+  "carpet.rule.craftableEndPortalFrame.extra.2": "[End Stone][End Stone][End Stone]",
+
+  "carpet.rule.boneMealCopySapling.name": "Bone Meal Copies Sapling",
+  "carpet.rule.boneMealCopySapling.desc": "When a block directly above a sapling is Obsidian, using Bone Meal on it has a chance to drop a copy of that sapling. The chance equals the sapling's growth success rate.",
+
+  "carpet.rule.boneMealCopySmallFlowers.name": "Bone Meal Copies Small Flowers",
+  "carpet.rule.boneMealCopySmallFlowers.desc": "Allows using Bone Meal to duplicate small flowers.",
+  "carpet.rule.boneMealCopySmallFlowers.extra.0": "This feature may be overridden by carpet-AMS's fertilizableSmallFlower. If it doesn't work, please enable both options.",
+
+  "carpet.rule.boneMealRipenSugarCane.name": "Bone Meal Ripens Sugar Cane",
+  "carpet.rule.boneMealRipenSugarCane.desc": "Allows Bone Meal to ripen Sugar Cane.",
+
+  "carpet.rule.boneMealRipenChorusFlower.name": "Bone Meal Ripens Chorus Flower",
+  "carpet.rule.boneMealRipenChorusFlower.desc": "Allows using Bone Meal to ripen Chorus Flowers.",
+
+  "carpet.rule.chorusFruitAsSeed.name": "Chorus Fruit as Seed",
+  "carpet.rule.chorusFruitAsSeed.desc": "Allows Chorus Fruit to be used as a seed. Right-click on the top face of End Stone to plant it.",
+
+  "carpet.rule.mineableBuddingAmethyst.name": "Mineable Budding Amethyst",
+  "carpet.rule.mineableBuddingAmethyst.desc": "Allows players to mine Budding Amethyst.",
+
+  "carpet.rule.mineableReinforcedDeepslate.name": "Mineable Reinforced Deepslate",
+  "carpet.rule.mineableReinforcedDeepslate.desc": "Allows players to mine Reinforced Deepslate.",
+
+  "carpet.rule.activeMending.name": "Active Mending",
+  "carpet.rule.activeMending.desc": "Items with the Mending enchantment worn by the player (main hand/off hand/armor slots) will actively consume experience to repair themselves.",
+
+  "carpet.rule.betterGlowLichenCopy.name": "Better Glow Lichen Duplication",
+  "carpet.rule.betterGlowLichenCopy.desc": "When using Bone Meal on Glow Lichen, it will directly drop as an item.",
+
+  "carpet.rule.stackableTotemOfUndying.name": "Stackable Totem of Undying",
+  "carpet.rule.stackableTotemOfUndying.desc": "Changes the stack limit of Totem of Undying to 64.",
+
+  "carpet.rule.stackableWaterBucket.name": "Stackable Water Bucket",
+  "carpet.rule.stackableWaterBucket.desc": "Changes the stack limit of Water Buckets to 64.",
+
+  "carpet.rule.bucketStackingBoost.name": "Empty Bucket Stacking Boost",
+  "carpet.rule.bucketStackingBoost.desc": "Changes the stack limit of Buckets to 64.",
+
+  "carpet.rule.voidBucket.name": "Void Bucket",
+  "carpet.rule.voidBucket.desc": "A bucket with the Infinity enchantment can infinitely pick up fluids (but produces no output).",
+
+  "carpet.rule.infiniteWaterBucket.name": "Infinite Water Bucket",
+  "carpet.rule.infiniteWaterBucket.desc": "A water bucket with the Infinity enchantment can infinitely place water.",
+
+  "carpet.rule.goldenCarrotCompost.name": "Golden Carrot Composting",
+  "carpet.rule.goldenCarrotCompost.desc": "Allows using Golden Carrots in the Composter, with a 100% success rate.",
+
+  "carpet.rule.villagerDropSpawnEgg.name": "Villager Drops Spawn Egg",
+  "carpet.rule.villagerDropSpawnEgg.desc": "Adult villagers (non-Nitwit) that have never traded and are killed by a player drop their Spawn Egg.",
+
+  "carpet.rule.stopCreeperGriefing.name": "Stop Creeper Griefing",
+  "carpet.rule.stopCreeperGriefing.desc": "Prevents Creeper explosions from damaging terrain and harming villagers.",
+
+  "carpet.rule.playerCannotPushBoat.name": "Prevent Players from Pushing Boats",
+  "carpet.rule.playerCannotPushBoat.desc": "Prevents players from pushing boats.",
+
+  "carpet.rule.entityCannotPushBoat.name": "Prevent Entities from Pushing Boats",
+  "carpet.rule.entityCannotPushBoat.desc": "Prevents any entity from pushing boats.",
+
+  "carpet.rule.projectileCantBreakDecoratedPot.name": "Prevent Projectiles from Breaking Decorated Pots",
+  "carpet.rule.projectileCantBreakDecoratedPot.desc": "Prevents projectiles from breaking Decorated Pots."
+}

@@ -1,0 +1,11 @@
+1. 入口
+    服务端和客户端分别从 FECAServerEntry 和 FECAClientEntry 进入
+2. 规则
+    规则全部定义在 rule.FECARules 内
+    对于大多数需要回调的规则，大部分都在 rule.FECARules 的 static 块内进行委托注册(见 "3.事件回调")
+    规则的实现在 function 内，其中大部分需要mixin，这类规则实现都在 mixin 内被使用
+        即: function 实现，mixin 执行 function 的实现
+3. 事件回调
+    大部分事件回调都是被委托给 entry.FECAEventsRegistry 注册，最终在 FECA*Entry 内被最终注册
+4. 命令
+    命令定义及实现都在 command 内被实现，委托给 entry.FECACommandsRegistry 并最终在 FECA*Entry 内被最终注册
