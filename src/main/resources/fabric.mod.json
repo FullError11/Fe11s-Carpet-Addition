@@ -1,0 +1,38 @@
+{
+	"schemaVersion": 1,
+	"id": "feca",
+	"version": "${version}",
+	"name": "Fe11's Carpet Addition",
+	"description": "Fe11的Carpet拓展。",
+	"authors": [
+		"FullError11"
+	],
+	"contact": {
+		"homepage": "",
+		"sources": ""
+	},
+	"license": "LGPL-3.0",
+	"icon": "assets/feca/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"feca.FeCA"
+		],
+		"client": [
+			"feca.client.FeCAClient"
+		]
+	},
+	"mixins": [
+		"feca.mixins.json",
+		{
+			"config": "feca.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}

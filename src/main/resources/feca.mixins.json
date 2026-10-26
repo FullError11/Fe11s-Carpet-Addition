@@ -1,0 +1,21 @@
+{
+    "required": true,
+    "package": "feca.mixin",
+    "compatibilityLevel": "JAVA_25",
+    "mixins": [
+        "BucketItemMixin",
+        "CauldronInteractionsMixin",
+        "LevelChunkMixin",
+        "LivingEntityMixin",
+        "ObserverBlockMixin",
+        "ServerLevelMixin",
+        "SolidBucketItemMixin",
+        "SugarCaneBlockMixin"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    },
+    "overwrites": {
+        "requireAnnotations": true
+	}
+}

@@ -1,0 +1,23 @@
+{
+    "carpet.rule.noThunder.name": "阻止打雷",
+    "carpet.rule.noThunder.desc": "noThunder",
+
+    "carpet.rule.collectibleSpawnEgg.name": "可采集生物蛋",
+    "carpet.rule.collectibleSpawnEgg.desc": "collectibleSpawnEgg",
+
+    "carpet.rule.largeFluidBucket.name": "大流体桶",
+    "carpet.rule.largeFluidBucket.desc": "largeFluidBucket",
+
+    "carpet.rule.undyingFakePlayer.name": "不死假人",
+    "carpet.rule.undyingFakePlayer.desc": "undyingFakePlayer",
+
+    "carpet.rule.activeMending.name": "主动经验修补",
+    "carpet.rule.activeMending.desc": "activeMending",
+
+    "carpet.rule.ripenableSugarcane.name": "可催熟甘蔗",
+    "carpet.rule.ripenableSugarcane.desc": "ripenableSugarcane",
+
+    "carpet.rule.commandObserverFreezeAreas.name": "commandObserverFreezeAreas",
+    "carpet.rule.commandObserverFreezeAreas.desc": "commandObserverFreezeAreas",
+    "carpet.rule.commandObserverFreezeAreas.extra.1": "此规则将会默认 setDefault"
+}
