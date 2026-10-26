@@ -35,12 +35,23 @@ public class CommandObserverFreezeAreas implements RuleImpl {
 
     public static final DimensionMap<AABB, DimensionMapVersionedPrintableEntry<AABB, HashSet<AABB>>> DIMENSION_MAP =
             DimensionMapVersionedPrintableEntry.createMap(HashSet::new, storage -> {
-                return Lazy.by(() -> ChatPaginator.doPaging(
-                        new ArrayList<>(storage),
-                        ObserverFreezeAreas.LIST_PAGE_ITEMS,
-                        ObserverFreezeAreas::AABB2Component,
-                        ObserverFreezeAreas::jumpPageCommand
-                ));
+                return Lazy.by(() -> {
+                    var snapshot = new ArrayList<>(storage);
+
+                    // 按距离 (0, 0, 0) 点的距离排序，正数坐标优先
+                    snapshot.sort((a, b) -> {
+                        int c = CompareUtils.cmpPoint(a.minX, a.minY, a.minZ, b.minX, b.minY, b.minZ);
+                        if (c != 0) return c;
+                        return CompareUtils.cmpPoint(a.maxX, a.maxY, a.maxZ, b.maxX, b.maxY, b.maxZ);
+                    });
+
+                    return ChatPaginator.doPaging(
+                            snapshot,
+                            ObserverFreezeAreas.LIST_PAGE_ITEMS,
+                            ObserverFreezeAreas::AABB2Component,
+                            ObserverFreezeAreas::jumpPageCommand
+                    );
+                });
             });
 
     static {

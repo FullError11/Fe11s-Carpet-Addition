@@ -10,11 +10,14 @@ import org.jspecify.annotations.Nullable;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.function.IntFunction;
 
 @SuppressWarnings("unused")
 public class ChatPaginator {
+    public interface Item2ComponentCaster<T> {
+        Component cast(T item, int index);
+    }
+
     public static class ChatPage<E> {
         private final List<E> items;
 
@@ -23,23 +26,23 @@ public class ChatPaginator {
         }
 
         /// @apiNote 含一个多出的句末 '\n'
-        Component component(Function<E, Component> itemToComponent) {
+        Component component(Item2ComponentCaster<E> caster) {
             var result = Component.empty();
-            items.forEach(item -> {
-                result.append(itemToComponent.apply(item)).append("\n");
-            });
+            for (int i = 0; i < items.size(); i++) {
+                result.append(caster.cast(items.get(i), i)).append("\n");
+            }
             return result;
         }
     }
 
     public static class ChatPages<E> {
         final ChatPage<E>[] pages;
-        final Function<E, Component> itemToComponent;
+        final Item2ComponentCaster<E> caster;
         @Nullable final IntFunction<String> pageJumpCommandGenerator;
 
-        ChatPages(ChatPage<E>[] pages, Function<E, Component> itemToComponent, @Nullable IntFunction<String> pageJumpCommandGenerator) {
+        ChatPages(ChatPage<E>[] pages, Item2ComponentCaster<E> itemToComponentCaster, @Nullable IntFunction<String> pageJumpCommandGenerator) {
             this.pages = pages;
-            this.itemToComponent = itemToComponent;
+            this.caster = itemToComponentCaster;
             this.pageJumpCommandGenerator = pageJumpCommandGenerator;
         }
 
@@ -64,12 +67,12 @@ public class ChatPaginator {
             Objects.checkIndex(pageIndex, pages.length);
 
             var result = Component.empty();
-            result.append(pages[pageIndex].component(itemToComponent)); // 自带换行
+            result.append(pages[pageIndex].component(caster)); // 自带换行
             result.append(String.format("第 %d/%d 页", pageIndex + 1, pages.length));
             if (pageJumpCommandGenerator != null) {
-                result.append(" ");
+                result.append("  ");
                 result.append(createPageJumpComponent(pageJumpCommandGenerator, "[上一页]", pageIndex != 0, pageIndex - 1));
-                result.append("    ");
+                result.append(" ");
                 result.append(createPageJumpComponent(pageJumpCommandGenerator, "[下一页]", pageIndex != pages.length - 1, pageIndex + 1));
             }
             return result;
@@ -92,14 +95,14 @@ public class ChatPaginator {
     ///
     /// @param items                    待分页的条目；不可为 null，允许为空列表（此时会得到 1 个空页）
     /// @param pageItems                每页条数，必须为正数
-    /// @param itemToComponent          将单个条目渲染成 {@link Component}
+    /// @param itemToComponentCaster    将单个条目渲染成 {@link Component}
     /// @param pageJumpCommandGenerator 由目标页索引生成跳转命令；为 null 时不渲染上一页/下一页按钮
     /// @return 分页结果
     /// @throws IllegalArgumentException 当 {@code pageItems <= 0} 时
     @Contract("_, _, _, _ -> new")
     public static <E> @NonNull ChatPages<E> doPaging(
             @NonNull List<E> items, int pageItems,
-            @NonNull Function<E, Component> itemToComponent,
+            @NonNull Item2ComponentCaster<E> itemToComponentCaster,
             @Nullable IntFunction<String> pageJumpCommandGenerator) {
         if (pageItems <= 0) {
             throw new IllegalArgumentException("pageItems must be positive, but was " + pageItems);
@@ -117,13 +120,13 @@ public class ChatPaginator {
             pages[i] = new ChatPage<>(List.copyOf(items.subList(from, to)));
         }
 
-        return new ChatPages<>(pages, itemToComponent, pageJumpCommandGenerator);
+        return new ChatPages<>(pages, itemToComponentCaster, pageJumpCommandGenerator);
     }
 
     /// 不带页码跳转按钮的简化重载。
     @Contract("_, _, _ -> new")
     public static <E> @NonNull ChatPages<E> doPaging(
-            @NonNull List<E> items, int pageItems, @NonNull Function<E, Component> itemToComponent) {
-        return doPaging(items, pageItems, itemToComponent, null);
+            @NonNull List<E> items, int pageItems, @NonNull Item2ComponentCaster<E> itemToComponentCaster) {
+        return doPaging(items, pageItems, itemToComponentCaster, null);
     }
 }

@@ -8,23 +8,28 @@ import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
+import feca.FeCA;
 import feca.command.utils.PlayerExecutor;
 import feca.registry.OnInitializeCallbackRegistry;
 import feca.rule.Rules;
+import feca.utils.PhysUtils;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.arguments.DimensionArgument;
 import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 
-import java.util.*;
 import java.util.function.Function;
 
 import static feca.function.CommandObserverFreezeAreas.DIMENSION_MAP;
@@ -33,20 +38,55 @@ public class ObserverFreezeAreas {
     static {
         OnInitializeCallbackRegistry.register(() -> {
             CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> {
-                dispatcher.register(Commands.literal("observerFreezeAreas")
+                var command = Commands.literal("observerFreezeAreas")
                         .requires(ctx -> CommandHelper.canUseCommand(ctx, Rules.commandObserverFreezeAreas))
                         .then(SubCommands.add())
                         .then(SubCommands.remove())
-                        .then(SubCommands.list())
-                );
+                        .then(SubCommands.list());
+
+                if (FeCA.DEBUG) {
+                    command = command.then(Commands.literal("debug")
+                            .then(Commands.literal("addItems")
+                                    .executes(_ -> {
+                                            DIMENSION_MAP.forEach(entry -> {
+                                                for (int i = -25; i < 25; i++) {
+                                                    final var pos = new BlockPos(i, 0, i);
+                                                    entry.add(AABB.encapsulatingFullBlocks(pos, pos));
+                                                }
+                                            });
+                                            return Command.SINGLE_SUCCESS;
+                                    })
+                            )
+                    );
+                }
+
+                dispatcher.register(command);
             });
         });
     }
 
     public static final int LIST_PAGE_ITEMS = 10;
-    @Contract("_ -> new")
-    public static @NonNull Component AABB2Component(@NonNull AABB aabb) {
-        return Component.literal(aabb.toString());
+    @Contract("_, _ -> new")
+    public static @NonNull Component AABB2Component(@NonNull AABB aabb, int index) {
+        var poss = PhysUtils.intAABBToBlockPoss(aabb);
+        var remove = Component.literal("[删除]").withStyle(style -> {
+            var removeCmd = String.format("/observerFreezeAreas remove %s %s",
+                    PhysUtils.blockPosToString(poss.getFirst()),
+                    PhysUtils.blockPosToString(poss.getSecond())
+            );
+            return style.withColor(ChatFormatting.RED)
+                    .withHoverEvent(new HoverEvent.ShowText(Component.literal("提交命令到输入栏")))
+                    .withClickEvent(new ClickEvent.SuggestCommand(removeCmd));
+        });
+        return Component.empty()
+                // 正好每页 10 个元素，使用 0-based 索引可以对其
+                .append(Component.literal(String.format("[%d]", index)).withColor(TextColor.GRAY))
+                .append(" [")
+                .append(PhysUtils.blockPosToSignedComponent(poss.getFirst(), TextColor.AQUA))
+                .append(" -> ")
+                .append(PhysUtils.blockPosToSignedComponent(poss.getSecond(), TextColor.BLUE))
+                .append("]  ")
+                .append(remove);
     }
     public static @NonNull String jumpPageCommand(int pageIndex) {
         return String.format("observerFreezeAreas list %d", SubCommands.index2number(pageIndex));
@@ -55,26 +95,70 @@ public class ObserverFreezeAreas {
 
     static class SubCommands {
         static ArgumentBuilder<CommandSourceStack, ?> add() {
-            return modify("add", ((ctx, dimension, aabb) -> {
-                if (DIMENSION_MAP.add(dimension, aabb)) {
-                    ctx.getSource().sendSystemMessage(Component.literal("SUCC| Add: " + aabb + " @ " + dimension.identifier()));
-                    return Command.SINGLE_SUCCESS;
-                } else {
-                    ctx.getSource().sendFailure(Component.literal("ERROR| Could not Add: " + aabb + " @ " + dimension.identifier()));
-                    return -1;
-                }
-            }));
+            final Function<DimensionGetter, ArgumentBuilder<CommandSourceStack, ?>> requirePosThenExecWith = dimensionGetter -> {
+                return Commands.argument(Arguments.POS1, BlockPosArgument.blockPos())
+                        .then(Commands.argument(Arguments.POS2, BlockPosArgument.blockPos())
+                                .executes(context -> {
+                                    var dimension = dimensionGetter.get(context);
+                                    var aabb = getAABB(context);
+
+                                    if (DIMENSION_MAP.add(dimension, aabb)) {
+                                        context.getSource().sendSystemMessage(Component.literal("SUCC| Add: " + aabb + " @ " + dimension.identifier()));
+                                        return Command.SINGLE_SUCCESS;
+                                    } else {
+                                        context.getSource().sendFailure(Component.literal("ERROR| Could not Add: " + aabb + " @ " + dimension.identifier()));
+                                        return -1;
+                                    }
+                                })
+                        );
+            };
+
+            return Commands.literal("add")
+                    .then(requireDimension()
+                            .then(requirePosThenExecWith.apply(DimensionGetter.FORM_ARGUMENT))
+                    )
+                    .then(requirePosThenExecWith.apply(DimensionGetter.FORM_EXECUTOR));
         }
         static ArgumentBuilder<CommandSourceStack, ?> remove() {
-            return modify("remove", ((ctx, dimension, aabb) -> {
-                if (DIMENSION_MAP.remove(dimension, aabb)) {
-                    ctx.getSource().sendSystemMessage(Component.literal("SUCC| Remove: " + aabb + " @ " + dimension.identifier()));
-                    return Command.SINGLE_SUCCESS;
-                } else {
-                    ctx.getSource().sendFailure(Component.literal("ERROR| Could not Remove: " + aabb + " @ " + dimension.identifier()));
-                    return -1;
-                }
-            }));
+            final Function<DimensionGetter, ArgumentBuilder<CommandSourceStack, ?>> requirePosThenExecWith = dimensionGetter -> {
+                return Commands.argument(Arguments.POS1, BlockPosArgument.blockPos())
+                        .then(Commands.argument(Arguments.POS2, BlockPosArgument.blockPos())
+                                .executes(context -> {
+                                    var dimension = dimensionGetter.get(context);
+                                    var aabb = getAABB(context);
+
+                                    if (DIMENSION_MAP.remove(dimension, aabb)) {
+                                        context.getSource().sendSystemMessage(Component.literal("SUCC| Remove: " + aabb + " @ " + dimension.identifier()));
+                                        return Command.SINGLE_SUCCESS;
+                                    } else {
+                                        context.getSource().sendFailure(Component.literal("ERROR| Could not Remove: " + aabb + " @ " + dimension.identifier()));
+                                        return -1;
+                                    }
+                                })
+                        );
+            };
+
+            final Function<DimensionGetter, ArgumentBuilder<CommandSourceStack, ?>> removeAll = dimensionGetter -> {
+                    return Commands.literal("all").executes(context -> {
+                        var dimension = dimensionGetter.get(context);
+                        var entry = DIMENSION_MAP.tryGetEntry(dimension);
+                        if (entry.isPresent()) {
+                            entry.get().clear();
+                            context.getSource().sendSystemMessage(Component.literal("SUCC| Remove all freeze areas @ " + dimension.identifier()));
+                            return Command.SINGLE_SUCCESS;
+                        }
+                        context.getSource().sendSystemMessage(Component.literal("ERROR| Non freeze areas @ " + dimension.identifier()));
+                        return -1;
+                    });
+            };
+
+            return Commands.literal("remove")
+                    .then(requireDimension()
+                            .then(requirePosThenExecWith.apply(DimensionGetter.FORM_ARGUMENT))
+                            .then(removeAll.apply(DimensionGetter.FORM_EXECUTOR))
+                    )
+                    .then(requirePosThenExecWith.apply(DimensionGetter.FORM_EXECUTOR))
+                    .then(removeAll.apply(DimensionGetter.FORM_EXECUTOR));
         }
         static ArgumentBuilder<CommandSourceStack, ?> list() {
             interface PageNumberGetter {
@@ -104,7 +188,15 @@ public class ObserverFreezeAreas {
                             }
 
                             var msg = Component.empty();
-                            msg.append(Component.literal("===== ObserverFreezeAreas ======\n").withStyle(ChatFormatting.YELLOW));
+                            msg.append("=== ");
+                            msg.append(Component.literal("ObserverFreezeAreas")
+                                    .withStyle(ChatFormatting.YELLOW)
+                            );
+                            msg.append(" @ ");
+                            msg.append(Component.literal(dimension.identifier().toString())
+                                    .withStyle(ChatFormatting.AQUA)
+                            );
+                            msg.append(" ===\n");
                             msg.append(pages.pageComponent(pageIndex));
 
                             context.getSource().sendSystemMessage(msg);
@@ -172,29 +264,6 @@ public class ObserverFreezeAreas {
             DimensionGetter FORM_ARGUMENT = ctx -> {
                 return DimensionArgument.getDimension(ctx, Arguments.DIMENSION).dimension();
             };
-        }
-
-        @FunctionalInterface
-        interface ModifyExecutor {
-            int exec(CommandContext<CommandSourceStack> ctx, ResourceKey<Level> dimension, AABB aabb);
-        }
-        private static ArgumentBuilder<CommandSourceStack, ?> modify(String name, ModifyExecutor executor) {
-            final Function<DimensionGetter, ArgumentBuilder<CommandSourceStack, ?>> requirePosThenExecWith = dimensionGetter -> {
-                return Commands.argument(Arguments.POS1, BlockPosArgument.blockPos())
-                        .then(Commands.argument(Arguments.POS2, BlockPosArgument.blockPos())
-                                .executes(context -> {
-                                    var dimension = dimensionGetter.get(context);
-                                    var aabb = getAABB(context);
-                                    return executor.exec(context, dimension, aabb);
-                                })
-                        );
-            };
-
-            return Commands.literal(name)
-                    .then(requireDimension()
-                            .then(requirePosThenExecWith.apply(DimensionGetter.FORM_ARGUMENT))
-                    )
-                    .then(requirePosThenExecWith.apply(DimensionGetter.FORM_EXECUTOR));
         }
     }
 }

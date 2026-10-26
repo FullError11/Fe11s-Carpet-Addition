@@ -14,7 +14,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.*;
 
 @SuppressWarnings("unused")
-public class DimensionMap<T, E extends DimensionMap.Entry<T>> {
+public class DimensionMap<T, E extends DimensionMap.Entry<T>> implements Iterable<E> {
     public interface Entry<T> extends Iterable<T> {
         boolean isEmpty();
         boolean add(T item);
@@ -211,5 +211,14 @@ public class DimensionMap<T, E extends DimensionMap.Entry<T>> {
                 return id == null ? null : ResourceKey.create(Registries.DIMENSION, id);
             }
         };
+    }
+
+    public Set<ResourceKey<Level>> dimensions() {
+        return MAP.keySet();
+    }
+
+    @Override
+    public @NonNull Iterator<E> iterator() {
+        return MAP.values().iterator();
     }
 }
