@@ -22,5 +22,8 @@
     "carpet.rule.commandObserverFreezeAreas.extra.1": "此规则将会默认 setDefault",
 
     "carpet.rule.commandVillagerTradableItem.name": "commandVillagerTradableItem",
-    "carpet.rule.commandVillagerTradableItem.desc": "commandVillagerTradableItem"
+    "carpet.rule.commandVillagerTradableItem.desc": "commandVillagerTradableItem",
+
+    "carpet.rule.commandHome.name": "commandHome",
+    "carpet.rule.commandHome.desc": "commandHome"
 }

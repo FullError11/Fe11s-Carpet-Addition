@@ -4,18 +4,26 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class EndServerTickTaskQueue {
+    /// 强制执行一个TaskHandle行为，用于防止忘记 discard 任务
+    public static class TaskTickResult {
+        private TaskTickResult() {}
+    }
+    private static final TaskTickResult TASK_TICK_RESULT = new TaskTickResult();
+
     public interface Task {
-        void tick(TaskHandle task);
+        @SuppressWarnings("UnusedReturnValue")
+        TaskTickResult tick(TaskHandle task);
     }
 
-    /// 允许通过继承 TaskHandle 已携带自定义数据
     @SuppressWarnings("unused")
     public static class TaskHandle {
         private boolean discarded = false;
         private int pauseTicks = 0;
 
-        public void discard() { discarded = true; }
-        public void pause(int ticks) { pauseTicks += ticks; }
+        public TaskTickResult discard() { discarded = true; return TASK_TICK_RESULT; }
+        public TaskTickResult pause(int ticks) { pauseTicks += ticks; return TASK_TICK_RESULT; }
+        /// 默认行为
+        public TaskTickResult normal() { return TASK_TICK_RESULT; }
     }
 
     private record TaskContext(TaskHandle handle, Task task) {}
