@@ -80,4 +80,8 @@ public final class Rules {
     @Rule(categories = {FECA, COMMAND, CREATIVE})
     @RuleImplBy(CommandObserverFreezeAreas.class)
     public static CommandPermissionOptions commandObserverFreezeAreas = CommandPermissionOptions.FALSE;
+
+    @Rule(categories = {FECA, COMMAND, SURVIVAL})
+    @RuleImplBy(CommandVillagerTradableItem.class)
+    public static CommandPermissionOptions commandVillagerTradableItem = CommandPermissionOptions.FALSE;
 }

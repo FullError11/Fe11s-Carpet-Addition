@@ -67,3 +67,7 @@ TODO:
 [x] 持久化保存
 [x] 默认 setDefault
 [ ] 无头服务端与客户端的数据同步 (用于Overlay显示)
+
+### 自动化村民交易物刷新
+
+1. 允许玩家指向 `/villagerTradableItem` 指令以自动刷新村民交易物。

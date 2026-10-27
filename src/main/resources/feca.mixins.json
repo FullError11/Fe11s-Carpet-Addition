@@ -10,7 +10,8 @@
         "ObserverBlockMixin",
         "ServerLevelMixin",
         "SolidBucketItemMixin",
-        "SugarCaneBlockMixin"
+        "SugarCaneBlockMixin",
+        "accessor.VillagerAccessor"
     ],
     "injectors": {
         "defaultRequire": 1

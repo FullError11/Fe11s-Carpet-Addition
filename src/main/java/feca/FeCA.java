@@ -7,8 +7,10 @@ import feca.registry.OnServerLoadedCallbackRegistry;
 import feca.rule.Rules;
 import feca.rule.utils.RuleTranslator;
 import feca.utils.ConfigManager;
+import feca.utils.EndServerTickTaskQueue;
 import net.fabricmc.api.ModInitializer;
 
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resources.Identifier;
 
@@ -44,6 +46,10 @@ public class FeCA implements ModInitializer, CarpetExtension {
 		// 因为有些 callback 可能在类的 static 块内被注册，
 		// 执行过早可能导致其未被注册
 		OnInitializeCallbackRegistry.CALLBACKS.forEach(Runnable::run);
+
+		ServerTickEvents.END_SERVER_TICK.register(_ -> {
+			EndServerTickTaskQueue.tick();
+		});
 
 		LOGGER.info("feca.main initialized");
 	}

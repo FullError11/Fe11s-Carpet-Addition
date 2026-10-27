@@ -19,5 +19,8 @@
 
     "carpet.rule.commandObserverFreezeAreas.name": "commandObserverFreezeAreas",
     "carpet.rule.commandObserverFreezeAreas.desc": "commandObserverFreezeAreas",
-    "carpet.rule.commandObserverFreezeAreas.extra.1": "此规则将会默认 setDefault"
+    "carpet.rule.commandObserverFreezeAreas.extra.1": "此规则将会默认 setDefault",
+
+    "carpet.rule.commandVillagerTradableItem.name": "commandVillagerTradableItem",
+    "carpet.rule.commandVillagerTradableItem.desc": "commandVillagerTradableItem"
 }
