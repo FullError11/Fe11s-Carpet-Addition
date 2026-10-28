@@ -25,5 +25,8 @@
     "carpet.rule.commandVillagerTradableItem.desc": "commandVillagerTradableItem",
 
     "carpet.rule.commandHome.name": "commandHome",
-    "carpet.rule.commandHome.desc": "commandHome"
+    "carpet.rule.commandHome.desc": "commandHome",
+
+    "carpet.rule.fakeBrittleIce.name": "冰冰冰",
+    "carpet.rule.fakeBrittleIce.desc": "引入类似 26.4 脆冰的生成机制，但生成的是 冰"
 }

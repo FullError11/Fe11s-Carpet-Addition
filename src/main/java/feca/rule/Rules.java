@@ -88,4 +88,8 @@ public final class Rules {
     @Rule(categories = {FECA, COMMAND, SURVIVAL})
     @RuleImplBy(CommandHome.class)
     public static CommandPermissionOptions commandHome = CommandPermissionOptions.FALSE;
+
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(FakeBrittleIce.class)
+    public static boolean fakeBrittleIce = false;
 }
