@@ -13,7 +13,9 @@ import feca.command.arguments.IntegerArgument;
 import feca.command.utils.PlayerExecutor;
 import feca.registry.OnInitializeCallbackRegistry;
 import feca.rule.Rules;
+import feca.utils.ChatPaginator;
 import feca.utils.PhysUtils;
+import feca.utils.PlayerUtils;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -32,6 +34,7 @@ import org.jspecify.annotations.NonNull;
 import java.util.function.Function;
 
 import static feca.function.CommandObserverFreezeAreas.DIMENSION_MAP;
+import static feca.command.utils.CommandResult.*;
 
 public class ObserverFreezeAreas {
     static {
@@ -53,7 +56,17 @@ public class ObserverFreezeAreas {
                                                     entry.add(AABB.encapsulatingFullBlocks(pos, pos));
                                                 }
                                             });
-                                            return Command.SINGLE_SUCCESS;
+                                            return SUCCESS;
+                                    })
+                            )
+                            .then(Commands.literal("addCenterItems")
+                                    .executes(_ -> {
+                                        DIMENSION_MAP.forEach(entry -> {
+                                            for (int i = 0; i < 10; i++) {
+                                                entry.add(AABB.encapsulatingFullBlocks(new BlockPos(-i, -i, -i), new BlockPos(i, i, i)));
+                                            }
+                                        });
+                                        return SUCCESS;
                                     })
                             )
                     );
@@ -68,13 +81,13 @@ public class ObserverFreezeAreas {
     @Contract("_, _ -> new")
     public static @NonNull Component AABB2Component(@NonNull AABB aabb, int index) {
         var poss = PhysUtils.intAABBToBlockPoss(aabb);
-        var remove = Component.literal("[删除]").withStyle(style -> {
+        var remove = Component.translatable("feca.msg.cmd.obserserFreezeAreas.list.fns.remove").withStyle(style -> {
             var removeCmd = String.format("/observerFreezeAreas remove %s %s",
                     PhysUtils.blockPosToString(poss.getFirst()),
                     PhysUtils.blockPosToString(poss.getSecond())
             );
             return style.withColor(ChatFormatting.RED)
-                    .withHoverEvent(new HoverEvent.ShowText(Component.literal("提交命令到输入栏")))
+                    .withHoverEvent(new HoverEvent.ShowText(Component.translatable("feca.msg.common.enterCommand")))
                     .withClickEvent(new ClickEvent.SuggestCommand(removeCmd));
         });
         return Component.empty()
@@ -84,8 +97,9 @@ public class ObserverFreezeAreas {
                 .append(PhysUtils.blockPosToSignedComponent(poss.getFirst(), TextColor.AQUA))
                 .append(" -> ")
                 .append(PhysUtils.blockPosToSignedComponent(poss.getSecond(), TextColor.BLUE))
-                .append("]  ")
-                .append(remove);
+                .append("]  [")
+                .append(remove)
+                .append("]");
     }
     public static @NonNull String jumpPageCommand(int pageIndex) {
         return String.format("observerFreezeAreas list %d", SubCommands.index2number(pageIndex));
@@ -101,12 +115,19 @@ public class ObserverFreezeAreas {
                                     var dimension = dimensionGetter.get(context);
                                     var aabb = getAABB(context);
 
+                                    var dimensionStr = dimension.identifier().toString();
+                                    var aabbStr = aabb.toString();
+
                                     if (DIMENSION_MAP.add(dimension, aabb)) {
-                                        context.getSource().sendSystemMessage(Component.literal("SUCC| Add: " + aabb + " @ " + dimension.identifier()));
-                                        return Command.SINGLE_SUCCESS;
+                                        FeCA.LOGGER.info("Add {}:{} to ObserverFreezeAreas", dimensionStr, aabbStr);
+                                        context.getSource().sendSuccess(() -> {
+                                            return Component.translatable("feca.msg.cmd.observerFreezeAreas.add.succ", dimensionStr, aabbStr);
+                                        }, true);
+                                        return SUCCESS;
                                     } else {
-                                        context.getSource().sendFailure(Component.literal("ERROR| Could not Add: " + aabb + " @ " + dimension.identifier()));
-                                        return -1;
+                                        FeCA.LOGGER.info("Failed to add {}:{} to ObserverFreezeAreas", dimensionStr, aabbStr);
+                                        context.getSource().sendFailure(Component.translatable("feca.msg.cmd.observerFreezeAreas.add.fail"));
+                                        return FAILURE;
                                     }
                                 })
                         );
@@ -126,12 +147,20 @@ public class ObserverFreezeAreas {
                                     var dimension = dimensionGetter.get(context);
                                     var aabb = getAABB(context);
 
+                                    var dimensionStr = dimension.identifier().toString();
+                                    var aabbStr = aabb.toString();
+
                                     if (DIMENSION_MAP.remove(dimension, aabb)) {
-                                        context.getSource().sendSystemMessage(Component.literal("SUCC| Remove: " + aabb + " @ " + dimension.identifier()));
-                                        return Command.SINGLE_SUCCESS;
+                                        FeCA.LOGGER.info("Remove {}:{} to ObserverFreezeAreas", dimensionStr, aabbStr);
+                                        context.getSource().sendSuccess(() -> {
+                                            return Component.translatable("feca.msg.cmd.observerFreezeAreas.remove.area.succ", dimensionStr, aabbStr);
+                                        }, true);
+                                        return SUCCESS;
                                     } else {
-                                        context.getSource().sendFailure(Component.literal("ERROR| Could not Remove: " + aabb + " @ " + dimension.identifier()));
-                                        return -1;
+                                        FeCA.LOGGER.info("Failed to remove {}:{} to ObserverFreezeAreas", dimensionStr, aabbStr);
+                                        var msg = Component.translatable("feca.msg.cmd.observerFreezeAreas.remove.area.fail");
+                                        context.getSource().sendFailure(msg);
+                                        return FAILURE;
                                     }
                                 })
                         );
@@ -141,13 +170,23 @@ public class ObserverFreezeAreas {
                     return Commands.literal("all").executes(context -> {
                         var dimension = dimensionGetter.get(context);
                         var entry = DIMENSION_MAP.tryGetEntry(dimension);
+
+                        var dimensionStr = dimension.identifier().toString();
+
                         if (entry.isPresent()) {
                             entry.get().clear();
-                            context.getSource().sendSystemMessage(Component.literal("SUCC| Remove all freeze areas @ " + dimension.identifier()));
-                            return Command.SINGLE_SUCCESS;
+
+                            FeCA.LOGGER.info("remove all ObserverFreezeAreas at {}", dimensionStr);
+                            context.getSource().sendSuccess(() -> {
+                                return Component.translatable("feca.msg.cmd.observerFreezeAreas.remove.all.succ", dimensionStr);
+                            }, true);
+                            return SUCCESS;
                         }
-                        context.getSource().sendSystemMessage(Component.literal("ERROR| Non freeze areas @ " + dimension.identifier()));
-                        return -1;
+
+                        FeCA.LOGGER.info("Failed to remove all ObserverFreezeAreas at {}: non areas", dimensionStr);
+                        var msg = Component.translatable("feca.msg.cmd.observerFreezeAreas.remove.all.fail", dimensionStr);
+                        context.getSource().sendSystemMessage(msg);
+                        return FAILURE;
                     });
             };
 
@@ -157,7 +196,33 @@ public class ObserverFreezeAreas {
                             .then(removeAll.apply(DimensionGetter.FORM_EXECUTOR))
                     )
                     .then(requirePosThenExecWith.apply(DimensionGetter.FORM_EXECUTOR))
-                    .then(removeAll.apply(DimensionGetter.FORM_EXECUTOR));
+                    .then(removeAll.apply(DimensionGetter.FORM_EXECUTOR))
+                    .then(Commands.literal("here").executes(ctx -> {
+                        return PlayerExecutor.requireExecByPlayer(ctx, player -> {
+                            @SuppressWarnings("resource")
+                            var dimension = player.level().dimension();
+                            var pos = PlayerUtils.getPos(player);
+
+                            var entry = DIMENSION_MAP.getEntryNullable(dimension);
+                            var src = ctx.getSource();
+                            if (entry != null) {
+                                var removed = entry.removeIf(aabb -> {
+                                    var result = aabb.intersects(pos);
+                                    if (result) {
+                                        var msg = Component.translatable("feca.msg.cmd.observerFreezeAreas.remove.here.removeItem", aabb.toString());
+                                        src.sendSystemMessage(msg);
+                                    }
+                                    return result;
+                                });
+                                if (removed) {
+                                    return SUCCESS;
+                                }
+                            }
+
+                            src.sendFailure(Component.translatable("feca.msg.cmd.observerFreezeAreas.remove.here.nonItem"));
+                            return FAILURE;
+                        });
+                    }));
         }
         static ArgumentBuilder<CommandSourceStack, ?> list() {
             interface PageNumberGetter {
@@ -172,18 +237,24 @@ public class ObserverFreezeAreas {
                     return context -> {
                         var dimension = dimensionGetter.get(context);
                         var entry = DIMENSION_MAP.getEntry(dimension);
+
+                        var id = dimension.identifier();
                         if (entry.isEmpty()) {
-                            context.getSource().sendFailure(Component.literal("ERROR| " + dimension.identifier() + " AABBs is empty"));
-                            return -1;
+                            var msg = Component.translatable("feca.msg.cmd.obserserFreezeAreas.list.nonAreas", id);
+                            context.getSource().sendFailure(msg);
+                            return FAILURE;
                         }
 
                         // page_number 是页码，取值范围是 `[1, pages]`, 需要 -1 转换到 page_index(取值范围`[0, pages)`)
-                        var pageIndex = number2index(pageNumberGetter.get(context));
+                        var pageNumber = pageNumberGetter.get(context);
+                        var pageIndex = number2index(pageNumber);
 
                         return entry.CHAT_PAGES.useRInt(pages -> {
                             if (!pages.hasPages(pageIndex)) {
-                                context.getSource().sendFailure(Component.literal("ERROR| No pages available"));
-                                return -1;
+                                var maxPages = entry.CHAT_PAGES.useRInt(ChatPaginator.ChatPages::pages);
+                                var msg = Component.translatable("feca.msg.common.pageNumberOutOfRange", pageNumber, 1, maxPages);
+                                context.getSource().sendFailure(msg);
+                                return FAILURE;
                             }
 
                             var msg = Component.empty();
@@ -199,7 +270,7 @@ public class ObserverFreezeAreas {
                             msg.append(pages.pageComponent(pageIndex));
 
                             context.getSource().sendSystemMessage(msg);
-                            return Command.SINGLE_SUCCESS;
+                            return SUCCESS;
                         });
                     };
                 }
@@ -240,8 +311,9 @@ public class ObserverFreezeAreas {
             ResourceKey<Level> get(@NonNull CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException;
 
             DimensionGetter FORM_EXECUTOR = new DimensionGetter() {
-                private static final SimpleCommandExceptionType ERROR_NOT_PLAYER =
-                        new SimpleCommandExceptionType(() -> "Cannot get dimension form executor: is not player");
+                private static final SimpleCommandExceptionType ERROR_NOT_PLAYER = new SimpleCommandExceptionType(() -> {
+                    return Component.translatable("feca.msg.cmd.obserserFreezeAreas.getDimensionFromExectorFail").getString();
+                });
 
                 @Override
                 public @NonNull ResourceKey<Level> get(@NonNull CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {

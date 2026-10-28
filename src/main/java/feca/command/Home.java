@@ -1,8 +1,9 @@
 package feca.command;
 
 import carpet.utils.CommandHelper;
-import com.mojang.brigadier.Command;
 import com.mojang.brigadier.context.CommandContext;
+import feca.FeCA;
+import feca.command.utils.CommandResult;
 import feca.command.utils.PlayerExecutor;
 import feca.registry.OnInitializeCallbackRegistry;
 import feca.rule.Rules;
@@ -54,21 +55,24 @@ public class Home {
                 @Override
                 public EndServerTickTaskQueue.TaskTickResult tick(EndServerTickTaskQueue.TaskHandle task) {
                     if (player.isRemoved()) {
+                        FeCA.LOGGER.info("玩家 {} 的传送被取消: 已离开游戏", player.getName());
                         return task.discard();
                     }
                     if (PlayerUtils.isMoved(player)) {
-                        player.sendSystemMessage(Component.literal("传送已取消").withColor(TextColor.RED));
+                        var msg = Component.translatable("feca.msg.cmd.home.cancelled").withColor(TextColor.RED);
+                        player.sendSystemMessage(msg, true);
                         return task.discard();
                     }
 
                     if (leftTime.totalTicks() <= 0) {
                         player.teleport(teleportTransitionGetter.getTeleportTransition(player));
+                        var msg = Component.translatable("feca.msg.cmd.home.done").withColor(TextColor.GREEN);
+                        player.sendSystemMessage(msg, true);
                         return task.discard();
                     }
                     if (leftTime.ticks == 0) {
-                        var msg = Component.literal("将在 " + leftTime.seconds + " 秒后传送")
-                                .withColor(TextColor.AQUA);
-                        player.sendSystemMessage(msg);
+                        var msg = Component.translatable("feca.msg.cmd.home.countdown", leftTime.seconds).withColor(TextColor.AQUA);
+                        player.sendSystemMessage(msg, true);
                     }
 
                     leftTime.tickSub();
@@ -77,7 +81,7 @@ public class Home {
                 }
             });
 
-            return Command.SINGLE_SUCCESS;
+            return CommandResult.SUCCESS;
         });
     }
 

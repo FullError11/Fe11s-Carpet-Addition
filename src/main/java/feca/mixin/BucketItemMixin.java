@@ -1,6 +1,6 @@
 package feca.mixin;
 
-import feca.function.LargeFluidBucket;
+import feca.function.LargeBucket;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -16,6 +16,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class BucketItemMixin {
     @Inject(method = "use", at = @At("HEAD"), cancellable = true)
     private void use(@NonNull Level level, Player player, InteractionHand hand, @NonNull CallbackInfoReturnable<InteractionResult> cir) {
-        LargeFluidBucket.useIfEnabled(level, player, hand, (BucketItem)(Object)this).ifPresent(cir::setReturnValue);
+        LargeBucket.useIfEnabled(level, player, hand, (BucketItem)(Object)this).ifPresent(cir::setReturnValue);
     }
 }

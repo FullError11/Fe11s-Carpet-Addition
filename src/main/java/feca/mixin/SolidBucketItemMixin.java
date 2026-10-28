@@ -1,6 +1,6 @@
 package feca.mixin;
 
-import feca.function.LargeFluidBucket;
+import feca.function.LargeBucket;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.SolidBucketItem;
@@ -20,7 +20,7 @@ public abstract class SolidBucketItemMixin extends BlockItem {
 
     @Inject(method = "useOn", at = @At("HEAD"), cancellable = true)
     private void useOn(@NonNull UseOnContext context, @NonNull CallbackInfoReturnable<InteractionResult> cir) {
-        LargeFluidBucket.useOnIfEnabled(context, (SolidBucketItem)(Object)this, super::useOn).ifPresent(cir::setReturnValue);
+        LargeBucket.useOnIfEnabled(context, (SolidBucketItem)(Object)this, super::useOn).ifPresent(cir::setReturnValue);
     }
 }
 

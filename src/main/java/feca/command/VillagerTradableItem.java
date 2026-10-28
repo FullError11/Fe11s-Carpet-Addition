@@ -1,7 +1,6 @@
 package feca.command;
 
 import carpet.utils.CommandHelper;
-import com.mojang.brigadier.Command;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import feca.command.arguments.*;
@@ -22,6 +21,7 @@ import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.item.enchantment.ItemEnchantments;
 
 import static feca.command.VillagerTradableItem.Arguments.*;
+import static feca.command.utils.CommandResult.*;
 
 public class VillagerTradableItem {
     private static final int DEFAULT_MAX_ITERATIONS = 500;
@@ -80,14 +80,14 @@ public class VillagerTradableItem {
         if (Arguments.VILLAGER.get(ctx) instanceof Villager villager) {
             var villagerData = villager.getVillagerData();
             if (villagerData.profession().is(VillagerProfession.NONE)) {
-                ctx.getSource().sendFailure(Component.literal("ERROR| This villager doesn't have a job"));
-                return -1;
+                ctx.getSource().sendFailure(Component.translatable("feca.msg.cmd.villagerTradableItem.err.nonJob"));
+                return FAILURE;
             }
 
             var villagerXP = villager.getVillagerXp();
             if (villagerXP != 0) {
-                ctx.getSource().sendFailure(Component.literal("ERROR| This villager has already traded"));
-                return -1;
+                ctx.getSource().sendFailure(Component.translatable("feca.msg.cmd.villagerTradableItem.err.offersLocked"));
+                return FAILURE;
             }
 
             var offers = villager.getOffers();
@@ -97,19 +97,19 @@ public class VillagerTradableItem {
             for (int i = 0; i < maxIterations; i++) {
                 for (var offer : offers) {
                     if (ItemStack.isSameItemSameComponents(offer.getResult(), target)) {
-                        ctx.getSource().sendSystemMessage(Component.literal("SUCC| Iterated " + i + " times"));
-                        return Command.SINGLE_SUCCESS;
+                        ctx.getSource().sendSystemMessage(Component.translatable("feca.msg.cmd.villagerTradableItem.succ", i));
+                        return SUCCESS;
                     }
                 }
 
                 offers.clear();
                 villagerAccessor.feca$updateTrades(serverLevel);
             }
-            ctx.getSource().sendFailure(Component.literal("FAIL| Out of max iterations"));
+            ctx.getSource().sendFailure(Component.translatable("feca.msg.cmd.villagerTradableItem.fail"));
         } else {
-            ctx.getSource().sendFailure(Component.literal("ERROR| Entity is not villager"));
+            ctx.getSource().sendFailure(Component.translatable("feca.msg.cmd.villagerTradableItem.err.notVillager"));
         }
-        return -1;
+        return FAILURE;
     }
 
     private static int execForEhchBookImpl(CommandContext<CommandSourceStack> ctx, Holder.Reference<Enchantment> enchantment, int level, int maxIterations) throws CommandSyntaxException {

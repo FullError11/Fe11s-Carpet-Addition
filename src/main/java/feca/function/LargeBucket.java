@@ -42,10 +42,10 @@ import java.util.function.Predicate;
 import static net.minecraft.world.item.BucketItem.getEmptySuccessItem;
 import static net.minecraft.world.item.Item.getPlayerPOVHitResult;
 
-public class LargeFluidBucket implements RuleImpl {
+public class LargeBucket implements RuleImpl {
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public static boolean isEnabled() {
-        return Rules.largeFluidBucket;
+        return Rules.largeBucket;
     }
 
     public static final DataComponentType<Integer> BUCKET_CONTENT_COUNT = Registry.register(
@@ -303,7 +303,7 @@ public class LargeFluidBucket implements RuleImpl {
         if (itemInHand.is(Items.BUCKET)) return Optional.empty();
         if (Lazy.BUCKET_CAULDRON_MAP.get(itemInHand.getItem()) != newState.getBlock()) return Optional.empty();
 
-        int bucketContentCount = itemInHand.getOrDefault(LargeFluidBucket.BUCKET_CONTENT_COUNT, 1);
+        int bucketContentCount = itemInHand.getOrDefault(LargeBucket.BUCKET_CONTENT_COUNT, 1);
         if (bucketContentCount <= 1) return Optional.empty();
 
         if (!level.isClientSide()) {

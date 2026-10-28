@@ -12,6 +12,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.*;
+import java.util.function.Predicate;
 
 @SuppressWarnings("unused")
 public class DimensionMap<T, E extends DimensionMap.Entry<T>> implements Iterable<E> {
@@ -21,6 +22,7 @@ public class DimensionMap<T, E extends DimensionMap.Entry<T>> implements Iterabl
         boolean remove(T item);
         void clear();
         boolean contains(T item);
+        boolean removeIf(Predicate<T> filter);
 
         class Simple<T, S extends Collection<T>> implements Entry<T>, Iterable<T> {
             protected final S storage;
@@ -34,6 +36,11 @@ public class DimensionMap<T, E extends DimensionMap.Entry<T>> implements Iterabl
             @Override public boolean remove(T item)     { return storage.remove(item); }
             @Override public void clear()               { storage.clear(); }
             @Override public boolean contains(T item)   { return storage.contains(item); }
+
+            @Override
+            public boolean removeIf(Predicate<T> filter) {
+                return storage.removeIf(filter);
+            }
 
             @Override
             public @NonNull Iterator<T> iterator() {

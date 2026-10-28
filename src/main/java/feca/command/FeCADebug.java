@@ -1,6 +1,5 @@
 package feca.command;
 
-import com.mojang.brigadier.Command;
 import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
@@ -11,6 +10,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import feca.FeCA;
 import feca.command.arguments.AbstractArgument;
+import feca.command.utils.CommandResult;
 import feca.registry.OnInitializeCallbackRegistry;
 import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -162,7 +162,7 @@ public class FeCADebug {
         ctx.getSource().sendSuccess(() -> {
             return Component.literal(String.format("Var: %s %s = \"%s\"", var.typename(), var.name(), var.value()));
         }, false);
-        return Command.SINGLE_SUCCESS;
+        return CommandResult.SUCCESS;
     }
 
     private static int setVar(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
@@ -177,6 +177,6 @@ public class FeCADebug {
             return Component.literal(String.format("Set var %s: \"%s\" -> \"%s\"", var.name(), oldVarValue, newVarValue));
         }, true);
 
-        return Command.SINGLE_SUCCESS;
+        return CommandResult.SUCCESS;
     }
 }

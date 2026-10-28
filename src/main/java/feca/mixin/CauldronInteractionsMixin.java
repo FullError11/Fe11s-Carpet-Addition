@@ -1,6 +1,6 @@
 package feca.mixin;
 
-import feca.function.LargeFluidBucket;
+import feca.function.LargeBucket;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.cauldron.CauldronInteractions;
 import net.minecraft.sounds.SoundEvent;
@@ -25,7 +25,7 @@ public class CauldronInteractionsMixin {
     private static void fillWaterInteraction(
             BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, ItemStack itemInHand,
             @NonNull CallbackInfoReturnable<InteractionResult> cir) {
-        LargeFluidBucket.tryGetContentToLargeBucketIfEnabled(state, level, pos, player, hand, itemInHand,
+        LargeBucket.tryGetContentToLargeBucketIfEnabled(state, level, pos, player, hand, itemInHand,
                 Items.WATER_BUCKET, Blocks.WATER_CAULDRON, CauldronInteractions.WATER
         ).ifPresent(cir::setReturnValue);
     }
@@ -34,7 +34,7 @@ public class CauldronInteractionsMixin {
     private static void fillLavaInteraction(
             BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, ItemStack itemInHand,
             @NonNull CallbackInfoReturnable<InteractionResult> cir) {
-        LargeFluidBucket.tryGetContentToLargeBucketIfEnabled(state, level, pos, player, hand, itemInHand,
+        LargeBucket.tryGetContentToLargeBucketIfEnabled(state, level, pos, player, hand, itemInHand,
                 Items.LAVA_BUCKET, Blocks.LAVA_CAULDRON, CauldronInteractions.LAVA
         ).ifPresent(cir::setReturnValue);
     }
@@ -43,7 +43,7 @@ public class CauldronInteractionsMixin {
     private static void fillPowderSnowInteraction(
             BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, ItemStack itemInHand,
             @NonNull CallbackInfoReturnable<InteractionResult> cir) {
-        LargeFluidBucket.tryGetContentToLargeBucketIfEnabled(state, level, pos, player, hand, itemInHand,
+        LargeBucket.tryGetContentToLargeBucketIfEnabled(state, level, pos, player, hand, itemInHand,
                 Items.POWDER_SNOW_BUCKET, Blocks.POWDER_SNOW_CAULDRON, CauldronInteractions.POWDER_SNOW
         ).ifPresent(cir::setReturnValue);
     }
@@ -61,7 +61,7 @@ public class CauldronInteractionsMixin {
             SoundEvent soundEvent,
             @NonNull CallbackInfoReturnable<InteractionResult> cir
     ) {
-        LargeFluidBucket.getCauldronContentIfEnabled(state, level, pos, player, hand, itemInHand, newItem, canFill, soundEvent)
+        LargeBucket.getCauldronContentIfEnabled(state, level, pos, player, hand, itemInHand, newItem, canFill, soundEvent)
                 .ifPresent(cir::setReturnValue);
     }
 
@@ -76,7 +76,7 @@ public class CauldronInteractionsMixin {
             SoundEvent soundEvent,
             @NonNull CallbackInfoReturnable<InteractionResult> cir
     ) {
-        LargeFluidBucket.setCauldronContentIfEnabled(level, pos, player, hand, itemInHand, newState, soundEvent)
+        LargeBucket.setCauldronContentIfEnabled(level, pos, player, hand, itemInHand, newState, soundEvent)
                 .ifPresent(cir::setReturnValue);
     }
 }

@@ -22,8 +22,8 @@ public class PlayerExecutor {
 
     public static int requireExecByPlayer(@NonNull CommandContext<CommandSourceStack> ctx, IsPlayerExecutor executor) {
         return requireExecByPlayerOrElse(ctx, executor, () -> {
-            ctx.getSource().sendFailure(Component.literal("This command can only be executed by players").withStyle(ChatFormatting.RED));
-            return 0;
+            ctx.getSource().sendFailure(Component.translatable("feca.msg.cmd.util.requireExecByPlayer.err").withStyle(ChatFormatting.RED));
+            return CommandResult.FAILURE;
         });
     }
 

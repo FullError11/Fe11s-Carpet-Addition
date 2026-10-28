@@ -1,38 +1,68 @@
 {
     "carpet.rule.noThunder.name": "阻止打雷",
-    "carpet.rule.noThunder.desc": "noThunder",
+    "carpet.rule.noThunder.desc": "禁用天气循环造成的打雷",
 
     "carpet.rule.collectibleSpawnEgg.name": "可采集生物蛋",
-    "carpet.rule.collectibleSpawnEgg.desc": "collectibleSpawnEgg",
+    "carpet.rule.collectibleSpawnEgg.desc": "允许玩家获取生物的刷怪蛋",
 
-    "carpet.rule.largeFluidBucket.name": "大流体桶",
-    "carpet.rule.largeFluidBucket.desc": "largeFluidBucket",
+    "carpet.rule.largeBucket.name": "大桶",
+    "carpet.rule.largeBucket.desc": "桶可以储存更多流体",
+    "carpet.rule.largeBucket.extra.1": "非玩家(如发射器)无法触发大桶效果",
 
     "carpet.rule.undyingFakePlayer.name": "不死假人",
-    "carpet.rule.undyingFakePlayer.desc": "undyingFakePlayer",
+    "carpet.rule.undyingFakePlayer.desc": "使Carpet假人不会被设置外的方式造成伤害，同时免疫负面效果",
 
     "carpet.rule.activeMending.name": "主动经验修补",
-    "carpet.rule.activeMending.desc": "activeMending",
+    "carpet.rule.activeMending.desc": "当玩家有经验，且设置的槽位的带有经验修补附魔的物品耐久不满时，将会自动消耗经验进行修补",
 
     "carpet.rule.ripenableSugarcane.name": "可催熟甘蔗",
-    "carpet.rule.ripenableSugarcane.desc": "ripenableSugarcane",
+    "carpet.rule.ripenableSugarcane.desc": "允许使用骨粉催熟甘蔗",
 
-    "carpet.rule.commandObserverFreezeAreas.name": "commandObserverFreezeAreas",
-    "carpet.rule.commandObserverFreezeAreas.desc": "commandObserverFreezeAreas",
+    "carpet.rule.commandObserverFreezeAreas.name": "observerFreezeAreas 命令",
+    "carpet.rule.commandObserverFreezeAreas.desc": "允许玩家执行 observerFreezeAreas 命令以冻结区域内的侦测器",
     "carpet.rule.commandObserverFreezeAreas.extra.1": "此规则将会默认 setDefault",
 
-    "carpet.rule.commandVillagerTradableItem.name": "commandVillagerTradableItem",
-    "carpet.rule.commandVillagerTradableItem.desc": "commandVillagerTradableItem",
+    "carpet.rule.commandVillagerTradableItem.name": "villagerTradableItem 命令",
+    "carpet.rule.commandVillagerTradableItem.desc": "允许执行 villagerTradableItem 自动刷新村民交易到期望物品",
+    "carpet.rule.commandVillagerTradableItem.extra.1": "刷新遵循默认规律: 无法刷新到不存在于默认交易列表的物品",
+    "carpet.rule.commandVillagerTradableItem.extra.2": "设置过大的最大迭代次数(并持续未刷新出目标物品)会导致服务器单tick阻塞",
 
-    "carpet.rule.commandHome.name": "commandHome",
-    "carpet.rule.commandHome.desc": "commandHome",
+    "carpet.rule.commandHome.name": "home 命令",
+    "carpet.rule.commandHome.desc": "允许玩家执行 home 命令返回重生点",
 
     "carpet.rule.fakeBrittleIce.name": "冰冰冰",
-    "carpet.rule.fakeBrittleIce.desc": "引入类似 26.4 脆冰的生成机制，但生成的是 冰",
+    "carpet.rule.fakeBrittleIce.desc": "引入类似 26.4 脆冰的生成机制，但生成的是冰",
 
-    "carpet.rule.hardTurtleEgg.name": "hardTurtleEgg",
-    "carpet.rule.hardTurtleEgg.desc": "hardTurtleEgg",
+    "carpet.rule.hardTurtleEgg.name": "坚硬的海龟蛋",
+    "carpet.rule.hardTurtleEgg.desc": "海龟蛋不会因踩踏破碎",
 
-    "carpet.rule.forceTurtleEggHatching.name": "forceTurtleEggHatching",
-    "carpet.rule.forceTurtleEggHatching.desc": "手持金胡萝卜右键海龟蛋将使其强制孵化"
+    "carpet.rule.forceTurtleEggHatching.name": "强制孵化海龟蛋",
+    "carpet.rule.forceTurtleEggHatching.desc": "手持金胡萝卜右键海龟蛋将使其强制孵化",
+
+    "feca.msg.common.enterCommand": "输入命令到聊天框",
+    "feca.msg.common.pageNumberOutOfRange": "页码 %d 不存在，请输入 %d ~ %d 间的数字",
+
+    "feca.msg.cmd.util.requireExecByPlayer.err": "该命令必须由玩家执行",
+
+    "feca.msg.cmd.observerFreezeAreas.add.succ": "%s %s 间被设置为侦测器冻结区域",
+    "feca.msg.cmd.observerFreezeAreas.add.fail": "添加失败: 该区域已存在",
+    "feca.msg.cmd.observerFreezeAreas.remove.area.succ": "位于 %s %s 的侦测器冻结区域被移除",
+    "feca.msg.cmd.observerFreezeAreas.remove.area.fail": "删除失败: 该区域不存在",
+    "feca.msg.cmd.observerFreezeAreas.remove.all.succ": "移除了全部位于 %s 的侦测器冻结区域",
+    "feca.msg.cmd.observerFreezeAreas.remove.all.fail": "移除失败: 在 %s 不存在任何侦测器冻结区域",
+    "feca.msg.cmd.observerFreezeAreas.remove.here.removeItem": "删除了区域: %s",
+    "feca.msg.cmd.observerFreezeAreas.remove.here.nonItem": "当前所在位置不存在任何侦测器冻结区",
+    "feca.msg.cmd.obserserFreezeAreas.list.nonAreas": "在 %s 不存在任何侦测器冻结区域",
+    "feca.msg.cmd.obserserFreezeAreas.list.fns.remove": "删除",
+    "feca.msg.cmd.obserserFreezeAreas.getDimensionFromExectorFail": "无法从执行者获取维度信息: 该变体仅支持玩家",
+
+    "feca.msg.cmd.home.cancelled": "传送已取消",
+    "feca.msg.cmd.home.countdown": "将在 %d 秒后传送",
+    "feca.msg.cmd.home.done": "传送完成",
+
+    "feca.msg.cmd.villagerTradableItem.err.nonJob": "错误: 该村民没有工作",
+    "feca.msg.cmd.villagerTradableItem.err.offersLocked": "错误: 该村民已进行过交易",
+    "feca.msg.cmd.villagerTradableItem.err.notVillager": "错误: 该实体不是村民",
+    "feca.msg.cmd.villagerTradableItem.succ": "成功：共刷新了 %d 次",
+    "feca.msg.cmd.villagerTradableItem.fail": "失败: 刷新次数达到预设上限"
 }

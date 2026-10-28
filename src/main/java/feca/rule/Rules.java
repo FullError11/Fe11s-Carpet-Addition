@@ -62,8 +62,8 @@ public final class Rules {
     public static CollectibleSpawnEggOptions collectibleSpawnEgg = CollectibleSpawnEggOptions.FALSE;
 
     @Rule(categories = {FECA, SURVIVAL})
-    @RuleImplBy(LargeFluidBucket.class)
-    public static boolean largeFluidBucket = false;
+    @RuleImplBy(LargeBucket.class)
+    public static boolean largeBucket = false;
 
     @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(UndyingFakePlayer.class)
