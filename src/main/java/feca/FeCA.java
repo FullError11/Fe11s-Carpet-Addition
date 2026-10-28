@@ -2,10 +2,12 @@ package feca;
 
 import carpet.CarpetExtension;
 import carpet.CarpetServer;
+import feca.command.FeCADebug;
 import feca.registry.OnInitializeCallbackRegistry;
 import feca.registry.OnServerLoadedCallbackRegistry;
 import feca.rule.Rules;
 import feca.rule.utils.RuleTranslator;
+import feca.utils.ClassForceLoader;
 import feca.utils.ConfigManager;
 import feca.utils.EndServerTickTaskQueue;
 import net.fabricmc.api.ModInitializer;
@@ -35,6 +37,8 @@ public class FeCA implements ModInitializer, CarpetExtension {
 
 	@Override
 	public void onInitialize() {
+		if (FeCA.DEBUG) ClassForceLoader.load(FeCADebug.class);
+
 		// Rules.initializeImplClasses 应该最早初始化
 		// 因为规则的 impl类 初始化时会在 static 块注册回调
 		// 这些回调一般可能在 onInitialize 执行，所以必须尽早注册 (在执行前)

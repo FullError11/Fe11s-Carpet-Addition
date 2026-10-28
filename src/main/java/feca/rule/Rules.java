@@ -96,4 +96,8 @@ public final class Rules {
     @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(HardTurtleEgg.class)
     public static boolean hardTurtleEgg = false;
+
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(ForceTurtleEggHatching.class)
+    public static boolean forceTurtleEggHatching = false;
 }

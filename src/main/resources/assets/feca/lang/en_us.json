@@ -31,5 +31,8 @@
     "carpet.rule.fakeBrittleIce.desc": "引入类似 26.4 脆冰的生成机制，但生成的是 冰",
 
     "carpet.rule.hardTurtleEgg.name": "hardTurtleEgg",
-    "carpet.rule.hardTurtleEgg.desc": "hardTurtleEgg"
+    "carpet.rule.hardTurtleEgg.desc": "hardTurtleEgg",
+
+    "carpet.rule.forceTurtleEggHatching.name": "forceTurtleEggHatching",
+    "carpet.rule.forceTurtleEggHatching.desc": "手持金胡萝卜右键海龟蛋将使其强制孵化"
 }

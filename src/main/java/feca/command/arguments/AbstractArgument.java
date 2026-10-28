@@ -9,7 +9,7 @@ import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings("unused")
 public abstract class AbstractArgument<R> implements Argument<R> {
-    final String name;
+    public final String name;
 
     protected AbstractArgument(String name) {
         this.name = name;
