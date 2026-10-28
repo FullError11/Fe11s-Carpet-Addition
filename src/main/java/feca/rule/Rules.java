@@ -92,4 +92,8 @@ public final class Rules {
     @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(FakeBrittleIce.class)
     public static boolean fakeBrittleIce = false;
+
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(HardTurtleEgg.class)
+    public static boolean hardTurtleEgg = false;
 }

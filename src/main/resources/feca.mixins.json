@@ -8,9 +8,11 @@
         "LevelChunkMixin",
         "LivingEntityMixin",
         "ObserverBlockMixin",
+        "RemoveBlockGoalMixin",
         "ServerLevelMixin",
         "SolidBucketItemMixin",
         "SugarCaneBlockMixin",
+        "TurtleEggBlockMixin",
         "accessor.VillagerAccessor"
     ],
     "injectors": {
