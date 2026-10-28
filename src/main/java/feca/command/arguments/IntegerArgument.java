@@ -1,17 +1,15 @@
 package feca.command.arguments;
 
+import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 
 @SuppressWarnings("unused")
-public class IntegerArgument extends Argument<Integer> {
+public class IntegerArgument extends AbstractArgument.NonBuildContext<Integer> {
     private final int min;
     private final int max;
 
@@ -25,6 +23,11 @@ public class IntegerArgument extends Argument<Integer> {
         this(name, Integer.MIN_VALUE, Integer.MAX_VALUE);
     }
 
+    @Override
+    protected ArgumentType<?> argumentType() {
+        return IntegerArgumentType.integer(min, max);
+    }
+
     @Contract("_, _ -> new")
     public static @NonNull IntegerArgument withMin(String name, int min) {
         return new IntegerArgument(name, min, Integer.MAX_VALUE);
@@ -36,11 +39,6 @@ public class IntegerArgument extends Argument<Integer> {
     @Contract("_, _, _ -> new")
     public static @NonNull IntegerArgument withRange(String name, int min, int max) {
         return new IntegerArgument(name, min, max);
-    }
-
-    @Override
-    public RequiredArgumentBuilder<CommandSourceStack, ?> require(CommandBuildContext ctx) {
-        return Commands.argument(name, IntegerArgumentType.integer(min, max));
     }
 
     @Override

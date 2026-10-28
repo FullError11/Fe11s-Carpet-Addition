@@ -31,13 +31,13 @@ public class VillagerTradableItem {
             CommandRegistrationCallback.EVENT.register((dispatcher, buildContext, _) -> {
                 dispatcher.register(Commands.literal("villagerTradableItem")
                         .requires(stack -> CommandHelper.canUseCommand(stack, Rules.commandVillagerTradableItem))
-                        .then(VILLAGER.require(buildContext)
+                        .then(VILLAGER.require()
                                 .then(Commands.literal("item")
                                         .then(ITEM.require(buildContext)
                                                 .executes(ctx -> {
                                                     return execForItem(ctx, ITEM.itemStack(ctx), DEFAULT_MAX_ITERATIONS);
                                                 })
-                                                .then(MAX_ITERATIONS.require(buildContext)
+                                                .then(MAX_ITERATIONS.require()
                                                         .executes(ctx -> {
                                                             return execForItem(ctx, ITEM.itemStack(ctx), MAX_ITERATIONS.get(ctx));
                                                         })
@@ -46,11 +46,11 @@ public class VillagerTradableItem {
                                 )
                                 .then(Commands.literal("enchantment_book")
                                         .then(Arguments.ENCHANTMENT.require(buildContext)
-                                                .then(Arguments.LEVEL.require(buildContext)
+                                                .then(Arguments.LEVEL.require()
                                                         .executes(ctx -> {
                                                             return execForEhchBook(ctx, LEVEL.get(ctx), DEFAULT_MAX_ITERATIONS);
                                                         })
-                                                        .then(Arguments.MAX_ITERATIONS.require(buildContext)
+                                                        .then(Arguments.MAX_ITERATIONS.require()
                                                                 .executes(ctx -> {
                                                                     return execForEhchBook(ctx, LEVEL.get(ctx), MAX_ITERATIONS.get(ctx));
                                                                 })
@@ -60,7 +60,7 @@ public class VillagerTradableItem {
                                                         .executes(ctx -> {
                                                             return execForEhchBookWithMaxLvl(ctx, DEFAULT_MAX_ITERATIONS);
                                                         })
-                                                        .then(Arguments.MAX_ITERATIONS.require(buildContext)
+                                                        .then(Arguments.MAX_ITERATIONS.require()
                                                                 .executes(ctx -> {
                                                                     return execForEhchBookWithMaxLvl(ctx, MAX_ITERATIONS.get(ctx));
                                                                 })

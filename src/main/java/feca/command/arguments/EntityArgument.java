@@ -1,23 +1,21 @@
 package feca.command.arguments;
 
-import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.Commands;
 import net.minecraft.world.entity.Entity;
 import org.jspecify.annotations.NonNull;
 
 @SuppressWarnings("unused")
-public class EntityArgument extends Argument<Entity> {
+public class EntityArgument extends AbstractArgument.NonBuildContext<Entity> {
     public EntityArgument(String name) {
         super(name);
     }
 
     @Override
-    public RequiredArgumentBuilder<CommandSourceStack, ?> require(CommandBuildContext ctx) {
-        return Commands.argument(name, net.minecraft.commands.arguments.EntityArgument.entity());
+    protected ArgumentType<?> argumentType() {
+        return net.minecraft.commands.arguments.EntityArgument.entity();
     }
 
     @Override

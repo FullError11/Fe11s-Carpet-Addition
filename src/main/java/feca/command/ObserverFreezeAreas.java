@@ -2,13 +2,14 @@ package feca.command;
 
 import carpet.utils.CommandHelper;
 import com.mojang.brigadier.Command;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.builder.ArgumentBuilder;
-import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import feca.FeCA;
+import feca.command.arguments.BlockPosArgument;
+import feca.command.arguments.DimensionArgument;
+import feca.command.arguments.IntegerArgument;
 import feca.command.utils.PlayerExecutor;
 import feca.registry.OnInitializeCallbackRegistry;
 import feca.rule.Rules;
@@ -17,8 +18,6 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.arguments.DimensionArgument;
-import net.minecraft.commands.arguments.coordinates.BlockPosArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -96,8 +95,8 @@ public class ObserverFreezeAreas {
     static class SubCommands {
         static ArgumentBuilder<CommandSourceStack, ?> add() {
             final Function<DimensionGetter, ArgumentBuilder<CommandSourceStack, ?>> requirePosThenExecWith = dimensionGetter -> {
-                return Commands.argument(Arguments.POS1, BlockPosArgument.blockPos())
-                        .then(Commands.argument(Arguments.POS2, BlockPosArgument.blockPos())
+                return Arguments.POS1.require()
+                        .then(Arguments.POS2.require()
                                 .executes(context -> {
                                     var dimension = dimensionGetter.get(context);
                                     var aabb = getAABB(context);
@@ -114,15 +113,15 @@ public class ObserverFreezeAreas {
             };
 
             return Commands.literal("add")
-                    .then(requireDimension()
+                    .then(Arguments.DIMENSION.require()
                             .then(requirePosThenExecWith.apply(DimensionGetter.FORM_ARGUMENT))
                     )
                     .then(requirePosThenExecWith.apply(DimensionGetter.FORM_EXECUTOR));
         }
         static ArgumentBuilder<CommandSourceStack, ?> remove() {
             final Function<DimensionGetter, ArgumentBuilder<CommandSourceStack, ?>> requirePosThenExecWith = dimensionGetter -> {
-                return Commands.argument(Arguments.POS1, BlockPosArgument.blockPos())
-                        .then(Commands.argument(Arguments.POS2, BlockPosArgument.blockPos())
+                return Arguments.POS1.require()
+                        .then(Arguments.POS2.require()
                                 .executes(context -> {
                                     var dimension = dimensionGetter.get(context);
                                     var aabb = getAABB(context);
@@ -153,7 +152,7 @@ public class ObserverFreezeAreas {
             };
 
             return Commands.literal("remove")
-                    .then(requireDimension()
+                    .then(Arguments.DIMENSION.require()
                             .then(requirePosThenExecWith.apply(DimensionGetter.FORM_ARGUMENT))
                             .then(removeAll.apply(DimensionGetter.FORM_EXECUTOR))
                     )
@@ -162,10 +161,10 @@ public class ObserverFreezeAreas {
         }
         static ArgumentBuilder<CommandSourceStack, ?> list() {
             interface PageNumberGetter {
-                int get(CommandContext<CommandSourceStack> context);
+                int get(CommandContext<CommandSourceStack> context) throws CommandSyntaxException;
 
                 PageNumberGetter USE_DEFAULT = _ -> 1;
-                PageNumberGetter FORM_ARGUMENT = ctx -> IntegerArgumentType.getInteger(ctx, Arguments.PAGE_NUMBER);
+                PageNumberGetter FORM_ARGUMENT = Arguments.PAGE_NUMBER::get;
             }
 
             class ExecutorCreator {
@@ -208,12 +207,12 @@ public class ObserverFreezeAreas {
 
             return Commands.literal("list")
                     .executes(ExecutorCreator.create(DimensionGetter.FORM_EXECUTOR, PageNumberGetter.USE_DEFAULT))
-                    .then(Commands.argument(Arguments.PAGE_NUMBER, IntegerArgumentType.integer(1))
+                    .then(Arguments.PAGE_NUMBER.require()
                             .executes(ExecutorCreator.create(DimensionGetter.FORM_EXECUTOR, PageNumberGetter.FORM_ARGUMENT))
                     )
-                    .then(requireDimension()
+                    .then(Arguments.DIMENSION.require()
                             .executes(ExecutorCreator.create(DimensionGetter.FORM_ARGUMENT, PageNumberGetter.USE_DEFAULT))
-                            .then(Commands.argument(Arguments.PAGE_NUMBER, IntegerArgumentType.integer(1))
+                            .then(Arguments.PAGE_NUMBER.require()
                                     .executes(ExecutorCreator.create(DimensionGetter.FORM_ARGUMENT, PageNumberGetter.FORM_ARGUMENT))
                             )
                     );
@@ -222,22 +221,14 @@ public class ObserverFreezeAreas {
         // ============================== UTILS ==============================
         // make sure argument name is same
         private interface Arguments {
-            String POS1 = "pos1";
-            String POS2 = "pos2";
-            String DIMENSION = "dimension";
-
-            String PAGE_NUMBER = "page_number";
+            BlockPosArgument POS1 = new BlockPosArgument("pos1");
+            BlockPosArgument POS2 = new BlockPosArgument("pos2");
+            DimensionArgument DIMENSION = new DimensionArgument("dimension");
+            IntegerArgument PAGE_NUMBER = IntegerArgument.withMin("page_number", 1);
         }
 
-        @Contract(" -> new")
-        private static @NonNull RequiredArgumentBuilder<CommandSourceStack, ?> requireDimension() {
-            return Commands.argument(Arguments.DIMENSION, DimensionArgument.dimension());
-        }
-
-        private static @NonNull AABB getAABB(CommandContext<CommandSourceStack> context) {
-            var pos1 = BlockPosArgument.getBlockPos(context, Arguments.POS1);
-            var pos2 = BlockPosArgument.getBlockPos(context, Arguments.POS2);
-            return AABB.encapsulatingFullBlocks(pos1, pos2);
+        private static @NonNull AABB getAABB(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+            return AABB.encapsulatingFullBlocks(Arguments.POS1.get(context), Arguments.POS2.get(context));
         }
 
         // page_number 是页码，取值范围是 `[1, pages]`, 需要 -1 转换到 page_index(取值范围`[0, pages)`)
@@ -261,9 +252,7 @@ public class ObserverFreezeAreas {
                             .orElseThrow(ERROR_NOT_PLAYER::create);
                 }
             };
-            DimensionGetter FORM_ARGUMENT = ctx -> {
-                return DimensionArgument.getDimension(ctx, Arguments.DIMENSION).dimension();
-            };
+            DimensionGetter FORM_ARGUMENT = Arguments.DIMENSION::getAsDimension;
         }
     }
 }

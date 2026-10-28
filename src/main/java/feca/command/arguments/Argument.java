@@ -6,15 +6,18 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 
-@SuppressWarnings("unused")
-public abstract class Argument<R> {
-    final String name;
+public interface Argument<T> {
+    RequiredArgumentBuilder<CommandSourceStack, ?> require(CommandBuildContext ctx);
+    T get(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException;
 
+    interface NonBuildContext<T> extends Argument<T> {
+        /// @deprecated 仅作兼容使用，推荐使用 {@link #require()}
+        @Deprecated
+        @Override
+        default RequiredArgumentBuilder<CommandSourceStack, ?> require(CommandBuildContext ctx) {
+            return require();
+        }
 
-    protected Argument(String name) {
-        this.name = name;
+        RequiredArgumentBuilder<CommandSourceStack, ?> require();
     }
-
-    abstract public RequiredArgumentBuilder<CommandSourceStack, ?> require(CommandBuildContext ctx);
-    abstract public R get(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException;
 }
