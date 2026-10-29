@@ -66,8 +66,8 @@
 TODO:
 [x] 持久化保存
 [x] 默认 setDefault
+[x] 为 area 添加 name 支持
 [ ] 无头服务端与客户端的数据同步 (用于Overlay显示)
-[ ] 为 area 添加 name 支持
 
 ### 自动化村民交易物刷新
 

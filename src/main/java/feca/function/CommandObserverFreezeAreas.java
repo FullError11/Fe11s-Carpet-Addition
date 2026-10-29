@@ -90,11 +90,11 @@ public class CommandObserverFreezeAreas implements RuleImpl {
         }
 
         @SuppressWarnings("UnusedReturnValue")
-        public boolean removeByName(String name) {
+        public @Nullable AABB removeByName(String name) {
             var removed = nameMap.remove(name);
-            if (removed == null) return false;
+            if (removed == null) return null;
             aabbMap.remove(removed);
-            return true;
+            return removed;
         }
 
         @SuppressWarnings("UnusedReturnValue")
@@ -157,6 +157,11 @@ public class CommandObserverFreezeAreas implements RuleImpl {
                     }
                 }
             };
+        }
+
+        @Contract(pure = true)
+        public @NonNull Set<String> names() {
+            return nameMap.keySet();
         }
     }
 

@@ -24,6 +24,14 @@ public class DimensionMap<T, E extends DimensionMap.Entry<T>> implements Iterabl
         boolean contains(T item);
         boolean removeIf(Predicate<T> filter);
 
+        interface Accessor<R> {
+            R apply(@NonNull Object data);
+        }
+        /// @apiNote 此方法对数据进行修改会导致内部状态错误，请使用 {@link #modify}
+        <R> R access(Accessor<R> accessor);
+        /// @apiNote 若不需要修改内部状态，使用 {@link #access} 可能性能更好
+        <R> R modify(Accessor<R> modifier);
+
         class Simple<T, S extends Collection<T>> implements Entry<T>, Iterable<T> {
             protected final S storage;
 
@@ -40,6 +48,15 @@ public class DimensionMap<T, E extends DimensionMap.Entry<T>> implements Iterabl
             @Override
             public boolean removeIf(Predicate<T> filter) {
                 return storage.removeIf(filter);
+            }
+
+            @Override
+            public <R> R access(@NonNull Accessor<R> accessor) {
+                return accessor.apply(storage);
+            }
+            @Override
+            public <R> R modify(@NonNull Accessor<R> modifier) {
+                return modifier.apply(storage);
             }
 
             @Override
@@ -78,6 +95,12 @@ public class DimensionMap<T, E extends DimensionMap.Entry<T>> implements Iterabl
             public void clear() {
                 super.clear();
                 CHAT_PAGES.reset();
+            }
+
+            @Override
+            public <R> R modify(@NonNull Accessor<R> modifier) {
+                CHAT_PAGES.reset();
+                return super.modify(modifier);
             }
         }
     }
