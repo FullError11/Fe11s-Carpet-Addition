@@ -1,11 +1,16 @@
 package feca.utils;
 
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
+import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
+import java.util.Optional;
 
 @SuppressWarnings("unused")
 public class ConfigCodecs {
@@ -29,7 +34,7 @@ public class ConfigCodecs {
             );
         }
 
-        private BlockPosCodec() {}
+        protected BlockPosCodec() {}
         public static class Holder {
             public static final BlockPosCodec INSTANCE = new BlockPosCodec();
         }
@@ -55,7 +60,7 @@ public class ConfigCodecs {
             );
         }
 
-        private Vec3Codec() {}
+        protected Vec3Codec() {}
         public static class Holder {
             public static final Vec3Codec INSTANCE = new Vec3Codec();
         }
@@ -81,9 +86,50 @@ public class ConfigCodecs {
             );
         }
 
-        private AABBCodec() {}
+        protected AABBCodec() {}
         public static class Holder {
             public static final AABBCodec INSTANCE = new AABBCodec();
+        }
+    }
+
+    public static class NullableCodec<T> implements ConfigManager.ItemCodec<@NonNull T> {
+        private final ConfigManager.ItemCodec<T> itemCodec;
+
+        public NullableCodec(ConfigManager.ItemCodec<T> itemCodec) {
+            this.itemCodec = itemCodec;
+        }
+
+        @Contract(value = "_ -> new", pure = true)
+        public static <T> @NonNull NullableCodec<T> of(ConfigManager.ItemCodec<T> itemCodec) {
+            return new NullableCodec<>(itemCodec);
+        }
+
+        @Override
+        public JsonElement toJson(@Nullable T value) {
+            return value == null ? JsonNull.INSTANCE : itemCodec.toJson(value);
+        }
+
+        @Override
+        public @Nullable T fromJson(@NonNull JsonElement element) {
+            return element.isJsonNull() ? null : itemCodec.fromJson(element);
+        }
+    }
+
+    public static class OptionalCodec<T> implements ConfigManager.ItemCodec<Optional<T>> {
+        private final ConfigManager.ItemCodec<T> itemCodec;
+
+        public OptionalCodec(ConfigManager.ItemCodec<T> itemCodec) {
+            this.itemCodec = itemCodec;
+        }
+
+        @Override
+        public JsonElement toJson(@NonNull Optional<T> value) {
+            return value.map(itemCodec::toJson).orElse(JsonNull.INSTANCE);
+        }
+
+        @Override
+        public Optional<T> fromJson(@NonNull JsonElement element) {
+            return element.isJsonNull() ? Optional.empty() : Optional.of(itemCodec.fromJson(element));
         }
     }
 }

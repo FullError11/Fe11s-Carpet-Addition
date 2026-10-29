@@ -25,7 +25,7 @@
 
 ### 大流体桶
 
-[function_src](../src/main/java/feca/function/LargeFluidBucket.java)
+[function_src](../src/main/java/feca/function/LargeBucket.java)
 
 > 用于替代 `无限桶`: 提供更优的平衡性。
 
@@ -67,6 +67,7 @@ TODO:
 [x] 持久化保存
 [x] 默认 setDefault
 [ ] 无头服务端与客户端的数据同步 (用于Overlay显示)
+[ ] 为 area 添加 name 支持
 
 ### 自动化村民交易物刷新
 

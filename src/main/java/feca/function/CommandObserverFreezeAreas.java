@@ -12,9 +12,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.phys.AABB;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.*;
 
 public class CommandObserverFreezeAreas implements RuleImpl {
     public static boolean isEnabled() {
@@ -31,6 +32,110 @@ public class CommandObserverFreezeAreas implements RuleImpl {
             }
         }
         return false;
+    }
+
+
+    public record NameableAABB(AABB value, @Nullable String name) {
+        public boolean hasName() { return name() != null; }
+    }
+
+    /**
+     * 允许添加未命名的AABB，
+     * 不允许不存为null的AABB
+     * 默认的 查找/删除 方法不关心 name(仅作为兼容实现)，请使用 *ByName 方法
+     */
+    @SuppressWarnings("unused")
+    public static final class NameableAABBMap extends AbstractCollection<NameableAABB> {
+        private final HashMap<AABB, @Nullable String> aabbMap = new HashMap<>();
+        private final HashMap<String, @NonNull AABB> nameMap = new HashMap<>();
+
+        @Override
+        public boolean add(@NonNull NameableAABB nameableAABB) {
+            final var aabb = nameableAABB.value();
+            final var name = nameableAABB.name();
+            if (aabbMap.containsKey(aabb)) return false;
+            if (name != null) {
+                if (nameMap.containsKey(name)) return false;
+                nameMap.put(name, aabb);
+            }
+            aabbMap.put(aabb, name);
+            return true;
+        }
+
+        @Override
+        public boolean remove(Object o) {
+            return o instanceof NameableAABB n && removeByAABB(n.value());
+        }
+
+        @SuppressWarnings("UnusedReturnValue")
+        public boolean removeByName(String name) {
+            var removed = nameMap.remove(name);
+            if (removed == null) return false;
+            aabbMap.remove(removed);
+            return true;
+        }
+
+        @SuppressWarnings("UnusedReturnValue")
+        public boolean removeByAABB(AABB aabb) {
+            if (!aabbMap.containsKey(aabb)) return false;
+            var removedName = aabbMap.remove(aabb);
+            if (removedName != null) {
+                nameMap.remove(removedName);
+            }
+            return true;
+        }
+
+        @Override
+        public int size() {
+            return aabbMap.size();
+        }
+
+        @Override
+        public boolean contains(Object o) {
+            return o instanceof NameableAABB n && containsAABB(n.value());
+        }
+
+        public boolean containsAABB(AABB aabb) {
+            return aabbMap.containsKey(aabb);
+        }
+        public boolean containsName(String name) {
+            return nameMap.containsKey(name);
+        }
+
+        @Override
+        public void clear() {
+            aabbMap.clear();
+            nameMap.clear();
+        }
+
+        @Override
+        public @NonNull Iterator<NameableAABB> iterator() {
+            final Iterator<Map.Entry<AABB, @Nullable String>> it = aabbMap.entrySet().iterator();
+
+            return new Iterator<>() {
+                private String lastName;
+
+                @Override
+                public boolean hasNext() {
+                    return it.hasNext();
+                }
+
+                @Override
+                public NameableAABB next() {
+                    Map.Entry<AABB, @Nullable String> entry = it.next();
+                    lastName = entry.getValue();
+                    return new NameableAABB(entry.getKey(), lastName);
+                }
+
+                @Override
+                public void remove() {
+                    it.remove();
+                    if (lastName != null) {
+                        nameMap.remove(lastName);
+                    }
+                }
+            };
+        }
     }
 
     public static final DimensionMap<AABB, DimensionMapVersionedPrintableEntry<AABB, HashSet<AABB>>> DIMENSION_MAP =
