@@ -17,11 +17,13 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resources.Identifier;
 
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.storage.LevelResource;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Path;
 import java.util.Map;
 
 public class FeCA implements ModInitializer, CarpetExtension {
@@ -69,13 +71,15 @@ public class FeCA implements ModInitializer, CarpetExtension {
 	public void onServerLoaded(MinecraftServer server) {
 		CarpetExtension.super.onServerLoaded(server);
 		OnServerLoadedCallbackRegistry.CALLBACKS.forEach(Runnable::run);
-		CONFIG.load();
+
+		Path worldRoot = server.getWorldPath(LevelResource.ROOT);
+		CONFIG.setPathAndLoad(worldRoot.resolve("FeCAConfig.json").toString());
 	}
 
 	@Override
 	public void onServerClosed(MinecraftServer server) {
 		CarpetExtension.super.onServerClosed(server);
-		CONFIG.save();
+		CONFIG.saveAndRelease();
 	}
 
 	@Override
