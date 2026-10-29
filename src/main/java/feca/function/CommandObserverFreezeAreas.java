@@ -51,7 +51,7 @@ public class CommandObserverFreezeAreas implements RuleImpl {
             return new NameableAABB(AABB.encapsulatingFullBlocks(pos1, pos2), null);
         }
         @Contract("_, _ -> new")
-        public static @NonNull NameableAABB named(String name, AABB aabb) {
+        public static @NonNull NameableAABB named(@NonNull String name, AABB aabb) {
             return new NameableAABB(aabb, name);
         }
 

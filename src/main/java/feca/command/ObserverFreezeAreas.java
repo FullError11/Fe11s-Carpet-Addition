@@ -11,6 +11,7 @@ import feca.FeCA;
 import feca.command.arguments.BlockPosArgument;
 import feca.command.arguments.DimensionArgument;
 import feca.command.arguments.IntegerArgument;
+import feca.command.arguments.WordArgument;
 import feca.command.utils.PlayerExecutor;
 import feca.function.CommandObserverFreezeAreas.NameableAABB;
 import feca.registry.OnInitializeCallbackRegistry;
@@ -32,6 +33,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
 import java.util.function.Function;
 import java.util.function.IntFunction;
@@ -149,36 +151,51 @@ public class ObserverFreezeAreas {
 
     static class SubCommands {
         static ArgumentBuilder<CommandSourceStack, ?> add() {
-            final Function<DimensionGetter, ArgumentBuilder<CommandSourceStack, ?>> requirePosThenExecWith = dimensionGetter -> {
+            class ExecutorCreator {
+                @Contract(pure = true)
+                static @NonNull Command<CommandSourceStack> create(DimensionGetter dimensionGetter, AreaNameGetter nameGetter) {
+                    return ctx -> {
+                        FeCA.LOGGER.debug("a1");
+                        var dimension = dimensionGetter.get(ctx);
+                        FeCA.LOGGER.debug("a2");
+                        var aabb = getAABB(ctx);
+                        FeCA.LOGGER.debug("a3");
+                        var name = nameGetter.get(ctx);
+                        FeCA.LOGGER.debug("a4");
+
+                        var dimensionStr = dimension.identifier().toString();
+                        var aabbStr = aabb.toString();
+
+                        if (DIMENSION_MAP.add(dimension, new NameableAABB(aabb, name))) {
+                            FeCA.LOGGER.info("Add {}:{} to ObserverFreezeAreas", dimensionStr, aabbStr);
+                            ctx.getSource().sendSuccess(() -> {
+                                return Component.translatable("feca.msg.cmd.observerFreezeAreas.add.succ", dimensionStr, aabbStr);
+                            }, true);
+                            return SUCCESS;
+                        } else {
+                            FeCA.LOGGER.info("Failed to add {}:{} to ObserverFreezeAreas", dimensionStr, aabbStr);
+                            ctx.getSource().sendFailure(Component.translatable("feca.msg.cmd.observerFreezeAreas.add.fail"));
+                            return FAILURE;
+                        }
+                    };
+                }
+            }
+
+            final Function<DimensionGetter, ArgumentBuilder<CommandSourceStack, ?>> requireUnnamedAreaAndExec = dimensionGetter-> {
                 return Arguments.POS1.require()
                         .then(Arguments.POS2.require()
-                                .executes(context -> {
-                                    var dimension = dimensionGetter.get(context);
-                                    var aabb = getAABB(context);
-
-                                    var dimensionStr = dimension.identifier().toString();
-                                    var aabbStr = aabb.toString();
-
-                                    if (DIMENSION_MAP.add(dimension, NameableAABB.unnamed(aabb))) {
-                                        FeCA.LOGGER.info("Add {}:{} to ObserverFreezeAreas", dimensionStr, aabbStr);
-                                        context.getSource().sendSuccess(() -> {
-                                            return Component.translatable("feca.msg.cmd.observerFreezeAreas.add.succ", dimensionStr, aabbStr);
-                                        }, true);
-                                        return SUCCESS;
-                                    } else {
-                                        FeCA.LOGGER.info("Failed to add {}:{} to ObserverFreezeAreas", dimensionStr, aabbStr);
-                                        context.getSource().sendFailure(Component.translatable("feca.msg.cmd.observerFreezeAreas.add.fail"));
-                                        return FAILURE;
-                                    }
-                                })
+                                .executes(ExecutorCreator.create(dimensionGetter, AreaNameGetter.UNNAMED))
+                                .then(Arguments.AREA_NAME.require()
+                                        .executes(ExecutorCreator.create(dimensionGetter, AreaNameGetter.FROM_ARGUMENT))
+                                )
                         );
             };
 
             return Commands.literal("add")
                     .then(Arguments.DIMENSION.require()
-                            .then(requirePosThenExecWith.apply(DimensionGetter.FORM_ARGUMENT))
+                            .then(requireUnnamedAreaAndExec.apply(DimensionGetter.FROM_ARGUMENT))
                     )
-                    .then(requirePosThenExecWith.apply(DimensionGetter.FORM_EXECUTOR));
+                    .then(requireUnnamedAreaAndExec.apply(DimensionGetter.FROM_EXECUTOR));
         }
         static ArgumentBuilder<CommandSourceStack, ?> remove() {
             final Function<DimensionGetter, ArgumentBuilder<CommandSourceStack, ?>> requirePosThenExecWith = dimensionGetter -> {
@@ -233,11 +250,11 @@ public class ObserverFreezeAreas {
 
             return Commands.literal("remove")
                     .then(Arguments.DIMENSION.require()
-                            .then(requirePosThenExecWith.apply(DimensionGetter.FORM_ARGUMENT))
-                            .then(removeAll.apply(DimensionGetter.FORM_EXECUTOR))
+                            .then(requirePosThenExecWith.apply(DimensionGetter.FROM_ARGUMENT))
+                            .then(removeAll.apply(DimensionGetter.FROM_ARGUMENT))
                     )
-                    .then(requirePosThenExecWith.apply(DimensionGetter.FORM_EXECUTOR))
-                    .then(removeAll.apply(DimensionGetter.FORM_EXECUTOR))
+                    .then(requirePosThenExecWith.apply(DimensionGetter.FROM_EXECUTOR))
+                    .then(removeAll.apply(DimensionGetter.FROM_EXECUTOR))
                     .then(Commands.literal("here").executes(ctx -> {
                         return PlayerExecutor.requireExecByPlayer(ctx, player -> {
                             @SuppressWarnings("resource")
@@ -270,7 +287,7 @@ public class ObserverFreezeAreas {
                 int get(CommandContext<CommandSourceStack> context) throws CommandSyntaxException;
 
                 PageNumberGetter USE_DEFAULT = _ -> 1;
-                PageNumberGetter FORM_ARGUMENT = Arguments.PAGE_NUMBER::get;
+                PageNumberGetter FROM_ARGUMENT = Arguments.PAGE_NUMBER::get;
             }
 
             class ExecutorCreator {
@@ -279,9 +296,9 @@ public class ObserverFreezeAreas {
                         var dimension = dimensionGetter.get(context);
                         var entry = DIMENSION_MAP.getEntry(dimension);
 
-                        var id = dimension.identifier();
+                        var dimensionStr = dimension.identifier().toString();
                         if (entry.isEmpty()) {
-                            var msg = Component.translatable("feca.msg.cmd.obserserFreezeAreas.list.nonAreas", id);
+                            var msg = Component.translatable("feca.msg.cmd.obserserFreezeAreas.list.nonAreas", dimensionStr);
                             context.getSource().sendFailure(msg);
                             return FAILURE;
                         }
@@ -318,14 +335,14 @@ public class ObserverFreezeAreas {
             }
 
             return Commands.literal("list")
-                    .executes(ExecutorCreator.create(DimensionGetter.FORM_EXECUTOR, PageNumberGetter.USE_DEFAULT))
+                    .executes(ExecutorCreator.create(DimensionGetter.FROM_EXECUTOR, PageNumberGetter.USE_DEFAULT))
                     .then(Arguments.PAGE_NUMBER.require()
-                            .executes(ExecutorCreator.create(DimensionGetter.FORM_EXECUTOR, PageNumberGetter.FORM_ARGUMENT))
+                            .executes(ExecutorCreator.create(DimensionGetter.FROM_EXECUTOR, PageNumberGetter.FROM_ARGUMENT))
                     )
                     .then(Arguments.DIMENSION.require()
-                            .executes(ExecutorCreator.create(DimensionGetter.FORM_ARGUMENT, PageNumberGetter.USE_DEFAULT))
+                            .executes(ExecutorCreator.create(DimensionGetter.FROM_ARGUMENT, PageNumberGetter.USE_DEFAULT))
                             .then(Arguments.PAGE_NUMBER.require()
-                                    .executes(ExecutorCreator.create(DimensionGetter.FORM_ARGUMENT, PageNumberGetter.FORM_ARGUMENT))
+                                    .executes(ExecutorCreator.create(DimensionGetter.FROM_ARGUMENT, PageNumberGetter.FROM_ARGUMENT))
                             )
                     );
         }
@@ -337,6 +354,7 @@ public class ObserverFreezeAreas {
             BlockPosArgument POS2 = new BlockPosArgument("pos2");
             DimensionArgument DIMENSION = new DimensionArgument("dimension");
             IntegerArgument PAGE_NUMBER = IntegerArgument.withMin("page_number", 1);
+            WordArgument AREA_NAME = new WordArgument("name");
         }
 
         private static @NonNull AABB getAABB(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
@@ -351,7 +369,7 @@ public class ObserverFreezeAreas {
         private interface DimensionGetter {
             ResourceKey<Level> get(@NonNull CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException;
 
-            DimensionGetter FORM_EXECUTOR = new DimensionGetter() {
+            DimensionGetter FROM_EXECUTOR = new DimensionGetter() {
                 private static final SimpleCommandExceptionType ERROR_NOT_PLAYER = new SimpleCommandExceptionType(() -> {
                     return Component.translatable("feca.msg.cmd.obserserFreezeAreas.getDimensionFromExectorFail").getString();
                 });
@@ -365,7 +383,20 @@ public class ObserverFreezeAreas {
                             .orElseThrow(ERROR_NOT_PLAYER::create);
                 }
             };
-            DimensionGetter FORM_ARGUMENT = Arguments.DIMENSION::getAsDimension;
+            DimensionGetter FROM_ARGUMENT = Arguments.DIMENSION::getAsDimension;
+        }
+
+        @FunctionalInterface
+        private interface AreaNameGetter {
+            @Nullable String get(@NonNull CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException;
+
+            AreaNameGetter UNNAMED = _ -> null;
+            AreaNameGetter FROM_ARGUMENT = ctx -> {
+                FeCA.LOGGER.debug("1");
+                var n = Arguments.AREA_NAME.get(ctx);
+                FeCA.LOGGER.debug("2: {}", n);
+                return n;
+            };
         }
     }
 }
