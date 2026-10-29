@@ -202,6 +202,7 @@ public class CommandObserverFreezeAreas implements RuleImpl {
                 "observer_freeze_areas",
                 DIMENSION_MAP::cloneForm,
                 () -> DIMENSION_MAP,
+                DIMENSION_MAP::clearAll,
                 DIMENSION_MAP.configCodec(new ConfigManager.ItemCodec<>() {
                     private final ConfigCodecs.NullableCodec<String> nameCodec = ConfigCodecs.NullableCodec.of(ConfigManager.ItemCodec.of(String.class));
                     private final ConfigCodecs.AABBCodec aabbCodec = ConfigCodecs.AABBCodec.Holder.INSTANCE;

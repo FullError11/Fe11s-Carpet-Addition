@@ -22,6 +22,11 @@ public class ConfigManager {
         T get();
     }
 
+    @FunctionalInterface
+    public interface ItemReleaser {
+        void release();
+    }
+
     /// 负责 T 与 JsonElement 的互转
     public interface ItemCodec<T> {
         JsonElement toJson(T value);
@@ -72,12 +77,14 @@ public class ConfigManager {
         private final String name;
         private final ItemSetter<T> setter;
         private final ItemGetter<T> getter;
+        private final ItemReleaser releaser;
         private final ItemCodec<T> codec;
 
-        public ConfigEntry(String name, ItemSetter<T> setter, ItemGetter<T> getter, ItemCodec<T> codec) {
+        public ConfigEntry(String name, ItemSetter<T> setter, ItemGetter<T> getter, ItemReleaser releaser, ItemCodec<T> codec) {
             this.name = name;
             this.setter = setter;
             this.getter = getter;
+            this.releaser = releaser;
             this.codec = codec;
         }
     }
@@ -85,7 +92,7 @@ public class ConfigManager {
     // 用于写出文件的 Gson (格式化输出)
     private static final Gson FILE_GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private final String path;
+    private String path;
     private final Map<String, ConfigEntry<?>> entries = new LinkedHashMap<>();
 
     public ConfigManager(String path) {
@@ -98,39 +105,47 @@ public class ConfigManager {
             @NonNull String name,
             @NonNull ItemSetter<T> setter,
             @NonNull ItemGetter<T> getter,
+            @NonNull ItemReleaser releaser,
             @NonNull ItemCodec<T> codec
     ) {
-        entries.put(name, new ConfigEntry<>(name, setter, getter, codec));
+        entries.put(name, new ConfigEntry<>(name, setter, getter, releaser, codec));
     }
 
     public <T> void register(
             @NonNull String name,
             @NonNull ItemSetter<T> setter,
             @NonNull ItemGetter<T> getter,
+            @NonNull ItemReleaser releaser,
             @NonNull Class<T> clazz
     ) {
-        register(name, setter, getter, ItemCodec.of(clazz));
+        register(name, setter, getter, releaser, ItemCodec.of(clazz));
     }
 
     public <T> void register(
             @NonNull String name,
             @NonNull ItemSetter<T> setter,
             @NonNull ItemGetter<T> getter,
+            @NonNull ItemReleaser releaser,
             @NonNull Type type
     ) {
-        register(name, setter, getter, ItemCodec.of(type));
+        register(name, setter, getter, releaser, ItemCodec.of(type));
     }
 
     public <T> void register(
             @NonNull String name,
             @NonNull ItemSetter<T> setter,
             @NonNull ItemGetter<T> getter,
+            @NonNull ItemReleaser releaser,
             @NonNull TypeToken<T> token
     ) {
-        register(name, setter, getter, ItemCodec.of(token.getType()));
+        register(name, setter, getter, releaser, ItemCodec.of(token.getType()));
     }
 
 
+    public synchronized void setPathAndLoad(String path) {
+        this.path = path;
+        load();
+    }
 
     public synchronized void load() {
         Path file = Paths.get(path);
@@ -195,6 +210,13 @@ public class ConfigManager {
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to write config: " + path, e);
         }
+    }
+
+    public synchronized void saveAndRelease() {
+        save();
+        entries.forEach((_, entry) -> {
+            entry.releaser.release();
+        });
     }
 
     private <T> void writeEntry(@NonNull ConfigEntry<T> entry, @NonNull JsonObject root) {

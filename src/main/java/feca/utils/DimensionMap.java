@@ -182,6 +182,7 @@ public class DimensionMap<T, E extends DimensionMap.Entry<T>> implements Iterabl
         if (entry != null) entry.clear();
     }
 
+    public void clearAll() { MAP.clear(); }
 
     public void cloneForm(@NonNull DimensionMap<T, E> other) {
         MAP.clear();
