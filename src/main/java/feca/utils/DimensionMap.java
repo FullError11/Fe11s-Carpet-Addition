@@ -91,12 +91,12 @@ public class DimensionMap<T, E extends DimensionMap.Entry<T>> implements Iterabl
 
     @FunctionalInterface
     public interface DefaultChatPagesCreator<T, S extends Collection<T>> {
-        Lazy<ChatPaginator.ChatPages<T>> create(S storage);
+        Lazy<ChatPaginator.ChatPages<T>> create(ResourceKey<Level> dimension, S storage);
     }
 
     @FunctionalInterface
     public interface EntryCreator<T, E extends Entry<T>> {
-        E create();
+        E create(ResourceKey<Level> dimension);
     }
 
 
@@ -113,16 +113,16 @@ public class DimensionMap<T, E extends DimensionMap.Entry<T>> implements Iterabl
     @Contract("_ -> new")
     public static <T, S extends Collection<T>> @NonNull
             DimensionMap<T, Entry.Simple<T, S>> simple(@NonNull DefaultStorageCreator<T, S> defaultStorageCreator) {
-        return new DimensionMap<>(() -> new Entry.Simple<>(defaultStorageCreator.create()));
+        return new DimensionMap<>(dimension -> new Entry.Simple<>(defaultStorageCreator.create()));
     }
     @Contract("_, _ -> new")
     public static <T, S extends Collection<T>> @NonNull
             DimensionMap<T, Entry.Printable<T, S>> printable(
             @NonNull DefaultStorageCreator<T, S> defaultStorageCreator,
             @NonNull DefaultChatPagesCreator<T, S> defaultChatPagesCreator) {
-        return new DimensionMap<>(() -> {
+        return new DimensionMap<>(dimension -> {
             var storage = defaultStorageCreator.create();
-            return new Entry.Printable<>(storage, defaultChatPagesCreator.create(storage));
+            return new Entry.Printable<>(storage, defaultChatPagesCreator.create(dimension, storage));
         });
     }
 
@@ -137,7 +137,7 @@ public class DimensionMap<T, E extends DimensionMap.Entry<T>> implements Iterabl
     }
 
     public @NonNull E getEntry(ResourceKey<Level> dimension) {
-        return MAP.computeIfAbsent(dimension, k -> DEFAULT_ENTRY_CREATOR.create());
+        return MAP.computeIfAbsent(dimension, DEFAULT_ENTRY_CREATOR::create);
     }
 
     public boolean isEmpty(ResourceKey<Level> dimension) {

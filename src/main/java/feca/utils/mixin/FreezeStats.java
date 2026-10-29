@@ -20,7 +20,7 @@ public class FreezeStats {
         if (this.version == cloudVersion) return freeze;
 
         for (var aabb : entry) {
-            if (aabb.intersects(pos)) {
+            if (aabb.value().intersects(pos)) {
                 return updateStats(true, cloudVersion);
             }
         }

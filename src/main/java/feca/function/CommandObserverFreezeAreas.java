@@ -1,5 +1,7 @@
 package feca.function;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import feca.FeCA;
 import feca.command.ObserverFreezeAreas;
 import feca.registry.RuleChangeCallbackRegistry;
@@ -12,6 +14,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.phys.AABB;
+import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
@@ -35,8 +38,27 @@ public class CommandObserverFreezeAreas implements RuleImpl {
     }
 
 
+    @SuppressWarnings("unused")
     public record NameableAABB(AABB value, @Nullable String name) {
         public boolean hasName() { return name() != null; }
+
+        @Contract("_ -> new")
+        public static @NonNull NameableAABB unnamed(AABB value) {
+            return new NameableAABB(value, null);
+        }
+        @Contract("_, _ -> new")
+        public static @NonNull NameableAABB unnamed(BlockPos pos1, BlockPos pos2) {
+            return new NameableAABB(AABB.encapsulatingFullBlocks(pos1, pos2), null);
+        }
+        @Contract("_, _ -> new")
+        public static @NonNull NameableAABB named(String name, AABB aabb) {
+            return new NameableAABB(aabb, name);
+        }
+
+        @Override
+        public @NonNull String toString() {
+            return value.toString();
+        }
     }
 
     /**
@@ -138,13 +160,15 @@ public class CommandObserverFreezeAreas implements RuleImpl {
         }
     }
 
-    public static final DimensionMap<AABB, DimensionMapVersionedPrintableEntry<AABB, HashSet<AABB>>> DIMENSION_MAP =
-            DimensionMapVersionedPrintableEntry.createMap(HashSet::new, storage -> {
+    public static final DimensionMap<NameableAABB, DimensionMapVersionedPrintableEntry<NameableAABB, NameableAABBMap>> DIMENSION_MAP =
+            DimensionMapVersionedPrintableEntry.createMap(NameableAABBMap::new, (dimension, storage) -> {
                 return Lazy.by(() -> {
                     var snapshot = new ArrayList<>(storage);
 
                     // 按距离 (0, 0, 0) 点的距离排序，正数坐标优先
-                    snapshot.sort((a, b) -> {
+                    snapshot.sort((na, nb) -> {
+                        final var a = na.value();
+                        final var b = nb.value();
                         int c = CompareUtils.cmpPoint(a.minX, a.minY, a.minZ, b.minX, b.minY, b.minZ);
                         if (c != 0) return c;
                         return CompareUtils.cmpPoint(a.maxX, a.maxY, a.maxZ, b.maxX, b.maxY, b.maxZ);
@@ -153,8 +177,8 @@ public class CommandObserverFreezeAreas implements RuleImpl {
                     return ChatPaginator.doPaging(
                             snapshot,
                             ObserverFreezeAreas.LIST_PAGE_ITEMS,
-                            ObserverFreezeAreas::AABB2Component,
-                            ObserverFreezeAreas::jumpPageCommand
+                            ObserverFreezeAreas.getAABB2ComponentCaster(dimension),
+                            ObserverFreezeAreas.getJumpPageCommandCreator(dimension)
                     );
                 });
             });
@@ -173,7 +197,27 @@ public class CommandObserverFreezeAreas implements RuleImpl {
                 "observer_freeze_areas",
                 DIMENSION_MAP::cloneForm,
                 () -> DIMENSION_MAP,
-                DIMENSION_MAP.configCodec(ConfigCodecs.AABBCodec.Holder.INSTANCE)
+                DIMENSION_MAP.configCodec(new ConfigManager.ItemCodec<>() {
+                    private final ConfigCodecs.NullableCodec<String> nameCodec = ConfigCodecs.NullableCodec.of(ConfigManager.ItemCodec.of(String.class));
+                    private final ConfigCodecs.AABBCodec aabbCodec = ConfigCodecs.AABBCodec.Holder.INSTANCE;
+
+                    @Override
+                    public JsonElement toJson(NameableAABB value) {
+                        var json = new JsonObject();
+                        json.add("name", nameCodec.toJson(value.name()));
+                        json.add("area", aabbCodec.toJson(value.value()));
+                        return json;
+                    }
+
+                    @Override
+                    public NameableAABB fromJson(JsonElement element) {
+                        var json = element.getAsJsonObject();
+                        return new NameableAABB(
+                                aabbCodec.fromJson(json.get("area")),
+                                nameCodec.fromJson(json.get("name"))
+                        );
+                    }
+                })
         );
     }
 }

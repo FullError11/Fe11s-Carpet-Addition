@@ -76,9 +76,9 @@ public class DimensionMapVersionedPrintableEntry<T, S extends Collection<T>> ext
     public static <T, S extends Collection<T>> @NonNull DimensionMap<T, DimensionMapVersionedPrintableEntry<T, S>> createMap(
             DimensionMap.@NonNull DefaultStorageCreator<T, S> defaultStorageCreator,
             DimensionMap.@NonNull DefaultChatPagesCreator<T, S> defaultChatPagesCreator) {
-        return new DimensionMap<>(() -> {
+        return new DimensionMap<>(dimension -> {
             var storage = defaultStorageCreator.create();
-            return new DimensionMapVersionedPrintableEntry<>(storage, defaultChatPagesCreator.create(storage));
+            return new DimensionMapVersionedPrintableEntry<>(storage, defaultChatPagesCreator.create(dimension, storage));
         });
     }
 

@@ -6,11 +6,13 @@ import com.mojang.brigadier.builder.ArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
+import com.mojang.datafixers.util.Pair;
 import feca.FeCA;
 import feca.command.arguments.BlockPosArgument;
 import feca.command.arguments.DimensionArgument;
 import feca.command.arguments.IntegerArgument;
 import feca.command.utils.PlayerExecutor;
+import feca.function.CommandObserverFreezeAreas.NameableAABB;
 import feca.registry.OnInitializeCallbackRegistry;
 import feca.rule.Rules;
 import feca.utils.ChatPaginator;
@@ -32,6 +34,7 @@ import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 
 import java.util.function.Function;
+import java.util.function.IntFunction;
 
 import static feca.function.CommandObserverFreezeAreas.DIMENSION_MAP;
 import static feca.command.utils.CommandResult.*;
@@ -53,7 +56,7 @@ public class ObserverFreezeAreas {
                                             DIMENSION_MAP.forEach(entry -> {
                                                 for (int i = -25; i < 25; i++) {
                                                     final var pos = new BlockPos(i, 0, i);
-                                                    entry.add(AABB.encapsulatingFullBlocks(pos, pos));
+                                                    entry.add(NameableAABB.unnamed(pos, pos));
                                                 }
                                             });
                                             return SUCCESS;
@@ -63,9 +66,17 @@ public class ObserverFreezeAreas {
                                     .executes(_ -> {
                                         DIMENSION_MAP.forEach(entry -> {
                                             for (int i = 0; i < 10; i++) {
-                                                entry.add(AABB.encapsulatingFullBlocks(new BlockPos(-i, -i, -i), new BlockPos(i, i, i)));
+                                                entry.add(NameableAABB.unnamed(new BlockPos(-i, -i, -i), new BlockPos(i, i, i)));
                                             }
                                         });
+                                        return SUCCESS;
+                                    })
+                            )
+                            .then(Commands.literal("touchDimensions")
+                                    .executes(_ -> {
+                                        DIMENSION_MAP.getEntry(Level.OVERWORLD);
+                                        DIMENSION_MAP.getEntry(Level.NETHER);
+                                        DIMENSION_MAP.getEntry(Level.END);
                                         return SUCCESS;
                                     })
                             )
@@ -78,31 +89,61 @@ public class ObserverFreezeAreas {
     }
 
     public static final int LIST_PAGE_ITEMS = 10;
-    @Contract("_, _ -> new")
-    public static @NonNull Component AABB2Component(@NonNull AABB aabb, int index) {
-        var poss = PhysUtils.intAABBToBlockPoss(aabb);
-        var remove = Component.translatable("feca.msg.cmd.obserserFreezeAreas.list.fns.remove").withStyle(style -> {
-            var removeCmd = String.format("/observerFreezeAreas remove %s %s",
-                    PhysUtils.blockPosToString(poss.getFirst()),
-                    PhysUtils.blockPosToString(poss.getSecond())
-            );
-            return style.withColor(ChatFormatting.RED)
-                    .withHoverEvent(new HoverEvent.ShowText(Component.translatable("feca.msg.common.enterCommand")))
-                    .withClickEvent(new ClickEvent.SuggestCommand(removeCmd));
-        });
-        return Component.empty()
-                // 正好每页 10 个元素，使用 0-based 索引可以对其
-                .append(Component.literal(String.format("[%d]", index)).withColor(TextColor.GRAY))
-                .append(" [")
+    @SuppressWarnings("unused")
+    public static @NonNull Component AABB2Component(@NonNull AABB aabb) {
+        return AABB2Component(PhysUtils.intAABBToBlockPoss(aabb));
+    }
+    private static @NonNull Component AABB2Component(@NonNull Pair<BlockPos, BlockPos> poss) {
+        return Component.literal("[")
                 .append(PhysUtils.blockPosToSignedComponent(poss.getFirst(), TextColor.AQUA))
                 .append(" -> ")
                 .append(PhysUtils.blockPosToSignedComponent(poss.getSecond(), TextColor.BLUE))
-                .append("]  [")
-                .append(remove)
                 .append("]");
     }
-    public static @NonNull String jumpPageCommand(int pageIndex) {
-        return String.format("observerFreezeAreas list %d", SubCommands.index2number(pageIndex));
+    @Contract(pure = true)
+    public static ChatPaginator.@NonNull Item2ComponentCaster<NameableAABB> getAABB2ComponentCaster(ResourceKey<Level> dimension) {
+        return (nameableAABB, index) -> {
+            var poss = PhysUtils.intAABBToBlockPoss(nameableAABB.value());
+
+            // 数据
+            var result = Component.empty()
+                    // 正好每页 10 个元素，使用 0-based 索引可以对其
+                    .append(Component.literal(String.format("[%d] ", index)).withColor(TextColor.GRAY))
+                    .append(AABB2Component(poss));
+
+            // 可能出现的 name
+            if (nameableAABB.hasName()) {
+                var name =nameableAABB.name();
+                @SuppressWarnings("DataFlowIssue")
+                var msg = Component.literal(name).withStyle(style -> style
+                        .withItalic(true)
+                        .withHoverEvent(new HoverEvent.ShowText(Component.literal("点击以复制")))
+                        .withClickEvent(new ClickEvent.CopyToClipboard(name))
+                );
+                result.append("(").append(msg).append(")");
+            }
+
+            // 删除
+            var remove = Component.translatable("feca.msg.cmd.obserserFreezeAreas.list.fns.remove").withStyle(style -> {
+                var removeCmd = String.format("/observerFreezeAreas remove %s %s %s",
+                        dimension.identifier(),
+                        PhysUtils.blockPosToString(poss.getFirst()),
+                        PhysUtils.blockPosToString(poss.getSecond())
+                );
+                return style.withColor(ChatFormatting.RED)
+                        .withHoverEvent(new HoverEvent.ShowText(Component.translatable("feca.msg.common.enterCommand")))
+                        .withClickEvent(new ClickEvent.SuggestCommand(removeCmd));
+            });
+            result.append("  [")
+                    .append(remove)
+                    .append("]");
+
+            return result;
+        };
+    }
+    @Contract(pure = true)
+    public static @NonNull IntFunction<String> getJumpPageCommandCreator(ResourceKey<Level> dimension) {
+        return pageIndex -> String.format("observerFreezeAreas list %s %d", dimension.identifier(), SubCommands.index2number(pageIndex));
     }
 
 
@@ -118,7 +159,7 @@ public class ObserverFreezeAreas {
                                     var dimensionStr = dimension.identifier().toString();
                                     var aabbStr = aabb.toString();
 
-                                    if (DIMENSION_MAP.add(dimension, aabb)) {
+                                    if (DIMENSION_MAP.add(dimension, NameableAABB.unnamed(aabb))) {
                                         FeCA.LOGGER.info("Add {}:{} to ObserverFreezeAreas", dimensionStr, aabbStr);
                                         context.getSource().sendSuccess(() -> {
                                             return Component.translatable("feca.msg.cmd.observerFreezeAreas.add.succ", dimensionStr, aabbStr);
@@ -150,7 +191,7 @@ public class ObserverFreezeAreas {
                                     var dimensionStr = dimension.identifier().toString();
                                     var aabbStr = aabb.toString();
 
-                                    if (DIMENSION_MAP.remove(dimension, aabb)) {
+                                    if (DIMENSION_MAP.remove(dimension, NameableAABB.unnamed(aabb))) {
                                         FeCA.LOGGER.info("Remove {}:{} to ObserverFreezeAreas", dimensionStr, aabbStr);
                                         context.getSource().sendSuccess(() -> {
                                             return Component.translatable("feca.msg.cmd.observerFreezeAreas.remove.area.succ", dimensionStr, aabbStr);
@@ -207,7 +248,7 @@ public class ObserverFreezeAreas {
                             var src = ctx.getSource();
                             if (entry != null) {
                                 var removed = entry.removeIf(aabb -> {
-                                    var result = aabb.intersects(pos);
+                                    var result = aabb.value().intersects(pos);
                                     if (result) {
                                         var msg = Component.translatable("feca.msg.cmd.observerFreezeAreas.remove.here.removeItem", aabb.toString());
                                         src.sendSystemMessage(msg);

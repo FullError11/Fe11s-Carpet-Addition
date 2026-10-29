@@ -110,8 +110,8 @@ public class ConfigCodecs {
         }
 
         @Override
-        public @Nullable T fromJson(@NonNull JsonElement element) {
-            return element.isJsonNull() ? null : itemCodec.fromJson(element);
+        public @Nullable T fromJson(@Nullable JsonElement element) {
+            return (element == null || element.isJsonNull()) ? null : itemCodec.fromJson(element);
         }
     }
 
@@ -128,8 +128,10 @@ public class ConfigCodecs {
         }
 
         @Override
-        public Optional<T> fromJson(@NonNull JsonElement element) {
-            return element.isJsonNull() ? Optional.empty() : Optional.of(itemCodec.fromJson(element));
+        public Optional<T> fromJson(@Nullable JsonElement element) {
+            return (element == null || element.isJsonNull())
+                    ? Optional.empty()
+                    : Optional.of(itemCodec.fromJson(element));
         }
     }
 }
