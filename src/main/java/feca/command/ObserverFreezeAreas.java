@@ -125,7 +125,7 @@ public class ObserverFreezeAreas {
 
             // 删除
             var remove = Component.translatable("feca.msg.cmd.observerFreezeAreas.list.fns.remove").withStyle(style -> {
-                var removeCmd = String.format("/observerFreezeAreas remove %s %s %s",
+                var removeCmd = String.format("/observerFreezeAreas remove %s area %s %s",
                         dimension.identifier(),
                         PhysUtils.blockPosToString(poss.getFirst()),
                         PhysUtils.blockPosToString(poss.getSecond())
