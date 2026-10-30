@@ -7,9 +7,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.jspecify.annotations.NonNull;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 
 @SuppressWarnings("unused")
@@ -20,7 +18,7 @@ public class InfinityInventoryStorage {
     }
 
     private final HashMap<Item, ItemStorage> items = new HashMap<>();
-    private final HashMap<Item, ArrayList<ComplexItemProcessor>> complexItemPushProcessors = new HashMap<>();
+    private final LinkedHashMap<Item, ArrayList<ComplexItemProcessor>> complexItemPushProcessors = new LinkedHashMap<>();
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private static boolean isNormal(@NonNull ItemStack stack) {
@@ -226,18 +224,11 @@ public class InfinityInventoryStorage {
             }
             if (!isNormal(stack)) {
                 if (FeCA.DEBUG) FeCA.LOGGER.debug("<InfinityInventoryStorage> Special item: {}", stack);
-
-                var processors = complexItemPushProcessors.get(stack.getItem());
-                if (processors != null) {
-                    for (var processor : processors) {
-                        switch (processor.process(stack)) {
-                            case PASS: break;
-                            case FAILED: return false;
-                            case SUCCESS: return true;
-                        }
-                    }
+                switch (processComplexItemPush(stack)) {
+                    case PASS: break;
+                    case FAILED: return false;
+                    case SUCCESS: return true;
                 }
-
                 if (FeCA.DEBUG) FeCA.LOGGER.debug("<InfinityInventoryStorage> Special item cannot process: {}", stack);
                 throw new UnsupportedOperationException("Special item stacks are not supported: " + stack);
             }
@@ -274,6 +265,19 @@ public class InfinityInventoryStorage {
         }
 
         Result process(@NonNull ItemStack stack);
+    }
+
+    private ComplexItemProcessor.Result processComplexItemPush(@NonNull ItemStack stack) {
+        var processors = complexItemPushProcessors.get(stack.getItem());
+        if (processors != null) {
+            for (var processor : processors) {
+                var result = processor.process(stack);
+                if (result != ComplexItemProcessor.Result.PASS) {
+                    return result;
+                }
+            }
+        }
+        return ComplexItemProcessor.Result.PASS;
     }
 
     public void registerComplexItemPushProcessor(Item item, ComplexItemProcessor processor) {
