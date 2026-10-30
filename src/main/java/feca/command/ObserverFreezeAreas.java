@@ -44,49 +44,51 @@ public class ObserverFreezeAreas {
     static {
         OnInitializeCallbackRegistry.register(() -> {
             CommandRegistrationCallback.EVENT.register((dispatcher, _, _) -> {
-                var command = Commands.literal("observerFreezeAreas")
+                dispatcher.register(Commands.literal("observerFreezeAreas")
                         .requires(ctx -> CommandHelper.canUseCommand(ctx, Rules.commandObserverFreezeAreas))
                         .then(SubCommands.add())
                         .then(SubCommands.remove())
-                        .then(SubCommands.list());
-
-                if (FeCA.DEBUG) {
-                    command = command.then(Commands.literal("debug")
-                            .then(Commands.literal("addItems")
-                                    .executes(_ -> {
-                                            DIMENSION_MAP.forEach(entry -> {
-                                                for (int i = -25; i < 25; i++) {
-                                                    final var pos = new BlockPos(i, 0, i);
-                                                    entry.add(NameableAABB.unnamed(pos, pos));
-                                                }
-                                            });
-                                            return SUCCESS;
-                                    })
-                            )
-                            .then(Commands.literal("addCenterItems")
-                                    .executes(_ -> {
-                                        DIMENSION_MAP.forEach(entry -> {
-                                            for (int i = 0; i < 10; i++) {
-                                                entry.add(NameableAABB.unnamed(new BlockPos(-i, -i, -i), new BlockPos(i, i, i)));
-                                            }
-                                        });
-                                        return SUCCESS;
-                                    })
-                            )
-                            .then(Commands.literal("touchDimensions")
-                                    .executes(_ -> {
-                                        DIMENSION_MAP.getEntry(Level.OVERWORLD);
-                                        DIMENSION_MAP.getEntry(Level.NETHER);
-                                        DIMENSION_MAP.getEntry(Level.END);
-                                        return SUCCESS;
-                                    })
-                            )
-                    );
-                }
-
-                dispatcher.register(command);
+                        .then(SubCommands.list())
+                );
             });
         });
+
+        FeCADebug.registerSubCommand("observerFreezeAreas", (builder, _, _) -> builder
+                .then(Commands.literal("addItems")
+                        .executes(ctx -> {
+                            DIMENSION_MAP.forEach(entry -> {
+                                for (int i = -25; i < 25; i++) {
+                                    final var pos = new BlockPos(i, 0, i);
+                                    final var aabb = NameableAABB.unnamed(pos, pos);
+                                    entry.add(aabb);
+                                    ctx.getSource().sendSystemMessage(Component.literal("添加了: ").append(AABB2Component(aabb.value())));
+                                }
+                            });
+                            return SUCCESS;
+                        })
+                )
+                .then(Commands.literal("addCenterItems")
+                        .executes(ctx -> {
+                            DIMENSION_MAP.forEach(entry -> {
+                                for (int i = 0; i < 10; i++) {
+                                    final var aabb = NameableAABB.unnamed(new BlockPos(-i, -i, -i), new BlockPos(i, i, i));
+                                    entry.add(aabb);
+                                    ctx.getSource().sendSystemMessage(Component.literal("添加了: ").append(AABB2Component(aabb.value())));
+                                }
+                            });
+                            return SUCCESS;
+                        })
+                )
+                .then(Commands.literal("touchDimensions")
+                        .executes(ctx -> {
+                            ctx.getSource().getServer().levelKeys().forEach(dimension -> {
+                                DIMENSION_MAP.getEntry(dimension);
+                                ctx.getSource().sendSystemMessage(Component.literal("添加了: " + dimension.identifier()));
+                            });
+                            return SUCCESS;
+                        })
+                )
+        );
     }
 
     public static final int LIST_PAGE_ITEMS = 10;
