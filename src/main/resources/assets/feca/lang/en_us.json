@@ -39,6 +39,9 @@
     "carpet.rule.forceTurtleEggHatching.name": "强制孵化海龟蛋",
     "carpet.rule.forceTurtleEggHatching.desc": "手持金胡萝卜右键海龟蛋将使其强制孵化",
 
+    "carpet.rule.infinityInventory.name": "infinityInventory",
+    "carpet.rule.infinityInventory.desc": "infinityInventory",
+
     "feca.msg.common.enterCommand": "输入命令到聊天框",
     "feca.msg.common.pageNumberOutOfRange": "页码 %d 不存在，请输入 %d ~ %d 间的数字",
 

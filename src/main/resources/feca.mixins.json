@@ -13,6 +13,7 @@
         "SolidBucketItemMixin",
         "SugarCaneBlockMixin",
         "TurtleEggBlockMixin",
+        "accessor.ItemContainerContentsAccessor",
         "accessor.VillagerAccessor"
     ],
     "injectors": {

@@ -100,4 +100,8 @@ public final class Rules {
     @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(ForceTurtleEggHatching.class)
     public static boolean forceTurtleEggHatching = false;
+
+    @Rule(categories = {FECA})
+    @RuleImplBy(InfinityInventory.class)
+    public static CommandPermissionOptions infinityInventory = CommandPermissionOptions.FALSE;
 }
