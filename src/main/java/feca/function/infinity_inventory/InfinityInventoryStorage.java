@@ -18,7 +18,7 @@ public class InfinityInventoryStorage {
     }
 
     private final HashMap<Item, ItemStorage> items = new HashMap<>();
-    private final LinkedHashMap<Item, ArrayList<ComplexItemProcessor>> complexItemPushProcessors = new LinkedHashMap<>();
+    private final HashMap<Item, ArrayList<ComplexItemProcessor>> complexItemPushProcessors = new HashMap<>();
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private static boolean isNormal(@NonNull ItemStack stack) {
