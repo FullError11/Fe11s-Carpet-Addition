@@ -1,6 +1,7 @@
 package feca.command.utils;
 
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
@@ -13,22 +14,21 @@ import java.util.Optional;
 public class PlayerExecutor {
     @FunctionalInterface
     public interface IsPlayerExecutor {
-        int exec(ServerPlayer player);
+        int exec(ServerPlayer player) throws CommandSyntaxException;
     }
     @FunctionalInterface
     public interface NotPlayerExecutor {
-        int exec();
+        int exec() throws CommandSyntaxException;
     }
 
-    public static int requireExecByPlayer(@NonNull CommandContext<CommandSourceStack> ctx, IsPlayerExecutor executor) {
+    public static int requireExecByPlayer(@NonNull CommandContext<CommandSourceStack> ctx, IsPlayerExecutor executor) throws CommandSyntaxException {
         return requireExecByPlayerOrElse(ctx, executor, () -> {
             ctx.getSource().sendFailure(Component.translatable("feca.msg.cmd.util.requireExecByPlayer.err").withStyle(ChatFormatting.RED));
             return CommandResult.FAILURE;
         });
     }
 
-    @SuppressWarnings("OptionalIsPresent") // 避免 Optional::map 转换成 Optional<Integer> 的装箱
-    public static int requireExecByPlayerOrElse(@NonNull CommandContext<CommandSourceStack> ctx, IsPlayerExecutor executor, NotPlayerExecutor orElseExecutor) {
+    public static int requireExecByPlayerOrElse(@NonNull CommandContext<CommandSourceStack> ctx, IsPlayerExecutor executor, NotPlayerExecutor orElseExecutor) throws CommandSyntaxException {
         var playerOpt = tryGetPlayer(ctx);
         if (playerOpt.isPresent()) {
             return executor.exec(playerOpt.get());

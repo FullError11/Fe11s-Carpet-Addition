@@ -2,6 +2,7 @@ package feca.command;
 
 import carpet.utils.CommandHelper;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import feca.FeCA;
 import feca.command.utils.CommandResult;
 import feca.command.utils.PlayerExecutor;
@@ -47,7 +48,7 @@ public class Home {
         };
     }
 
-    private static int tp(CommandContext<CommandSourceStack> ctx, TeleportTransitionGetter teleportTransitionGetter) {
+    private static int tp(CommandContext<CommandSourceStack> ctx, TeleportTransitionGetter teleportTransitionGetter) throws CommandSyntaxException {
         return PlayerExecutor.requireExecByPlayer(ctx, player -> {
             EndServerTickTaskQueue.add(new EndServerTickTaskQueue.Task() {
                 private final GameTime leftTime = GameTime.ofSeconds(3);
@@ -85,11 +86,11 @@ public class Home {
         });
     }
 
-    private static int tpSelfHome(CommandContext<CommandSourceStack> ctx) {
+    private static int tpSelfHome(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         return tp(ctx, TeleportTransitionGetter.SELF_HOME);
     }
 
-    private static int tpWorldHome(CommandContext<CommandSourceStack> ctx) {
+    private static int tpWorldHome(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         return tp(ctx, TeleportTransitionGetter.WORLD_HOME);
     }
 }
