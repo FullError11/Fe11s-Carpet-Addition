@@ -3,6 +3,7 @@ package feca;
 import carpet.CarpetExtension;
 import carpet.CarpetServer;
 import feca.command.FeCADebug;
+import feca.command.arguments.custom.CustomArgumentTypes;
 import feca.registry.OnInitializeCallbackRegistry;
 import feca.registry.OnServerLoadedCallbackRegistry;
 import feca.rule.Rules;
@@ -39,6 +40,7 @@ public class FeCA implements ModInitializer, CarpetExtension {
 	@Override
 	public void onInitialize() {
 		if (FeCA.DEBUG) FeCADebug.register();
+		CustomArgumentTypes.register();
 
 		// Rules.initializeImplClasses 应该最早初始化
 		// 因为规则的 impl类 初始化时会在 static 块注册回调
