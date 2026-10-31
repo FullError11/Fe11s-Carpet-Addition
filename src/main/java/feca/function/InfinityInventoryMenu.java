@@ -1,13 +1,12 @@
 package feca.function;
 
-import feca.FeCA;
+import feca.function.utils.InfinityInventoryCraftHelper;
 import feca.rule.utils.RuleImpl;
 import feca.function.utils.InfinityInventoryStorage;
 import feca.utils.ShulkerBoxAccessor;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
@@ -26,7 +25,6 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
 import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
 import java.util.*;
 
@@ -714,15 +712,14 @@ public class InfinityInventoryMenu implements RuleImpl {
             InfinityInventoryStorage storage = storage();
 
             CraftingInput input = collectCraftingInput();
-            int nonEmptyCount = countNonEmpty(input);
+            int nonEmptyCount = InfinityInventoryCraftHelper.countNonEmpty(input);
 
             ItemStack outputItem = ItemStack.EMPTY;
             ItemStack barrierItem = ItemStack.EMPTY;
 
             if (nonEmptyCount > 0 && player.level() instanceof ServerLevel serverLevel) {
                 Optional<RecipeHolder<CraftingRecipe>> recipeOpt =
-                        serverLevel.getServer().getRecipeManager()
-                                .getRecipeFor(RecipeType.CRAFTING, input, serverLevel);
+                        InfinityInventoryCraftHelper.findRecipe(serverLevel, input);
 
                 if (recipeOpt.isPresent()) {
                     // ① 匹配到配方
@@ -733,7 +730,7 @@ public class InfinityInventoryMenu implements RuleImpl {
 
                         // 输入只有一个物品 → 35 号槽额外显示该物品的库存
                         if (nonEmptyCount == 1) {
-                            Item singleItem = findFirstItem(input);
+                            Item singleItem = InfinityInventoryCraftHelper.findFirstItem(input);
                             if (singleItem != null) {
                                 barrierItem = buildDisplay(singleItem,
                                         storage.getCount(singleItem));
@@ -741,9 +738,9 @@ public class InfinityInventoryMenu implements RuleImpl {
                         }
                     }
                 } else if (nonEmptyCount == 1) {
-                    Item singleItem = findFirstItem(input);
+                    Item singleItem = InfinityInventoryCraftHelper.findFirstItem(input);
                     if (singleItem != null) {
-                        if (isItemAnyRecipeIngredient(singleItem)) {
+                        if (InfinityInventoryCraftHelper.isAnyRecipeIngredient(serverLevel, singleItem)) {
                             // ②.1 可作为原料 → 35 号槽显示该物品库存
                             barrierItem = buildDisplay(singleItem,
                                     storage.getCount(singleItem));
@@ -771,41 +768,6 @@ public class InfinityInventoryMenu implements RuleImpl {
                 items.set(i, stack.copy());
             }
             return CraftingInput.of(3, 3, items);
-        }
-
-        private static int countNonEmpty(@NonNull CraftingInput input) {
-            int count = 0;
-            for (int i = 0; i < input.size(); i++) {
-                if (!input.getItem(i).isEmpty()) count++;
-            }
-            return count;
-        }
-
-        private static @Nullable Item findFirstItem(@NonNull CraftingInput input) {
-            for (int i = 0; i < input.size(); i++) {
-                ItemStack s = input.getItem(i);
-                if (!s.isEmpty()) return s.getItem();
-            }
-            return null;
-        }
-
-        private boolean isItemAnyRecipeIngredient(Item item) {
-            if (!(player.level() instanceof ServerLevel serverLevel)) return false;
-
-            ItemStack probe = new ItemStack(item);
-            for (RecipeHolder<?> holder : serverLevel.getServer().getRecipeManager().getRecipes()) {
-                if (!(holder.value() instanceof CraftingRecipe recipe)) continue;
-
-                var placement = recipe.placementInfo();
-                if (placement == PlacementInfo.NOT_PLACEABLE) continue;
-
-                for (Ingredient ing : placement.ingredients()) {
-                    if (!ing.isEmpty() && ing.test(probe)) {
-                        return true;
-                    }
-                }
-            }
-            return false;
         }
 
         private void handleTakeOutput(int buttonNum, ContainerInput containerInput) {
@@ -984,109 +946,25 @@ public class InfinityInventoryMenu implements RuleImpl {
         // 合成计算
         // =========================================================
 
-        /**
-         * 基于当前输入模板 + 库存原料，计算最多可合成的产物总数。
-         * 每种原料的消耗按"每个 Ingredient 格 1 个"计算。
-         */
         private int computeMaxCraftable() {
             if (!(player.level() instanceof ServerLevel serverLevel)) return 0;
-
-            CraftingInput input = collectCraftingInput();
-            if (countNonEmpty(input) == 0) return 0;
-
-            Optional<RecipeHolder<CraftingRecipe>> recipeOpt = serverLevel.getServer()
-                    .getRecipeManager()
-                    .getRecipeFor(RecipeType.CRAFTING, input, serverLevel);
-            if (recipeOpt.isEmpty()) return 0;
-
-            CraftingRecipe recipe = recipeOpt.get().value();
-            ItemStack prototype = recipe.assemble(input);
-            if (prototype.isEmpty()) return 0;
-
-            Map<Item, Integer> needed = computeNeededIngredients(recipe);
-            if (needed.isEmpty()) return 0;
-
-            int maxCrafts = Integer.MAX_VALUE;
-            for (Map.Entry<Item, Integer> e : needed.entrySet()) {
-                int available = storage().getCount(e.getKey());
-                maxCrafts = Math.min(maxCrafts, available / e.getValue());
-            }
-            if (maxCrafts == Integer.MAX_VALUE || maxCrafts <= 0) return 0;
-
-            return maxCrafts * prototype.getCount();
+            return InfinityInventoryCraftHelper.computeMaxCraftable(
+                    serverLevel, collectCraftingInput(), storage());
         }
 
-        /**
-         * 统计一份配方需要每种 Item 各多少个。
-         * 对每个 Ingredient 从候选物品中挑库存最多的那个，累加需求量。
-         */
-        private @NonNull Map<Item, Integer> computeNeededIngredients(@NonNull CraftingRecipe recipe) {
-            PlacementInfo placement = recipe.placementInfo();
-            if (placement == PlacementInfo.NOT_PLACEABLE) return Map.of();
-
-            Map<Item, Integer> needed = new HashMap<>();
-
-            for (Ingredient ing : placement.ingredients()) {
-                if (ing.isEmpty()) continue;
-
-                Item bestItem = null;
-                int bestCount = -1;
-
-                for (Item item : BuiltInRegistries.ITEM) {
-                    ItemStack probe = new ItemStack(item);
-                    if (ing.test(probe)) {
-                        int cnt = storage().getCount(item);
-                        if (cnt > bestCount) {
-                            bestCount = cnt;
-                            bestItem = item;
-                        }
-                    }
-                }
-
-                if (bestItem == null || bestCount <= 0) return Map.of();
-                needed.merge(bestItem, 1, Integer::sum);
-            }
-            return needed;
-        }
-
-        /**
-         * 实际执行合成：按 targetCount 产量需求，消耗原料并返回产物。
-         * 返回的产物数量可能小于 targetCount（按整份配方合成、且受库存上限截断）。
-         */
         private ItemStack doCraft(Item expectedItem, int targetCount) {
-            if (targetCount <= 0) return ItemStack.EMPTY;
             if (!(player.level() instanceof ServerLevel serverLevel)) return ItemStack.EMPTY;
 
-            CraftingInput input = collectCraftingInput();
-            Optional<RecipeHolder<CraftingRecipe>> recipeOpt = serverLevel.getServer()
-                    .getRecipeManager()
-                    .getRecipeFor(RecipeType.CRAFTING, input, serverLevel);
-            if (recipeOpt.isEmpty()) return ItemStack.EMPTY;
+            InfinityInventoryCraftHelper.CraftResult result =
+                    InfinityInventoryCraftHelper.craft(
+                            serverLevel, collectCraftingInput(), expectedItem, targetCount, storage());
 
-            CraftingRecipe recipe = recipeOpt.get().value();
-            ItemStack prototype = recipe.assemble(input);
-            if (prototype.isEmpty() || prototype.getItem() != expectedItem) return ItemStack.EMPTY;
+            if (result.isEmpty()) return ItemStack.EMPTY;
 
-            int perCraft = prototype.getCount();
-            int craftTimes = (int) Math.ceil((double) targetCount / perCraft);
-
-            Map<Item, Integer> needed = computeNeededIngredients(recipe);
-            if (needed.isEmpty()) return ItemStack.EMPTY;
-
-            int maxCrafts = Integer.MAX_VALUE;
-            for (Map.Entry<Item, Integer> e : needed.entrySet()) {
-                maxCrafts = Math.min(maxCrafts, storage().getCount(e.getKey()) / e.getValue());
+            for (Item consumed : result.consumedIngredients()) {
+                requireRelease(consumed);
             }
-            craftTimes = Math.min(craftTimes, maxCrafts);
-            if (craftTimes <= 0) return ItemStack.EMPTY;
-
-            for (Map.Entry<Item, Integer> e : needed.entrySet()) {
-                int toConsume = e.getValue() * craftTimes;
-                storage().pop(e.getKey(), toConsume);
-                requireRelease(e.getKey());
-            }
-
-            return prototype.copyWithCount(perCraft * craftTimes);
+            return result.output();
         }
 
         // =========================================================
