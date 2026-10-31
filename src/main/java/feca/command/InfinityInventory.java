@@ -12,12 +12,13 @@ import com.mojang.brigadier.suggestion.Suggestion;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.mojang.brigadier.suggestion.SuggestionsBuilder;
+import feca.FeCA;
 import feca.command.arguments.IntegerExpressionArgument;
 import feca.command.arguments.ItemArgument;
 import feca.command.utils.CommandResult;
 import feca.command.utils.PlayerExecutor;
+import feca.utils.InfinityInventoryStorage;
 import feca.utils.ContainerHelper;
-import feca.function.infinity_inventory.InfinityInventoryStorage;
 import feca.registry.OnInitializeCallbackRegistry;
 import feca.rule.Rules;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -37,13 +38,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class InfinityInventory {
-    private static final HashMap<UUID, InfinityInventoryStorage> INVENTORY_STORAGES = new HashMap<>();
+import static feca.function.InfinityInventory.getStorage;
 
+public class InfinityInventory {
     static {
         OnInitializeCallbackRegistry.register(() -> {
             CommandRegistrationCallback.EVENT.register((dispatcher, buildContext, _) -> {
-                dispatcher.register(Commands.literal("infinity_inventory")
+                dispatcher.register(Commands.literal("infinityInventory")
                         .requires(stack -> CommandHelper.canUseCommand(stack, Rules.infinityInventory))
                         .then(SubCommands.store(buildContext))
                         .then(SubCommands.take(buildContext))
@@ -74,29 +75,25 @@ public class InfinityInventory {
                             return CommandResult.FAILURE;
                         }
 
-                        var storage = INVENTORY_STORAGES.computeIfAbsent(
-                                player.getUUID(), _ -> new InfinityInventoryStorage());
+                        var storage = getStorage(player);
                         var itemName = item.getDefaultInstance().getDisplayName();
 
-                        storage.pushSome(item, pusher -> {
-                            var remaining = count;
-                            for (var stack : inventory) {
-                                if (remaining <= 0) break;
-                                if (!stack.is(item)) continue;
 
+                        var remaining = count;
+                        for (var stack : inventory) {
+                            if (remaining <= 0) break;
+                            if (!stack.is(item)) continue;
 
-                                var toPush = Math.min(stack.getCount(), remaining);
+                            var toPush = Math.min(stack.getCount(), remaining);
 
-                                // 先输出信息，防止 stack 被取空后显示为 `空气`
-                                source.sendSystemMessage(Component.literal("储存了 ")
-                                        .append(stack.getDisplayName())
-                                        .append(" * " + toPush));
+                            // 先输出信息，防止 stack 被取空后显示为 `空气`
+                            if (FeCA.DEBUG)
+                                FeCA.LOGGER.debug("储存了 {} * {}", stack.getDisplayName().getSiblings(), toPush);
 
-                                pusher.push(stack.split(toPush));
-                                remaining -= toPush;
+                            storage.push(stack.split(toPush));
+                            remaining -= toPush;
 
-                            }
-                        });
+                        }
 
                         source.sendSystemMessage(Component.literal("储存了 " + count + " 个 ")
                                 .append(itemName)
@@ -120,7 +117,7 @@ public class InfinityInventory {
                     var count = countGetter.get(ctx, inventory, item);
                     if (!requireCountIsPositive(count, ctx)) return CommandResult.FAILURE;
 
-                    var storage = INVENTORY_STORAGES.computeIfAbsent(player.getUUID(), _ -> new InfinityInventoryStorage());
+                    var storage = getStorage(player);
 
                     var hasCount = storage.getCount(item);
                     if (hasCount < count) {
@@ -138,7 +135,7 @@ public class InfinityInventory {
                     }
                     // == 于 INVENTORY_CAN_STORE 无意义
 
-                    var popCount = storage.popTo(item, count, inventory.getNonEquipmentItems());
+                    var popCount = storage.tryPopTo(item, count, inventory.getNonEquipmentItems());
 
                     var name = item.getDefaultInstance().getDisplayName();
                     var msg = Component.literal("取出了 " + popCount + " 个 ").append(name);
@@ -167,7 +164,7 @@ public class InfinityInventory {
                             .suggests(new SuggestionProviders.InventoryItemPriority(Arguments.ITEM.argumentType(buildContext)))
                             .executes(PlayerExecutor.requireExecByPlayer((ctx, player) -> {
                                 var item = Arguments.ITEM.get(ctx).item().value();
-                                var storage = INVENTORY_STORAGES.computeIfAbsent(player.getUUID(), _ -> new InfinityInventoryStorage());
+                                var storage = getStorage(player);
 
                                 var count = storage.getCount(item);
                                 var name = item.getDefaultInstance().getDisplayName();
@@ -308,7 +305,7 @@ public class InfinityInventory {
         final Function<CountGetter, Command<CommandSourceStack>> storeExecCreator = countGetter -> {
             return PlayerExecutor.requireExecByPlayer((ctx, player) -> {
                 var item = Arguments.ITEM.get(ctx).item().value();
-                var storage = INVENTORY_STORAGES.computeIfAbsent(player.getUUID(), _ -> new InfinityInventoryStorage());
+                var storage = getStorage(player);
                 var count = countGetter.get(ctx, storage, item);
                 if (!requireCountIsPositive(count, ctx)) return CommandResult.FAILURE;
 
@@ -322,12 +319,12 @@ public class InfinityInventory {
         final Function<CountGetter, Command<CommandSourceStack>> takeExecCreator = countGetter -> {
             return PlayerExecutor.requireExecByPlayer((ctx, player) -> {
                 var item = Arguments.ITEM.get(ctx).item().value();
-                var storage = INVENTORY_STORAGES.computeIfAbsent(player.getUUID(), _ -> new InfinityInventoryStorage());
+                var storage = getStorage(player);
                 var count = countGetter.get(ctx, storage, item);
                 if (!requireCountIsPositive(count, ctx)) return CommandResult.FAILURE;
 
-                var drainCount = storage.tryModifyCount(item, count);
-                var msg = Component.literal("销毁完成(销毁了 " + drainCount + " 个)，库存共有 " + storage.getCount(item) + " 个");
+                storage.modifyCount(item, -count);
+                var msg = Component.literal("销毁完成(销毁了 " + count + " 个)，库存共有 " + storage.getCount(item) + " 个");
                 ctx.getSource().sendSystemMessage(msg);
                 return CommandResult.SUCCESS;
             });
@@ -341,7 +338,7 @@ public class InfinityInventory {
                     );
         };
 
-        FeCADebug.registerSubCommand("infinity_inventory", (builder, buildContext, _) -> builder
+        FeCADebug.registerSubCommand("infinityInventory", (builder, buildContext, _) -> builder
                 .then(Commands.literal("doWithInfinity")
                         .then(Commands.literal("store")
                                 .then(requireArgsAndExec.apply(buildContext, storeExecCreator.apply(CountGetter.FROM_ARGUMENT)))
@@ -359,6 +356,13 @@ public class InfinityInventory {
                                     return storage.getCount(item) - Arguments.COUNT.calcAsInt(ctx);
                                 })))
                         )
+                )
+                .then(Commands.literal("clear")
+                        .executes(PlayerExecutor.requireExecByPlayer((ctx, player) -> {
+                            getStorage(player).clear();
+                            ctx.getSource().sendSystemMessage(Component.literal("已清空全部库存"));
+                            return CommandResult.SUCCESS;
+                        }))
                 )
         );
     }

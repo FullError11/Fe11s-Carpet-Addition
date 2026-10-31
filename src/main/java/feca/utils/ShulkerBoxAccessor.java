@@ -77,6 +77,13 @@ public class ShulkerBoxAccessor implements Iterable<ItemStack> {
         return slots.size();
     }
 
+    public boolean isEmptyShulkerBox() {
+        for (var slot : slots) {
+            if (!slot.isEmpty()) return false;
+        }
+        return true;
+    }
+
     public int countItem(Item item) {
         int count = 0;
         for (ItemStack stack : slots) {
