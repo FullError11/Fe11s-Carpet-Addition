@@ -4,7 +4,9 @@ import feca.function.utils.InfinityInventoryCraftHelper;
 import feca.function.utils.InfinityInventoryTransferHelper;
 import feca.rule.utils.RuleImpl;
 import feca.function.utils.InfinityInventoryStorage;
+import feca.utils.PlayerInventoryHelper;
 import feca.utils.ShulkerBoxAccessor;
+import feca.utils.ShulkerBoxPacker;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
@@ -751,7 +753,7 @@ public class InfinityInventoryMenu implements RuleImpl {
 
             int target = Math.min(maxCraftable, item.getDefaultMaxStackSize());
             ItemStack probe = new ItemStack(item, target);
-            if (!InfinityInventoryTransferHelper.canFullyFit(player, probe)) {
+            if (!PlayerInventoryHelper.canFullyFit(player, probe)) {
                 player.sendSystemMessage(
                         Component.literal("背包空间不足").withStyle(ChatFormatting.RED));
                 return;
@@ -760,7 +762,7 @@ public class InfinityInventoryMenu implements RuleImpl {
             ItemStack crafted = doCraft(item, target);
             if (crafted.isEmpty()) return;
 
-            InfinityInventoryTransferHelper.giveOrDrop(player, crafted);
+            PlayerInventoryHelper.giveOrDrop(player, crafted);
             applyPendingRefresh();
         }
 
@@ -794,15 +796,7 @@ public class InfinityInventoryMenu implements RuleImpl {
                     InfinityInventoryTransferHelper.returnToStorage(storage(), shulker);
                     return;
                 }
-                var list = accessor.list();
-                int remaining = crafted.getCount();
-                for (int i = 0; i < list.size() && remaining > 0; i++) {
-                    if (list.get(i).isEmpty()) {
-                        int put = Math.min(remaining, item.getDefaultMaxStackSize());
-                        list.set(i, new ItemStack(item, put));
-                        remaining -= put;
-                    }
-                }
+                ShulkerBoxPacker.fill(accessor, item, crafted.getCount());
             }
 
             setCarried(shulker);
@@ -816,7 +810,7 @@ public class InfinityInventoryMenu implements RuleImpl {
                 return;
             }
 
-            if (!InfinityInventoryTransferHelper.canFullyFit(player, new ItemStack(Items.SHULKER_BOX))) {
+            if (!PlayerInventoryHelper.canFullyFit(player, new ItemStack(Items.SHULKER_BOX))) {
                 player.sendSystemMessage(
                         Component.literal("背包空间不足").withStyle(ChatFormatting.RED));
                 return;
@@ -839,18 +833,10 @@ public class InfinityInventoryMenu implements RuleImpl {
                     InfinityInventoryTransferHelper.returnToStorage(storage(), shulker);
                     return;
                 }
-                var list = accessor.list();
-                int remaining = crafted.getCount();
-                for (int i = 0; i < list.size() && remaining > 0; i++) {
-                    if (list.get(i).isEmpty()) {
-                        int put = Math.min(remaining, item.getDefaultMaxStackSize());
-                        list.set(i, new ItemStack(item, put));
-                        remaining -= put;
-                    }
-                }
+                ShulkerBoxPacker.fill(accessor, item, crafted.getCount());
             }
 
-            InfinityInventoryTransferHelper.giveOrDrop(player, shulker);
+            PlayerInventoryHelper.giveOrDrop(player, shulker);
             applyPendingRefresh();
         }
 

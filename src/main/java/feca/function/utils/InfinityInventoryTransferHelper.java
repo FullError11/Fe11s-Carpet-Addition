@@ -1,7 +1,7 @@
 package feca.function.utils;
 
-import feca.utils.ShulkerBoxAccessor;
-import net.minecraft.world.entity.player.Inventory;
+import feca.utils.PlayerInventoryHelper;
+import feca.utils.ShulkerBoxPacker;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -99,16 +99,10 @@ public final class InfinityInventoryTransferHelper {
             return new Extraction(extractStack(storage, item), Set.of());
         }
 
-        if (!storage.pop(Items.SHULKER_BOX, 1)) return Extraction.EMPTY;
+        ItemStack shulker = ShulkerBoxPacker.packFromStorage(storage, item);
+        if (shulker.isEmpty()) return Extraction.EMPTY;
 
-        ItemStack shulker = new ItemStack(Items.SHULKER_BOX);
-        try (var box = ShulkerBoxAccessor.openAutoSaved(shulker)) {
-            if (storage.tryPopTo(item, Integer.MAX_VALUE, box.list()) > 0) {
-                return new Extraction(shulker, Set.of(Items.SHULKER_BOX));
-            }
-            storage.push(shulker);
-            return Extraction.EMPTY;
-        }
+        return new Extraction(shulker, Set.of(Items.SHULKER_BOX));
     }
 
     // =========================================================
@@ -128,46 +122,12 @@ public final class InfinityInventoryTransferHelper {
             @NonNull InfinityInventoryStorage storage,
             @NonNull ItemStack extracted) {
         if (extracted.isEmpty()) return false;
-        if (!canFullyFit(player, extracted)) {
+        if (!PlayerInventoryHelper.canFullyFit(player, extracted)) {
             storage.push(extracted);
             return false;
         }
-        giveOrDrop(player, extracted);
+        PlayerInventoryHelper.giveOrDrop(player, extracted);
         return true;
-    }
-
-    /**
-     * 检查玩家背包（快捷栏 + 主背包，0..35）能否完整容纳 stack。
-     * 已存在同种堆叠的剩余容量也算在内。
-     */
-    public static boolean canFullyFit(@NonNull Player player, @NonNull ItemStack stack) {
-        if (stack.isEmpty()) return true;
-
-        Inventory inv = player.getInventory();
-        int remaining = stack.getCount();
-        int maxStackSize = stack.getMaxStackSize();
-
-        for (var slot : inv.getNonEquipmentItems()) {
-            int room;
-            if (slot.isEmpty()) {
-                room = maxStackSize;
-            } else if (ItemStack.isSameItemSameComponents(slot, stack)) {
-                room = slot.getMaxStackSize() - slot.getCount();
-            } else {
-                room = 0;
-            }
-            remaining -= room;
-            if (remaining <= 0) return true;
-        }
-        return false;
-    }
-
-    /** 把 stack 放入玩家背包，放不下时掉落到脚下。 */
-    public static void giveOrDrop(@NonNull Player player, @NonNull ItemStack stack) {
-        if (stack.isEmpty()) return;
-        if (!player.getInventory().add(stack)) {
-            player.drop(stack, false);
-        }
     }
 
     // =========================================================
