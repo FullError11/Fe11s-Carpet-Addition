@@ -1,11 +1,13 @@
 package feca.utils;
 
+import feca.FeCA;
 import feca.mixin.accessor.ItemContainerContentsAccessor;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.component.ItemContainerContents;
+import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 
@@ -39,16 +41,21 @@ public class ShulkerBoxAccessor implements Iterable<ItemStack> {
     /// 从 {@link DataComponents#CONTAINER} 组件读取槽位；
     protected static @NonNull List<ItemStack> readSlots(@NonNull ItemStack shulkerStack) {
         ItemContainerContents container = shulkerStack.get(DataComponents.CONTAINER);
-        if (container == null) {
-            return new ArrayList<>();
+        if (container != null) {
+            List<Optional<ItemStackTemplate>> templates =
+                    ((ItemContainerContentsAccessor)(Object)container).feca$items();
+            if (!templates.isEmpty()) {
+                List<ItemStack> slots = new ArrayList<>(templates.size());
+                for (Optional<ItemStackTemplate> template : templates) {
+                    slots.add(template.map(ItemStackTemplate::create).orElse(ItemStack.EMPTY));
+                }
+                FeCA.LOGGER.debug("slots({}): {}", slots.size(), slots);
+                return slots;
+            }
         }
-        List<Optional<ItemStackTemplate>> templates =
-                ((ItemContainerContentsAccessor)(Object)container).feca$items();
-        List<ItemStack> slots = new ArrayList<>(templates.size());
-        for (Optional<ItemStackTemplate> template : templates) {
-            slots.add(template.map(ItemStackTemplate::create).orElse(ItemStack.EMPTY));
-        }
-        return slots;
+
+        FeCA.LOGGER.debug("null");
+        return new ArrayList<>(Collections.nCopies(ShulkerBoxBlockEntity.CONTAINER_SIZE, ItemStack.EMPTY));
     }
 
     /// <b>不支持</b> {@link Iterator#remove()}。
@@ -68,6 +75,8 @@ public class ShulkerBoxAccessor implements Iterable<ItemStack> {
             }
         };
     }
+
+    public List<ItemStack> list() { return slots; }
 
     public ItemStack get(int slot) {
         return slots.get(slot);
