@@ -1,7 +1,9 @@
 package feca.function.utils;
 
+import net.minecraft.core.NonNullList;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.Container;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.CraftingInput;
@@ -17,6 +19,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 
 /**
  * 无限库存合成计算的辅助类。
@@ -44,6 +47,32 @@ public final class InfinityInventoryCraftHelper {
             @NonNull ServerLevel level, @NonNull CraftingInput input) {
         return level.getServer().getRecipeManager()
                 .getRecipeFor(RecipeType.CRAFTING, input, level);
+    }
+
+    // =========================================================
+    // 输入收集
+    // =========================================================
+
+    /**
+     * 按一组槽位索引从容器中收集合成输入。
+     * <p>
+     * slots 的顺序须与网格顺序一致（例如 3x3 网格按行优先排列）。
+     * 槽位为空、或满足 isPlaceholder 判定时跳过（保留为空），
+     * 收集到的堆叠会被复制一份，避免与容器中的对象共享引用。
+     */
+    public static @NonNull CraftingInput collectInput(
+            @NonNull Container container,
+            int @NonNull [] slots,
+            int width,
+            int height,
+            @NonNull Predicate<ItemStack> isPlaceholder) {
+        NonNullList<ItemStack> items = NonNullList.withSize(slots.length, ItemStack.EMPTY);
+        for (int i = 0; i < slots.length; i++) {
+            ItemStack stack = container.getItem(slots[i]);
+            if (stack.isEmpty() || isPlaceholder.test(stack)) continue;
+            items.set(i, stack.copy());
+        }
+        return CraftingInput.of(width, height, items);
     }
 
     // =========================================================
