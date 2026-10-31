@@ -1,6 +1,7 @@
 package feca.function;
 
 import feca.function.utils.InfinityInventoryCraftHelper;
+import feca.function.utils.InfinityInventoryTransferHelper;
 import feca.rule.utils.RuleImpl;
 import feca.function.utils.InfinityInventoryStorage;
 import feca.utils.ShulkerBoxAccessor;
@@ -513,67 +514,23 @@ public class InfinityInventoryMenu implements RuleImpl {
             }
         }
 
-        /**
-         * 把光标上的物品存入 storage。
-         * 与 52 号输入槽的 push 逻辑一致，但作用于 getCarried()。
-         */
         private void depositCarriedToStorage() {
             ItemStack carried = getCarried();
             if (carried.isEmpty()) return;
 
             int originalCount = carried.getCount();
-            storage().push(carried);
-            int leftover = carried.getCount();
+            ItemStack leftover = InfinityInventoryTransferHelper.deposit(storage(), carried);
 
             // 完全失败（无限堆叠下几乎不会发生，纯防御）
-            if (leftover >= originalCount) {
+            if (leftover.getCount() >= originalCount) {
                 player.sendSystemMessage(
                         Component.literal("无法存入").withStyle(ChatFormatting.RED));
                 return;
             }
 
-            if (leftover <= 0) {
-                setCarried(ItemStack.EMPTY);
-            } else {
-                setCarried(carried);
-            }
-
+            setCarried(leftover.isEmpty() ? ItemStack.EMPTY : leftover);
             refreshInventoryView();   // 左侧 36 格 + 44 潜影盒槽
             onRecipeChanged();        // 34 / 35 的 Lore 库存量
-        }
-
-        private void giveToPlayer(ItemStack stack) {
-            if (stack == null || stack.isEmpty()) return;
-            if (!player.getInventory().add(stack)) {
-                player.drop(stack, false);
-            }
-        }
-
-        /**
-         * 检查玩家背包（快捷栏 + 主背包，0..35）能否完整容纳 stack。
-         * 已存在同种堆叠的剩余容量也算在内。
-         */
-        @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-        private boolean canFullyFit(Player player, @NonNull ItemStack stack) {
-            if (stack.isEmpty()) return true;
-
-            Inventory inv = player.getInventory();
-            int remaining = stack.getCount();
-            int maxStackSize = stack.getMaxStackSize();
-
-            for (var slot : inv.getNonEquipmentItems()) {
-                int room;
-                if (slot.isEmpty()) {
-                    room = maxStackSize;
-                } else if (ItemStack.isSameItemSameComponents(slot, stack)) {
-                    room = slot.getMaxStackSize() - slot.getCount();
-                } else {
-                    room = 0;
-                }
-                remaining -= room;
-                if (remaining <= 0) return true;
-            }
-            return false;
         }
 
         /** 取一组/一个到光标。若光标已有同种物品则合并；否则忽略。 */
@@ -594,7 +551,7 @@ public class InfinityInventoryMenu implements RuleImpl {
             int request = fullStack ? probe.getMaxStackSize() : 1;
             int takeCount = Math.min(request, cursorRoom);
 
-            int popCount = storage().tryPop(item, takeCount);
+            int popCount = InfinityInventoryTransferHelper.extractUpTo(storage(), item, takeCount);
             if (popCount <= 0) return;
 
             if (carried.isEmpty()) {
@@ -605,101 +562,56 @@ public class InfinityInventoryMenu implements RuleImpl {
             applyPendingRefresh();
         }
 
-        private void takeToCursorBox(Item item) {
-            ItemStack box = extractBox(item);
-            if (box.isEmpty()) return;
+        private void takeToCursorBox(@NonNull Item item) {
+            var extraction = InfinityInventoryTransferHelper.extractBox(storage(), item);
+            if (extraction.isEmpty()) return;
 
+            for (Item consumed : extraction.extraConsumed()) {
+                requireRelease(consumed);
+            }
+
+            ItemStack box = extraction.stack();
             ItemStack carried = getCarried();
 
             if (carried.isEmpty()) {
                 setCarried(box);
-            } else {
-                // 光标必须已有相同内容的潜影盒才能叠加
-                if (!ItemStack.isSameItemSameComponents(carried, box)
-                        || carried.getCount() >= carried.getMaxStackSize()) {
-                    returnToStorage(box);
-                    return;
-                }
-                carried.grow(box.getCount());
+                applyPendingRefresh();
+                return;
             }
 
+            // 光标必须已有相同内容的潜影盒才能叠加
+            if (!ItemStack.isSameItemSameComponents(carried, box)
+                    || carried.getCount() >= carried.getMaxStackSize()) {
+                InfinityInventoryTransferHelper.returnToStorage(storage(), box);
+                return;
+            }
+
+            carried.grow(box.getCount());
             applyPendingRefresh();
         }
 
-        private void takeToInventoryStack(Item item) {
-            deliverToInventory(extractStack(item));
+        private void takeToInventoryStack(@NonNull Item item) {
+            deliverToInventory(InfinityInventoryTransferHelper.extractStack(storage(), item));
         }
 
-        private void takeToInventoryBox(Item item) {
-            deliverToInventory(extractBox(item));
+        private void takeToInventoryBox(@NonNull Item item) {
+            var extraction = InfinityInventoryTransferHelper.extractBox(storage(), item);
+            if (extraction.isEmpty()) return;
+
+            for (Item consumed : extraction.extraConsumed()) {
+                requireRelease(consumed);
+            }
+            deliverToInventory(extraction.stack());
         }
 
-        private void deliverToInventory(ItemStack extracted) {
+        private void deliverToInventory(@NonNull ItemStack extracted) {
             if (extracted.isEmpty()) return;
-            if (!canFullyFit(player, extracted)) {
-                returnToStorage(extracted);
+            if (!InfinityInventoryTransferHelper.deliverToInventory(player, storage(), extracted)) {
                 player.sendSystemMessage(
                         Component.literal("背包空间不足").withStyle(ChatFormatting.RED));
                 return;
             }
-            giveToPlayer(extracted);
             applyPendingRefresh();
-        }
-
-        // =========================================================
-        // 取出操作
-        // =========================================================
-
-        private ItemStack extractOne(@SuppressWarnings("SameParameterValue") Item item) {
-            if (storage().pop(item, 1)) {
-                return item.getDefaultInstance();
-            }
-            return ItemStack.EMPTY;
-        }
-
-        private ItemStack extractStack(Item item) {
-            var popCount = storage().tryPop(item, item.getDefaultMaxStackSize());
-            if (popCount > 0) {
-                return new ItemStack(item, popCount);
-            }
-            return ItemStack.EMPTY;
-        }
-
-        private ItemStack extractBox(Item item) {
-            var storage = storage();
-            if (storage.getCount(item) <= 0) {
-                return ItemStack.EMPTY;
-            }
-
-            if (Block.byItem(item) instanceof ShulkerBoxBlock) {
-                return extractStack(item);
-            }
-
-            if (storage.pop(Items.SHULKER_BOX, 1)) {
-                var shulker = new ItemStack(Items.SHULKER_BOX);
-                try (var box = ShulkerBoxAccessor.openAutoSaved(shulker)) {
-                    if (storage.tryPopTo(item, Integer.MAX_VALUE, box.list()) > 0) {
-                        requireRelease(Items.SHULKER_BOX);
-                        return shulker;
-                    } else {
-                        storage.push(shulker);
-                        return ItemStack.EMPTY;
-                    }
-                }
-            }
-            return ItemStack.EMPTY;
-        }
-
-        /**
-         * 空间不足时，把 extractXxx 已经取出（并已从库存扣除）的物品退回库存。
-         * <p>
-         * 注意：
-         *  - 如果 extractBox 等还额外消耗了其它物品（例如包装盒），也必须在这里一并恢复，
-         *    否则会造成库存凭空减少。
-         *  - 正常实现后，库存状态应与"点击前"一致，因此无需主动 refreshInventoryView()。
-         */
-        private void returnToStorage(ItemStack extracted) {
-            storage().push(extracted);
         }
 
         // =========================================================
@@ -833,13 +745,13 @@ public class InfinityInventoryMenu implements RuleImpl {
             applyPendingRefresh();
         }
 
-        private void craftStackToInventory(Item item) {
+        private void craftStackToInventory(@NonNull Item item) {
             int maxCraftable = computeMaxCraftable();
             if (maxCraftable <= 0) return;
 
             int target = Math.min(maxCraftable, item.getDefaultMaxStackSize());
             ItemStack probe = new ItemStack(item, target);
-            if (!canFullyFit(player, probe)) {
+            if (!InfinityInventoryTransferHelper.canFullyFit(player, probe)) {
                 player.sendSystemMessage(
                         Component.literal("背包空间不足").withStyle(ChatFormatting.RED));
                 return;
@@ -848,7 +760,7 @@ public class InfinityInventoryMenu implements RuleImpl {
             ItemStack crafted = doCraft(item, target);
             if (crafted.isEmpty()) return;
 
-            giveToPlayer(crafted);
+            InfinityInventoryTransferHelper.giveOrDrop(player, crafted);
             applyPendingRefresh();
         }
 
@@ -856,7 +768,7 @@ public class InfinityInventoryMenu implements RuleImpl {
          * 右键：合成一盒到光标。
          * 光标必须为空（已在 handleCraft 里前置判断），空间不足时直接失败。
          */
-        private void craftBoxToCursor(Item item) {
+        private void craftBoxToCursor(@NonNull Item item) {
             if (!getCarried().isEmpty()) return;
 
             if (storage().getCount(Items.SHULKER_BOX) <= 0) {
@@ -872,14 +784,14 @@ public class InfinityInventoryMenu implements RuleImpl {
                     * ShulkerBoxBlockEntity.CONTAINER_SIZE;
             int target = Math.min(maxCraftable, shulkerSize);
 
-            if (!storage().pop(Items.SHULKER_BOX, 1)) return;
-            ItemStack shulker = new ItemStack(Items.SHULKER_BOX);
+            ItemStack shulker = InfinityInventoryTransferHelper.extractOne(storage(), Items.SHULKER_BOX);
+            if (shulker.isEmpty()) return;
             requireRelease(Items.SHULKER_BOX);
 
             try (var accessor = ShulkerBoxAccessor.openAutoSaved(shulker)) {
                 ItemStack crafted = doCraft(item, target);
                 if (crafted.isEmpty()) {
-                    storage().push(shulker);
+                    InfinityInventoryTransferHelper.returnToStorage(storage(), shulker);
                     return;
                 }
                 var list = accessor.list();
@@ -897,14 +809,14 @@ public class InfinityInventoryMenu implements RuleImpl {
             applyPendingRefresh();
         }
 
-        private void craftBoxToInventory(Item item) {
+        private void craftBoxToInventory(@NonNull Item item) {
             if (storage().getCount(Items.SHULKER_BOX) <= 0) {
                 player.sendSystemMessage(
                         Component.literal("没有潜影盒").withStyle(ChatFormatting.RED));
                 return;
             }
 
-            if (!canFullyFit(player, new ItemStack(Items.SHULKER_BOX))) {
+            if (!InfinityInventoryTransferHelper.canFullyFit(player, new ItemStack(Items.SHULKER_BOX))) {
                 player.sendSystemMessage(
                         Component.literal("背包空间不足").withStyle(ChatFormatting.RED));
                 return;
@@ -917,14 +829,14 @@ public class InfinityInventoryMenu implements RuleImpl {
                     * ShulkerBoxBlockEntity.CONTAINER_SIZE;
             int target = Math.min(maxCraftable, shulkerSize);
 
-            if (!storage().pop(Items.SHULKER_BOX, 1)) return;
-            ItemStack shulker = new ItemStack(Items.SHULKER_BOX);
+            ItemStack shulker = InfinityInventoryTransferHelper.extractOne(storage(), Items.SHULKER_BOX);
+            if (shulker.isEmpty()) return;
             requireRelease(Items.SHULKER_BOX);
 
             try (var accessor = ShulkerBoxAccessor.openAutoSaved(shulker)) {
                 ItemStack crafted = doCraft(item, target);
                 if (crafted.isEmpty()) {
-                    storage().push(shulker);
+                    InfinityInventoryTransferHelper.returnToStorage(storage(), shulker);
                     return;
                 }
                 var list = accessor.list();
@@ -938,7 +850,7 @@ public class InfinityInventoryMenu implements RuleImpl {
                 }
             }
 
-            giveToPlayer(shulker);
+            InfinityInventoryTransferHelper.giveOrDrop(player, shulker);
             applyPendingRefresh();
         }
 
@@ -1061,20 +973,14 @@ public class InfinityInventoryMenu implements RuleImpl {
             ItemStack before = stack.copy();
             int originalCount = stack.getCount();
 
-            storage().push(stack);
-
-            int leftover = stack.getCount();
+            ItemStack leftover = InfinityInventoryTransferHelper.deposit(storage(), stack);
 
             // 完全失败
-            if (leftover >= originalCount) {
+            if (leftover.getCount() >= originalCount) {
                 return ItemStack.EMPTY;
             }
 
-            if (leftover <= 0) {
-                slot.set(ItemStack.EMPTY);
-            } else {
-                slot.set(stack);
-            }
+            slot.set(leftover.isEmpty() ? ItemStack.EMPTY : leftover);
             slot.setChanged();
 
             refreshInventoryView();
