@@ -31,6 +31,8 @@ import org.jspecify.annotations.NonNull;
 
 import java.util.*;
 
+import static net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity.*;
+
 public class InfinityInventoryMenu implements RuleImpl {
 // Menu:
 //    [物品(00)][物品(01)][物品(02)][物品(03)][物品(04)][物品(05)][合成模板输入(06)][合成模板输入(07)][合成模板输入(08)]
@@ -42,112 +44,281 @@ public class InfinityInventoryMenu implements RuleImpl {
 
     public static class OperationMenu extends ChestMenu {
 
-        // ===== 布局常量 =====
-        private static final int ROWS = 6;
-        private static final int COLS = 9;
+        private static final class Layout {
+            private Layout() {}
 
-        private static final int ITEM_COLS = 6;
-        private static final int ITEM_ROWS = 6;
-        private static final int ITEMS_PER_PAGE = ITEM_COLS * ITEM_ROWS;
+            public static final int ROWS = 6;
+            public static final int COLS = 9;
+            public static final int CONTAINER_SLOT_COUNT = ROWS * COLS;
 
-        private static final int[] RECIPE_SLOTS = {
-                6, 7, 8, 15, 16, 17, 24, 25, 26
-        };
+            public static final int ITEM_COLS = 6;
+            public static final int ITEM_ROWS = 6;
+            public static final int ITEMS_PER_PAGE = ITEM_COLS * ITEM_ROWS;
 
-        private static final int SLOT_CRAFT        = 33;
-        private static final int SLOT_OUTPUT       = 34;
-        private static final int SLOT_BARRIER      = 35;
-        private static final int[] SLOT_PLACEHOLDERS = {42, 43};
-        private static final int SLOT_SHULKER      = 44;
-        private static final int SLOT_PREV_PAGE    = 51;
-        private static final int SLOT_INPUT        = 52;
-        private static final int SLOT_NEXT_PAGE    = 53;
+            /** 3x3 合成模板输入槽，顺序即 3x3 网格顺序。 */
+            public static final int[] RECIPE_SLOTS = {
+                    6, 7, 8, 15, 16, 17, 24, 25, 26
+            };
 
-        private static final int CONTAINER_SLOT_COUNT = ROWS * COLS;
+            public static final int SLOT_CRAFT     = 33;
+            public static final int SLOT_OUTPUT    = 34;
+            public static final int SLOT_BARRIER   = 35;
+            public static final int[] SLOT_PLACEHOLDERS = {42, 43};
+            public static final int SLOT_SHULKER   = 44;
+            public static final int SLOT_PREV_PAGE = 51;
+            public static final int SLOT_INPUT     = 52;
+            public static final int SLOT_NEXT_PAGE = 53;
+
+            public static boolean isItemSlot(int idx) {
+                int col = idx % COLS;
+                int row = idx / COLS;
+                return row < ITEM_ROWS && col < ITEM_COLS;
+            }
+
+            public static boolean isRecipeSlot(int idx) {
+                for (int s : RECIPE_SLOTS) if (s == idx) return true;
+                return false;
+            }
+
+            public static boolean isPlaceholder(int idx) {
+                for (int s : SLOT_PLACEHOLDERS) if (s == idx) return true;
+                return false;
+            }
+        }
+
+        private static final class MenuPlaceholders {
+
+            private MenuPlaceholders() {}
+
+            public static final Component PH_INPUT_NAME   = Component.literal("合成模板输入");
+            public static final Component PH_OUTPUT_NAME  = Component.literal("合成模板输出");
+            public static final Component PH_BARRIER_NAME = Component.literal("占位");
+
+            // =========================================================
+            // 工厂
+            // =========================================================
+
+            public static @NonNull ItemStack createCraftIcon() {
+                ItemStack s = new ItemStack(Items.CRAFTING_TABLE);
+                s.set(DataComponents.CUSTOM_NAME, Component.literal("合成"));
+                return s;
+            }
+
+            public static @NonNull ItemStack createInputPlaceholder() {
+                ItemStack s = new ItemStack(Items.STRUCTURE_VOID);
+                s.set(DataComponents.CUSTOM_NAME, PH_INPUT_NAME);
+                return s;
+            }
+
+            public static @NonNull ItemStack createOutputPlaceholder() {
+                ItemStack s = new ItemStack(Items.BARRIER);
+                s.set(DataComponents.CUSTOM_NAME, PH_OUTPUT_NAME);
+                return s;
+            }
+
+            public static @NonNull ItemStack createBarrierPlaceholder() {
+                ItemStack s = new ItemStack(Items.BARRIER);
+                s.set(DataComponents.CUSTOM_NAME, PH_BARRIER_NAME);
+                return s;
+            }
+
+            public static @NonNull ItemStack createPrevPageIcon() {
+                ItemStack s = new ItemStack(Items.DYE.red());
+                s.set(DataComponents.CUSTOM_NAME, Component.literal("上一页"));
+                return s;
+            }
+
+            public static @NonNull ItemStack createNextPageIcon() {
+                ItemStack s = new ItemStack(Items.DYE.lime());
+                s.set(DataComponents.CUSTOM_NAME, Component.literal("下一页"));
+                return s;
+            }
+
+            public static @NonNull ItemStack createInputSlotIcon() {
+                ItemStack s = new ItemStack(Items.STAINED_GLASS_PANE.lightGray());
+                s.set(DataComponents.CUSTOM_NAME, Component.literal("输入槽"));
+                return s;
+            }
+
+            public static @NonNull ItemStack createActionPlaceholder() {
+                ItemStack s = new ItemStack(Items.STAINED_GLASS_PANE.gray());
+                s.set(DataComponents.CUSTOM_NAME, Component.literal("操作（占位）"));
+                return s;
+            }
+
+            // =========================================================
+            // 识别
+            // =========================================================
+
+            public static boolean isInput(@NonNull ItemStack stack) {
+                return !stack.isEmpty()
+                        && stack.is(Items.STRUCTURE_VOID)
+                        && PH_INPUT_NAME.equals(stack.get(DataComponents.CUSTOM_NAME));
+            }
+
+            public static boolean isOutput(@NonNull ItemStack stack) {
+                return !stack.isEmpty()
+                        && stack.is(Items.BARRIER)
+                        && PH_OUTPUT_NAME.equals(stack.get(DataComponents.CUSTOM_NAME));
+            }
+
+            public static boolean isBarrier(@NonNull ItemStack stack) {
+                return !stack.isEmpty()
+                        && stack.is(Items.BARRIER)
+                        && PH_BARRIER_NAME.equals(stack.get(DataComponents.CUSTOM_NAME));
+            }
+        }
+
+        public static final class Lore {
+            private Lore() {}
+
+            // =========================================================
+            // 对外入口
+            // =========================================================
+
+            /** 物品展示格的 Lore：库存量 + 分解 + 操作提示。 */
+            public static @NonNull List<Component> buildLore(@NonNull Item item, int count) {
+                List<Component> lines = new ArrayList<>();
+
+                lines.add(line()
+                        .append(label("库存量: "))
+                        .append(value(count)));
+
+                lines.addAll(buildCountBreakdown(item, count));
+
+                lines.add(line()
+                        .append(Component.literal("───────────────")
+                                .withStyle(ChatFormatting.DARK_GRAY)));
+
+                lines.add(action("左键(Shift)", "取出一组到光标(背包)"));
+                lines.add(action("右键(Shift)", "取出一盒到光标(背包)"));
+
+                return lines;
+            }
+
+            /**
+             * 「约 xx盒xx组xx个」分解行。
+             * <ul>
+             *     <li>每组堆叠 = item.getDefaultMaxStackSize()</li>
+             *     <li>每盒 = 一组堆叠 × 27</li>
+             *     <li>不可堆叠 → 不显示「组」</li>
+             *     <li>潜影盒本身 → 不显示「盒」</li>
+             *     <li>可堆叠且不足一组 → 整行不显示</li>
+             *     <li>只剩「个」→ 整行不显示（与第一行重复）</li>
+             * </ul>
+             */
+            public static @NonNull List<Component> buildCountBreakdown(@NonNull Item item, int count) {
+                if (count <= 0) return List.of();
+
+                int maxStack = item.getDefaultMaxStackSize();
+                if (maxStack <= 0) return List.of();
+
+                boolean canBeBoxed = !(Block.byItem(item) instanceof ShulkerBoxBlock);
+                int perBox = maxStack * ShulkerBoxBlockEntity.CONTAINER_SIZE;
+
+                if (maxStack > 1 && count < maxStack) return List.of();
+
+                int boxes = 0;
+                int remainder = count;
+                if (canBeBoxed && perBox > 0) {
+                    boxes = count / perBox;
+                    remainder = count % perBox;
+                }
+
+                int stacks = 0;
+                int items = remainder;
+                if (maxStack > 1) {
+                    stacks = remainder / maxStack;
+                    items = remainder % maxStack;
+                }
+
+                if (boxes == 0 && stacks == 0) return List.of();
+
+                StringBuilder sb = new StringBuilder();
+                if (boxes > 0)  sb.append(boxes).append("盒 ");
+                if (stacks > 0) sb.append(stacks).append("组 ");
+                if (items > 0)  sb.append(items).append("个");
+
+                String text = sb.toString().trim();
+                if (text.isEmpty()) return List.of();
+
+                return List.of(line().append(label("约 ")).append(value(text)));
+            }
+
+            /** 合成按钮的 Lore：可合成数量 + 分解 + 操作提示。 */
+            public static @NonNull List<Component> buildCraftLore(int maxCraftable, @NonNull Item resultItem) {
+                List<Component> lines = new ArrayList<>();
+
+                lines.add(line()
+                        .append(label("可合成 "))
+                        .append(value(String.valueOf(maxCraftable)))
+                        .append(label(" 个")));
+
+                if (maxCraftable > 0) {
+                    lines.addAll(buildCountBreakdown(resultItem, maxCraftable));
+                }
+
+                lines.add(line()
+                        .append(Component.literal("───────────────")
+                                .withStyle(ChatFormatting.DARK_GRAY)));
+
+                lines.add(action("左键(Shift)", "合成一组到光标(背包)"));
+                lines.add(action("右键(Shift)", "合成一盒到光标(背包)"));
+
+                return lines;
+            }
+
+            /** 合成按钮的名称：「合成 」+ 金色产物名。 */
+            public static @NonNull MutableComponent craftButtonName(@NonNull Component outputName) {
+                return Component.empty()
+                        .append(Component.literal("合成 ").setStyle(style(ChatFormatting.WHITE)))
+                        .append(Component.empty()
+                                .append(outputName.copy())
+                                .setStyle(style(ChatFormatting.GOLD)));
+            }
+
+            // =========================================================
+            // 样式工具
+            // =========================================================
+
+            private static @NonNull Style style(ChatFormatting color) {
+                return Style.EMPTY.withItalic(false).withColor(color);
+            }
+
+            private static @NonNull MutableComponent line() {
+                return Component.empty().setStyle(style(ChatFormatting.GRAY));
+            }
+
+            private static @NonNull MutableComponent label(String text) {
+                return Component.literal(text).setStyle(style(ChatFormatting.YELLOW));
+            }
+
+            private static @NonNull MutableComponent value(String text) {
+                return Component.literal(text).setStyle(style(ChatFormatting.AQUA));
+            }
+
+            private static @NonNull MutableComponent value(int count) {
+                return value(String.format("%,d", count));
+            }
+
+            private static @NonNull MutableComponent action(String key, String desc) {
+                Component k = Component.literal(key).setStyle(style(ChatFormatting.GOLD));
+                Component d = Component.literal(desc).setStyle(style(ChatFormatting.GRAY));
+                return Component.empty()
+                        .append(Component.literal("▪ ").setStyle(style(ChatFormatting.DARK_GRAY)))
+                        .append(Component.literal("[").setStyle(style(ChatFormatting.DARK_GRAY)))
+                        .append(k)
+                        .append(Component.literal("] ").setStyle(style(ChatFormatting.DARK_GRAY)))
+                        .append(d);
+            }
+        }
 
         private final Player player;
         private final SimpleContainer menuContainer;
         private int page = 0;
 
-        private static final Component PH_INPUT_NAME  = Component.literal("合成模板输入");
-        private static final Component PH_OUTPUT_NAME = Component.literal("合成模板输出");
-        private static final Component PH_BARRIER_NAME = Component.literal("占位");
-
-        private static @NonNull ItemStack createCraftIcon() {
-            ItemStack s = new ItemStack(Items.CRAFTING_TABLE);
-            s.set(DataComponents.CUSTOM_NAME, Component.literal("合成"));
-            return s;
-        }
-
-        private static @NonNull ItemStack createInputPlaceholder() {
-            ItemStack s = new ItemStack(Items.STRUCTURE_VOID);
-            s.set(DataComponents.CUSTOM_NAME, PH_INPUT_NAME);
-            return s;
-        }
-
-        private static @NonNull ItemStack createOutputPlaceholder() {
-            ItemStack s = new ItemStack(Items.BARRIER);
-            s.set(DataComponents.CUSTOM_NAME, PH_OUTPUT_NAME);
-            return s;
-        }
-
-        private static @NonNull ItemStack createBarrierPlaceholder() {
-            ItemStack s = new ItemStack(Items.BARRIER);
-            s.set(DataComponents.CUSTOM_NAME, PH_BARRIER_NAME);
-            return s;
-        }
-
-        /** 物品 + 名称双重识别，避免与玩家自放的 structure_void / barrier 混淆 */
-        private static boolean isInputPlaceholder(@NonNull ItemStack stack) {
-            return !stack.isEmpty()
-                    && stack.is(Items.STRUCTURE_VOID)
-                    && PH_INPUT_NAME.equals(stack.get(DataComponents.CUSTOM_NAME));
-        }
-
-        private static boolean isOutputPlaceholder(@NonNull ItemStack stack) {
-            return !stack.isEmpty()
-                    && stack.is(Items.BARRIER)
-                    && PH_OUTPUT_NAME.equals(stack.get(DataComponents.CUSTOM_NAME));
-        }
-
-        private static boolean isBarrierPlaceholder(@NonNull ItemStack stack) {
-            return !stack.isEmpty()
-                    && stack.is(Items.BARRIER)
-                    && PH_BARRIER_NAME.equals(stack.get(DataComponents.CUSTOM_NAME));
-        }
-
-        private static @NonNull ItemStack createPrevPageIcon() {
-            ItemStack s = new ItemStack(Items.DYE.red());
-            s.set(DataComponents.CUSTOM_NAME, Component.literal("上一页"));
-            return s;
-        }
-
-        private static @NonNull ItemStack createNextPageIcon() {
-            ItemStack s = new ItemStack(Items.DYE.lime());
-            s.set(DataComponents.CUSTOM_NAME, Component.literal("下一页"));
-            return s;
-        }
-
-        private static @NonNull ItemStack createInputSlotIcon() {
-            ItemStack s = new ItemStack(Items.STAINED_GLASS_PANE.lightGray());
-            s.set(DataComponents.CUSTOM_NAME, Component.literal("输入槽"));
-            return s;
-        }
-
-        private static @NonNull ItemStack createActionPlaceholder() {
-            ItemStack s = new ItemStack(Items.STAINED_GLASS_PANE.gray());
-            s.set(DataComponents.CUSTOM_NAME, Component.literal("操作（占位）"));
-            return s;
-        }
-
-        /** 44 号槽固定潜影盒，Lore 显示 storage().getCount(Items.SHULKER_BOX) */
-        private void refreshShulkerBoxSlot() {
-            int count = storage().getCount(Items.SHULKER_BOX);
-            menuContainer.setItem(SLOT_SHULKER, buildDisplay(Items.SHULKER_BOX, count));
-        }
-
         public OperationMenu(int syncId, Inventory playerInv, SimpleContainer container) {
-            super(MenuType.GENERIC_9x6, syncId, playerInv, container, ROWS);
+            super(MenuType.GENERIC_9x6, syncId, playerInv, container, Layout.ROWS);
             this.player = playerInv.player;
             this.menuContainer = container;
             rebuildSlots(playerInv);
@@ -156,7 +327,7 @@ public class InfinityInventoryMenu implements RuleImpl {
         }
 
         public OperationMenu(int syncId, Inventory playerInv) {
-            this(syncId, playerInv, new SimpleContainer(CONTAINER_SLOT_COUNT));
+            this(syncId, playerInv, new SimpleContainer(Layout.CONTAINER_SLOT_COUNT));
         }
 
         // =========================================================
@@ -166,8 +337,8 @@ public class InfinityInventoryMenu implements RuleImpl {
         private void rebuildSlots(Inventory playerInv) {
             this.slots.clear();
 
-            for (int row = 0; row < ROWS; row++) {
-                for (int col = 0; col < COLS; col++) {
+            for (int row = 0; row < Layout.ROWS; row++) {
+                for (int col = 0; col < Layout.COLS; col++) {
                     Slot slot = getSlot(row, col);
                     addSlot(slot);
                 }
@@ -185,16 +356,16 @@ public class InfinityInventoryMenu implements RuleImpl {
         }
 
         private @NonNull Slot getSlot(int row, int col) {
-            int idx = row * COLS + col;
+            int idx = row * Layout.COLS + col;
             int x = 8 + col * 18;
             int y = 18 + row * 18;
 
             Slot slot;
-            if (isItemSlot(idx)) {
+            if (Layout.isItemSlot(idx)) {
                 slot = new DisplaySlot(menuContainer, idx, x, y);
-            } else if (isRecipeSlot(idx)) {
+            } else if (Layout.isRecipeSlot(idx)) {
                 slot = new RecipeSlot(menuContainer, idx, x, y);
-            } else if (idx == SLOT_OUTPUT) {
+            } else if (idx == Layout.SLOT_OUTPUT) {
                 slot = new OutputSlot(menuContainer, idx, x, y);
             } else {
                 slot = new ButtonSlot(menuContainer, idx, x, y);
@@ -203,39 +374,41 @@ public class InfinityInventoryMenu implements RuleImpl {
         }
 
         private void initPlaceholders() {
-            // 合成模板输入占位
-            for (int s : RECIPE_SLOTS) {
-                menuContainer.setItem(s, createInputPlaceholder());
+            for (int s : Layout.RECIPE_SLOTS) {
+                menuContainer.setItem(s, MenuPlaceholders.createInputPlaceholder());
             }
 
-            // 功能按钮图标
-            menuContainer.setItem(SLOT_CRAFT,     createCraftIcon());
-            menuContainer.setItem(SLOT_OUTPUT,    createOutputPlaceholder());
-            menuContainer.setItem(SLOT_BARRIER,   createBarrierPlaceholder());
-            menuContainer.setItem(SLOT_PREV_PAGE, createPrevPageIcon());
-            menuContainer.setItem(SLOT_INPUT,     createInputSlotIcon());
-            menuContainer.setItem(SLOT_NEXT_PAGE, createNextPageIcon());
+            menuContainer.setItem(Layout.SLOT_CRAFT,     MenuPlaceholders.createCraftIcon());
+            menuContainer.setItem(Layout.SLOT_OUTPUT,    MenuPlaceholders.createOutputPlaceholder());
+            menuContainer.setItem(Layout.SLOT_BARRIER,   MenuPlaceholders.createBarrierPlaceholder());
+            menuContainer.setItem(Layout.SLOT_PREV_PAGE, MenuPlaceholders.createPrevPageIcon());
+            menuContainer.setItem(Layout.SLOT_INPUT,     MenuPlaceholders.createInputSlotIcon());
+            menuContainer.setItem(Layout.SLOT_NEXT_PAGE, MenuPlaceholders.createNextPageIcon());
 
-            // 42 / 43 操作占位（44 交给 refreshShulkerBoxSlot）
-            menuContainer.setItem(SLOT_PLACEHOLDERS[0], createActionPlaceholder());
-            menuContainer.setItem(SLOT_PLACEHOLDERS[1], createActionPlaceholder());
+            menuContainer.setItem(Layout.SLOT_PLACEHOLDERS[0], MenuPlaceholders.createActionPlaceholder());
+            menuContainer.setItem(Layout.SLOT_PLACEHOLDERS[1], MenuPlaceholders.createActionPlaceholder());
         }
 
-        private static boolean isItemSlot(int idx) {
-            int col = idx % COLS;
-            int row = idx / COLS;
-            return row < ITEM_ROWS && col < ITEM_COLS;
+        private void refreshShulkerBoxSlot() {
+            int count = storage().getCount(Items.SHULKER_BOX);
+            menuContainer.setItem(Layout.SLOT_SHULKER, buildDisplay(Items.SHULKER_BOX, count));
         }
 
-        private static boolean isRecipeSlot(int idx) {
-            for (int s : RECIPE_SLOTS) if (s == idx) return true;
-            return false;
-        }
-
-        private static boolean isPlaceholder(int idx) {
-            for (int s : SLOT_PLACEHOLDERS) if (s == idx) return true;
-            return false;
-        }
+//        private static boolean isItemSlot(int idx) {
+//            int col = idx % COLS;
+//            int row = idx / COLS;
+//            return row < ITEM_ROWS && col < ITEM_COLS;
+//        }
+//
+//        private static boolean isRecipeSlot(int idx) {
+//            for (int s : RECIPE_SLOTS) if (s == idx) return true;
+//            return false;
+//        }
+//
+//        private static boolean isPlaceholder(int idx) {
+//            for (int s : SLOT_PLACEHOLDERS) if (s == idx) return true;
+//            return false;
+//        }
 
         // =========================================================
         // 库存展示
@@ -248,15 +421,15 @@ public class InfinityInventoryMenu implements RuleImpl {
 
             List<InfinityInventoryStorage.View> view;
             while (true) {
-                view = storage.subView(page * ITEMS_PER_PAGE, ITEMS_PER_PAGE);
+                view = storage.subView(page * Layout.ITEMS_PER_PAGE, Layout.ITEMS_PER_PAGE);
                 if (!view.isEmpty() || page == 0) break;
                 page--;
             }
 
-            for (int i = 0; i < ITEMS_PER_PAGE; i++) {
-                int row = i / ITEM_COLS;
-                int col = i % ITEM_COLS;
-                int slot = row * COLS + col;
+            for (int i = 0; i < Layout.ITEMS_PER_PAGE; i++) {
+                int row = i / Layout.ITEM_COLS;
+                int col = i % Layout.ITEM_COLS;
+                int slot = row * Layout.COLS + col;
 
                 ItemStack display = ItemStack.EMPTY;
                 if (i < view.size()) {
@@ -272,79 +445,9 @@ public class InfinityInventoryMenu implements RuleImpl {
         private @NonNull ItemStack buildDisplay(Item item, int count) {
             ItemStack stack = new ItemStack(item);
             stack.setCount(1);
-            stack.set(DataComponents.LORE, new ItemLore(buildLore(item, count)));
+            stack.set(DataComponents.LORE,
+                    new ItemLore(Lore.buildLore(item, count)));
             return stack;
-        }
-
-        private @NonNull List<Component> buildLore(@NonNull Item item, int count) {
-            List<Component> lines = new ArrayList<>();
-
-            lines.add(line()
-                    .append(label("库存量: "))
-                    .append(value(count)));
-
-            lines.addAll(buildCountBreakdown(item, count));
-
-            lines.add(line()
-                    .append(Component.literal("───────────────")
-                            .withStyle(ChatFormatting.DARK_GRAY)));
-
-            lines.add(action("左键(Shift)", "取出一组到光标(背包)"));
-            lines.add(action("右键(Shift)", "取出一盒到光标(背包)"));
-
-            return lines;
-        }
-
-        /**
-         * 生成「约 xx盒xx组xx个」的分解行。
-         * <p>
-         * 规则：
-         *  - 每组堆叠 = item.getDefaultMaxStackSize()
-         *  - 每盒 = 一组堆叠 × ShulkerBoxBlockEntity.CONTAINER_SIZE（27 格）
-         *  - 不可堆叠（maxStackSize == 1）→ 不显示"组"
-         *  - 不可装盒（潜影盒本身）→ 不显示"盒"
-         *  - 可堆叠且不足一组 → 整行不显示
-         *  - 若最终只剩"个"一个单位（无盒也无组）→ 整行不显示（信息与第一行重复）
-         */
-        private static @NonNull List<Component> buildCountBreakdown(@NonNull Item item, int count) {
-            if (count <= 0) return List.of();
-
-            int maxStack = item.getDefaultMaxStackSize();
-            if (maxStack <= 0) return List.of();
-
-            // 潜影盒本身不可装盒
-            boolean canBeBoxed = !(Block.byItem(item) instanceof ShulkerBoxBlock);
-            int perBox = maxStack * ShulkerBoxBlockEntity.CONTAINER_SIZE;
-
-            // 不足一组 → 整行不显示（仅对可堆叠物品有意义）
-            if (maxStack > 1 && count < maxStack) return List.of();
-
-            int boxes = 0;
-            int remainder = count;
-            if (canBeBoxed && perBox > 0) {
-                boxes = count / perBox;
-                remainder = count % perBox;
-            }
-
-            int stacks = 0;
-            int items = remainder;
-            if (maxStack > 1) {
-                stacks = remainder / maxStack;
-                items = remainder % maxStack;
-            }
-
-            // 只剩"个"时，与第一行信息重复，整行不显示
-            if (boxes == 0 && stacks == 0) return List.of();
-
-            StringBuilder sb = new StringBuilder();
-            if (boxes > 0)  sb.append(boxes).append("盒 ");
-            if (stacks > 0) sb.append(stacks).append("组 ");
-            if (items > 0)  sb.append(items).append("个");
-
-            String text = sb.toString().trim();
-            if (text.isEmpty()) return List.of();
-
-            return List.of(line().append(label("约 ")).append(value(text)));
         }
 
         private @NonNull InfinityInventoryStorage storage() {
@@ -357,35 +460,30 @@ public class InfinityInventoryMenu implements RuleImpl {
 
         @Override
         public void clicked(int slotId, int buttonNum, @NonNull ContainerInput containerInput, @NonNull Player player) {
-            // 禁止数字键交换
             if (containerInput == ContainerInput.SWAP) {
                 return;
             }
-            // 禁止拖拽分发；拖拽开始/结束标记，必须交给父类
             if (containerInput == ContainerInput.QUICK_CRAFT
                     && slotId != AbstractContainerMenu.SLOT_CLICKED_OUTSIDE) {
                 return;
             }
 
-            // 菜单外点击 / 外部槽位
-            if (slotId < 0 || slotId >= CONTAINER_SLOT_COUNT) {
+            if (slotId < 0 || slotId >= Layout.CONTAINER_SLOT_COUNT) {
                 super.clicked(slotId, buttonNum, containerInput, player);
                 return;
             }
 
-            // 物品展示区：全部走自定义逻辑
-            if (isItemSlot(slotId)) {
+            if (Layout.isItemSlot(slotId)) {
                 if (!player.level().isClientSide()) {
                     handleItemClick(slotId, buttonNum, containerInput);
                 }
                 return;
             }
 
-            // 合成模板输入：原版正常放入/取出，然后重算输出
-            if (isRecipeSlot(slotId)) {
+            if (Layout.isRecipeSlot(slotId)) {
                 if (containerInput == ContainerInput.PICKUP
                         && !getCarried().isEmpty()
-                        && isInputPlaceholder(menuContainer.getItem(slotId))) {
+                        && MenuPlaceholders.isInput(menuContainer.getItem(slotId))) {
                     menuContainer.setItem(slotId, ItemStack.EMPTY);
                 }
                 super.clicked(slotId, buttonNum, containerInput, player);
@@ -396,24 +494,21 @@ public class InfinityInventoryMenu implements RuleImpl {
                 return;
             }
 
-            // 合成按钮
-            if (slotId == SLOT_CRAFT) {
+            if (slotId == Layout.SLOT_CRAFT) {
                 if (!player.level().isClientSide()) {
                     handleCraft(buttonNum, containerInput);
                 }
                 return;
             }
 
-            // 合成模板输出
-            if (slotId == SLOT_OUTPUT) {
+            if (slotId == Layout.SLOT_OUTPUT) {
                 if (!player.level().isClientSide()) {
                     handleTakeOutput(buttonNum, containerInput);
                 }
                 return;
             }
 
-            // 上一页
-            if (slotId == SLOT_PREV_PAGE) {
+            if (slotId == Layout.SLOT_PREV_PAGE) {
                 if (!player.level().isClientSide()
                         && containerInput == ContainerInput.PICKUP
                         && buttonNum == 0
@@ -424,8 +519,7 @@ public class InfinityInventoryMenu implements RuleImpl {
                 return;
             }
 
-            // 下一页
-            if (slotId == SLOT_NEXT_PAGE) {
+            if (slotId == Layout.SLOT_NEXT_PAGE) {
                 if (!player.level().isClientSide()
                         && containerInput == ContainerInput.PICKUP
                         && buttonNum == 0) {
@@ -435,8 +529,7 @@ public class InfinityInventoryMenu implements RuleImpl {
                 return;
             }
 
-            // 输入槽：把鼠标手持物品直接推入库存
-            if (slotId == SLOT_INPUT) {
+            if (slotId == Layout.SLOT_INPUT) {
                 if (!player.level().isClientSide() && containerInput == ContainerInput.PICKUP) {
                     ItemStack carried = getCarried();
                     if (!carried.isEmpty()) {
@@ -451,27 +544,24 @@ public class InfinityInventoryMenu implements RuleImpl {
                 return;
             }
 
-            if (slotId == SLOT_SHULKER) {
+            if (slotId == Layout.SLOT_SHULKER) {
                 if (!player.level().isClientSide()) {
-                    handleItemClick(SLOT_SHULKER, buttonNum, containerInput);
+                    handleItemClick(Layout.SLOT_SHULKER, buttonNum, containerInput);
                 }
                 return;
             }
 
-            // 屏障格（占位 or 单物品库存展示）
-            if (slotId == SLOT_BARRIER) {
+            if (slotId == Layout.SLOT_BARRIER) {
                 if (!player.level().isClientSide()) {
                     handleTakeBarrier(buttonNum, containerInput);
                 }
                 return;
             }
 
-            // 操作占位：忽略
-            if (isPlaceholder(slotId)) {
+            if (Layout.isPlaceholder(slotId)) {
                 return;
             }
 
-            // 兜底
             super.clicked(slotId, buttonNum, containerInput, player);
         }
 
@@ -667,34 +757,35 @@ public class InfinityInventoryMenu implements RuleImpl {
                 }
             }
 
-            menuContainer.setItem(SLOT_OUTPUT,
-                    outputItem.isEmpty() ? createOutputPlaceholder() : outputItem);
-            menuContainer.setItem(SLOT_BARRIER,
-                    barrierItem.isEmpty() ? createBarrierPlaceholder() : barrierItem);
+            menuContainer.setItem(Layout.SLOT_OUTPUT,
+                    outputItem.isEmpty() ? MenuPlaceholders.createOutputPlaceholder() : outputItem);
+            menuContainer.setItem(Layout.SLOT_BARRIER,
+                    barrierItem.isEmpty() ? MenuPlaceholders.createBarrierPlaceholder() : barrierItem);
             refreshCraftButton();
         }
 
         private @NonNull CraftingInput collectCraftingInput() {
-            NonNullList<ItemStack> items = NonNullList.withSize(RECIPE_SLOTS.length, ItemStack.EMPTY);
-            for (int i = 0; i < RECIPE_SLOTS.length; i++) {
-                ItemStack stack = menuContainer.getItem(RECIPE_SLOTS[i]);
-                if (stack.isEmpty() || isInputPlaceholder(stack)) continue;
+            NonNullList<ItemStack> items = NonNullList.withSize(
+                    Layout.RECIPE_SLOTS.length, ItemStack.EMPTY);
+            for (int i = 0; i < Layout.RECIPE_SLOTS.length; i++) {
+                ItemStack stack = menuContainer.getItem(Layout.RECIPE_SLOTS[i]);
+                if (stack.isEmpty() || MenuPlaceholders.isInput(stack)) continue;
                 items.set(i, stack.copy());
             }
             return CraftingInput.of(3, 3, items);
         }
 
         private void handleTakeOutput(int buttonNum, ContainerInput containerInput) {
-            ItemStack stack = menuContainer.getItem(SLOT_OUTPUT);
-            if (stack.isEmpty() || isOutputPlaceholder(stack)) return;
-            handleItemClick(SLOT_OUTPUT, buttonNum, containerInput);
+            ItemStack stack = menuContainer.getItem(Layout.SLOT_OUTPUT);
+            if (stack.isEmpty() || MenuPlaceholders.isOutput(stack)) return;
+            handleItemClick(Layout.SLOT_OUTPUT, buttonNum, containerInput);
             onRecipeChanged();
         }
 
         private void handleTakeBarrier(int buttonNum, ContainerInput containerInput) {
-            ItemStack stack = menuContainer.getItem(SLOT_BARRIER);
-            if (stack.isEmpty() || isBarrierPlaceholder(stack)) return;
-            handleItemClick(SLOT_BARRIER, buttonNum, containerInput);
+            ItemStack stack = menuContainer.getItem(Layout.SLOT_BARRIER);
+            if (stack.isEmpty() || MenuPlaceholders.isBarrier(stack)) return;
+            handleItemClick(Layout.SLOT_BARRIER, buttonNum, containerInput);
             onRecipeChanged();
         }
 
@@ -708,8 +799,8 @@ public class InfinityInventoryMenu implements RuleImpl {
                 return;
             }
 
-            ItemStack output = menuContainer.getItem(SLOT_OUTPUT);
-            if (output.isEmpty() || isOutputPlaceholder(output)) return;
+            ItemStack output = menuContainer.getItem(Layout.SLOT_OUTPUT);
+            if (output.isEmpty() || MenuPlaceholders.isOutput(output)) return;
 
             Item resultItem = output.getItem();
 
@@ -870,50 +961,24 @@ public class InfinityInventoryMenu implements RuleImpl {
         // =========================================================
 
         private void refreshCraftButton() {
-            ItemStack icon = createCraftIcon();
+            ItemStack icon = MenuPlaceholders.createCraftIcon();
 
-            ItemStack output = menuContainer.getItem(SLOT_OUTPUT);
-            if (output.isEmpty() || isOutputPlaceholder(output)) {
+            ItemStack output = menuContainer.getItem(Layout.SLOT_OUTPUT);
+            if (output.isEmpty() || MenuPlaceholders.isOutput(output)) {
                 List<Component> lore = new ArrayList<>();
-                lore.add(line().append(Component.literal("无匹配配方").withStyle(ChatFormatting.GRAY)));
+                lore.add(Component.literal("无匹配配方").withStyle(ChatFormatting.GRAY));
                 icon.set(DataComponents.LORE, new ItemLore(lore));
-                menuContainer.setItem(SLOT_CRAFT, icon);
+                menuContainer.setItem(Layout.SLOT_CRAFT, icon);
                 return;
             }
 
-            // 名称：合成 + 金色产物名
-            MutableComponent name = Component.empty()
-                    .append(Component.literal("合成 ").setStyle(style(ChatFormatting.WHITE)))
-                    .append(Component.empty()
-                            .append(output.getHoverName().copy())
-                            .setStyle(style(ChatFormatting.GOLD)));
-            icon.set(DataComponents.CUSTOM_NAME, name);
+            icon.set(DataComponents.CUSTOM_NAME,
+                    Lore.craftButtonName(output.getHoverName()));
 
             int maxCraftable = computeMaxCraftable();
-            icon.set(DataComponents.LORE, new ItemLore(buildCraftLore(maxCraftable, output.getItem())));
-            menuContainer.setItem(SLOT_CRAFT, icon);
-        }
-
-        private @NonNull List<Component> buildCraftLore(int maxCraftable, Item resultItem) {
-            List<Component> lines = new ArrayList<>();
-
-            lines.add(line()
-                    .append(label("可合成 "))
-                    .append(value(String.valueOf(maxCraftable)))
-                    .append(label(" 个")));
-
-            if (maxCraftable > 0) {
-                lines.addAll(buildCountBreakdown(resultItem, maxCraftable));
-            }
-
-            lines.add(line()
-                    .append(Component.literal("───────────────")
-                            .withStyle(ChatFormatting.DARK_GRAY)));
-
-            lines.add(action("左键(Shift)", "合成一组到光标(背包)"));
-            lines.add(action("右键(Shift)", "合成一盒到光标(背包)"));
-
-            return lines;
+            icon.set(DataComponents.LORE,
+                    new ItemLore(Lore.buildCraftLore(maxCraftable, output.getItem())));
+            menuContainer.setItem(Layout.SLOT_CRAFT, icon);
         }
 
         /**
@@ -922,9 +987,9 @@ public class InfinityInventoryMenu implements RuleImpl {
          * 在 clicked / quickMoveStack 中取走物品后调用。
          */
         private void ensureInputPlaceholders() {
-            for (int s : RECIPE_SLOTS) {
+            for (int s : Layout.RECIPE_SLOTS) {
                 if (menuContainer.getItem(s).isEmpty()) {
-                    menuContainer.setItem(s, createInputPlaceholder());
+                    menuContainer.setItem(s, MenuPlaceholders.createInputPlaceholder());
                 }
             }
         }
@@ -939,13 +1004,12 @@ public class InfinityInventoryMenu implements RuleImpl {
             Slot slot = this.slots.get(index);
             if (!slot.hasItem()) return ItemStack.EMPTY;
 
-            // index >= 54 表示玩家背包（含快捷栏）
-            if (index >= CONTAINER_SLOT_COUNT) {
+            if (index >= Layout.CONTAINER_SLOT_COUNT) {
                 return depositToStorage(slot);
             }
 
             ItemStack result = super.quickMoveStack(player, index);
-            if (!player.level().isClientSide() && isRecipeSlot(index)) {
+            if (!player.level().isClientSide() && Layout.isRecipeSlot(index)) {
                 ensureInputPlaceholders();
                 onRecipeChanged();
             }
@@ -982,9 +1046,9 @@ public class InfinityInventoryMenu implements RuleImpl {
         @Override
         public void removed(@NonNull Player player) {
             if (!player.level().isClientSide()) {
-                for (int s : RECIPE_SLOTS) {
+                for (int s : Layout.RECIPE_SLOTS) {
                     ItemStack stack = menuContainer.getItem(s);
-                    if (stack.isEmpty() || isInputPlaceholder(stack)) {
+                    if (stack.isEmpty() || MenuPlaceholders.isInput(stack)) {
                         menuContainer.setItem(s, ItemStack.EMPTY);
                         continue;
                     }
@@ -993,11 +1057,11 @@ public class InfinityInventoryMenu implements RuleImpl {
                     }
                     menuContainer.setItem(s, ItemStack.EMPTY);
                 }
-                menuContainer.setItem(SLOT_OUTPUT,  ItemStack.EMPTY);
-                menuContainer.setItem(SLOT_BARRIER, ItemStack.EMPTY);
-                menuContainer.setItem(SLOT_SHULKER, ItemStack.EMPTY);
-                menuContainer.setItem(SLOT_PLACEHOLDERS[0], ItemStack.EMPTY);
-                menuContainer.setItem(SLOT_PLACEHOLDERS[1], ItemStack.EMPTY);
+                menuContainer.setItem(Layout.SLOT_OUTPUT,  ItemStack.EMPTY);
+                menuContainer.setItem(Layout.SLOT_BARRIER, ItemStack.EMPTY);
+                menuContainer.setItem(Layout.SLOT_SHULKER, ItemStack.EMPTY);
+                menuContainer.setItem(Layout.SLOT_PLACEHOLDERS[0], ItemStack.EMPTY);
+                menuContainer.setItem(Layout.SLOT_PLACEHOLDERS[1], ItemStack.EMPTY);
             }
             super.removed(player);
         }
@@ -1031,10 +1095,12 @@ public class InfinityInventoryMenu implements RuleImpl {
             }
 
             List<InfinityInventoryStorage.View> view =
-                    storage.subView(page * ITEMS_PER_PAGE, ITEMS_PER_PAGE);
+                    storage.subView(page * Layout.ITEMS_PER_PAGE,
+                            Layout.ITEMS_PER_PAGE);
 
-            for (int i = 0; i < ITEMS_PER_PAGE && i < view.size(); i++) {
-                int slot = (i / ITEM_COLS) * COLS + (i % ITEM_COLS);
+            for (int i = 0; i < Layout.ITEMS_PER_PAGE && i < view.size(); i++) {
+                int slot = (i / Layout.ITEM_COLS) * Layout.COLS
+                        + (i % Layout.ITEM_COLS);
                 InfinityInventoryStorage.View v = view.get(i);
                 if (!pendingRefresh.contains(v.item())) continue;
 
@@ -1046,7 +1112,6 @@ public class InfinityInventoryMenu implements RuleImpl {
                 menuContainer.setItem(slot, buildDisplay(v.item(), v.count()));
             }
 
-            // 潜影盒 44 号槽不在 view 里，需要单独刷新
             if (pendingRefresh.contains(Items.SHULKER_BOX)) {
                 refreshShulkerBoxSlot();
             }
@@ -1063,8 +1128,7 @@ public class InfinityInventoryMenu implements RuleImpl {
 
             @Override
             public boolean mayPickup(@NonNull Player player) {
-                // 占位符不可拿取
-                return !isInputPlaceholder(getItem());
+                return !MenuPlaceholders.isInput(getItem());
             }
 
             @Override
@@ -1090,38 +1154,6 @@ public class InfinityInventoryMenu implements RuleImpl {
             ButtonSlot(Container container, int idx, int x, int y) { super(container, idx, x, y); }
             @Override public boolean mayPickup(@NonNull Player player) { return false; }
             @Override public boolean mayPlace(@NonNull ItemStack stack) { return false; }
-        }
-
-        // ===== 样式工具 =====
-
-        private static @NonNull Style style(ChatFormatting color) {
-            return Style.EMPTY.withItalic(false).withColor(color);
-        }
-
-        private static @NonNull MutableComponent line() {
-            return Component.empty().setStyle(style(ChatFormatting.GRAY));
-        }
-
-        private static @NonNull MutableComponent label(@SuppressWarnings("SameParameterValue") String text) {
-            return Component.literal(text).setStyle(style(ChatFormatting.YELLOW));
-        }
-
-        private static @NonNull MutableComponent value(String text) {
-            return Component.literal(text).setStyle(style(ChatFormatting.AQUA));
-        }
-        private static @NonNull MutableComponent value(int count) {
-            return value(String.format("%,d", count));
-        }
-
-        private static @NonNull MutableComponent action(String key, String desc) {
-            Component k = Component.literal(key).setStyle(style(ChatFormatting.GOLD));
-            Component d = Component.literal(desc).setStyle(style(ChatFormatting.GRAY));
-            return Component.empty()
-                    .append(Component.literal("▪ ").setStyle(style(ChatFormatting.DARK_GRAY)))
-                    .append(Component.literal("[").setStyle(style(ChatFormatting.DARK_GRAY)))
-                    .append(k)
-                    .append(Component.literal("] ").setStyle(style(ChatFormatting.DARK_GRAY)))
-                    .append(d);
         }
     }
 }
