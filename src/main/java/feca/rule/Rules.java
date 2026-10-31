@@ -104,4 +104,8 @@ public final class Rules {
     @Rule(categories = {FECA})
     @RuleImplBy(InfinityInventory.class)
     public static CommandPermissionOptions infinityInventory = CommandPermissionOptions.FALSE;
+
+    @Rule(categories = {FECA})
+    @RuleImplBy(InfinityInventoryMenu.class)
+    public static boolean infinityInventoryMenu = false;
 }

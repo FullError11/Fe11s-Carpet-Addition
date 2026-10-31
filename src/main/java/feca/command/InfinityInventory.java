@@ -17,6 +17,7 @@ import feca.command.arguments.IntegerExpressionArgument;
 import feca.command.arguments.ItemArgument;
 import feca.command.utils.CommandResult;
 import feca.command.utils.PlayerExecutor;
+import feca.function.InfinityInventoryMenu;
 import feca.function.utils.InfinityInventoryStorage;
 import feca.utils.ContainerHelper;
 import feca.registry.OnInitializeCallbackRegistry;
@@ -31,6 +32,7 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.SimpleMenuProvider;
 import org.jspecify.annotations.NonNull;
 
 import java.util.*;
@@ -49,6 +51,16 @@ public class InfinityInventory {
                         .then(SubCommands.store(buildContext))
                         .then(SubCommands.take(buildContext))
                         .then(SubCommands.count(buildContext))
+                        .then(Commands.literal("menu")
+                                .requires(_ -> Rules.infinityInventoryMenu)
+                                .executes(PlayerExecutor.requireExecByPlayer((_, player) -> {
+                                    player.openMenu(new SimpleMenuProvider(
+                                            (syncId, inv, _) -> new InfinityInventoryMenu.OperationMenu(syncId, inv),
+                                            Component.literal("Infinity Inventory Menu")
+                                    ));
+                                    return CommandResult.SUCCESS;
+                                }))
+                        )
                 );
             });
         });
@@ -107,7 +119,31 @@ public class InfinityInventory {
                             .then(Arguments.COUNT.require()
                                     .executes(executorCreator.apply(CountGetter.FROM_ARGUMENT)))
                             .then(Commands.literal("all")
-                                    .executes(executorCreator.apply((_, inv, it) -> inv.countItem(it)))));
+                                    .executes(executorCreator.apply((_, inv, it) -> inv.countItem(it))))
+                    )
+                    .then(Commands.literal("allStackable")
+                            .executes(PlayerExecutor.requireExecByPlayer((ctx, player) -> {
+                                var storage = getStorage(player);
+                                int pushTimes = 0;
+                                for (var slot : player.getInventory().getNonEquipmentItems()) {
+                                    if (slot.isStackable()) {
+                                        var msg = Component.literal("储存: ")
+                                                .append(slot.getDisplayName())
+                                                .append(" * " + slot.getCount());
+                                        if (storage.push(slot)) {
+                                            ctx.getSource().sendSystemMessage(msg);
+                                            pushTimes++;
+                                        }
+                                    }
+                                }
+                                if (pushTimes > 0) {
+                                    ctx.getSource().sendSystemMessage(Component.literal("共储存了 " + pushTimes + " 次"));
+                                } else {
+                                    ctx.getSource().sendFailure(Component.literal("未进行储存"));
+                                }
+                                return CommandResult.SUCCESS;
+                            }))
+                    );
         }
         private static ArgumentBuilder<CommandSourceStack, ?> take(CommandBuildContext buildContext) {
             final Function<CountGetter, Command<CommandSourceStack>> executorCreator = countGetter -> {
