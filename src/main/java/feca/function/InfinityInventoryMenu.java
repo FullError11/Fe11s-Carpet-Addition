@@ -7,6 +7,7 @@ import feca.utils.ShulkerBoxAccessor;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
@@ -52,7 +53,7 @@ public class InfinityInventoryMenu implements RuleImpl {
                 6, 7, 8, 15, 16, 17, 24, 25, 26
         };
 
-        private static final int SLOT_CLEAR        = 33;
+        private static final int SLOT_CRAFT        = 33;
         private static final int SLOT_OUTPUT       = 34;
         private static final int SLOT_BARRIER      = 35;
         private static final int[] SLOT_PLACEHOLDERS = {42, 43};
@@ -70,6 +71,12 @@ public class InfinityInventoryMenu implements RuleImpl {
         private static final Component PH_INPUT_NAME  = Component.literal("合成模板输入");
         private static final Component PH_OUTPUT_NAME = Component.literal("合成模板输出");
         private static final Component PH_BARRIER_NAME = Component.literal("占位");
+
+        private static @NonNull ItemStack createCraftIcon() {
+            ItemStack s = new ItemStack(Items.CRAFTING_TABLE);
+            s.set(DataComponents.CUSTOM_NAME, Component.literal("合成"));
+            return s;
+        }
 
         private static @NonNull ItemStack createInputPlaceholder() {
             ItemStack s = new ItemStack(Items.STRUCTURE_VOID);
@@ -106,12 +113,6 @@ public class InfinityInventoryMenu implements RuleImpl {
             return !stack.isEmpty()
                     && stack.is(Items.BARRIER)
                     && PH_BARRIER_NAME.equals(stack.get(DataComponents.CUSTOM_NAME));
-        }
-
-        private static @NonNull ItemStack createClearIcon() {
-            ItemStack s = new ItemStack(Items.BUCKET);
-            s.set(DataComponents.CUSTOM_NAME, Component.literal("清空合成模板"));
-            return s;
         }
 
         private static @NonNull ItemStack createPrevPageIcon() {
@@ -207,7 +208,7 @@ public class InfinityInventoryMenu implements RuleImpl {
             }
 
             // 功能按钮图标
-            menuContainer.setItem(SLOT_CLEAR,     createClearIcon());
+            menuContainer.setItem(SLOT_CRAFT,     createCraftIcon());
             menuContainer.setItem(SLOT_OUTPUT,    createOutputPlaceholder());
             menuContainer.setItem(SLOT_BARRIER,   createBarrierPlaceholder());
             menuContainer.setItem(SLOT_PREV_PAGE, createPrevPageIcon());
@@ -394,12 +395,10 @@ public class InfinityInventoryMenu implements RuleImpl {
                 return;
             }
 
-            // 清空合成模板
-            if (slotId == SLOT_CLEAR) {
-                if (!player.level().isClientSide()
-                        && containerInput == ContainerInput.PICKUP
-                        && buttonNum == 0) {
-                    handleClearRecipe();
+            // 合成按钮
+            if (slotId == SLOT_CRAFT) {
+                if (!player.level().isClientSide()) {
+                    handleCraft(buttonNum, containerInput);
                 }
                 return;
             }
@@ -556,6 +555,7 @@ public class InfinityInventoryMenu implements RuleImpl {
          * 检查玩家背包（快捷栏 + 主背包，0..35）能否完整容纳 stack。
          * 已存在同种堆叠的剩余容量也算在内。
          */
+        @SuppressWarnings("BooleanMethodIsAlwaysInverted")
         private boolean canFullyFit(Player player, @NonNull ItemStack stack) {
             if (stack.isEmpty()) return true;
 
@@ -680,7 +680,6 @@ public class InfinityInventoryMenu implements RuleImpl {
             if (storage.pop(Items.SHULKER_BOX, 1)) {
                 var shulker = new ItemStack(Items.SHULKER_BOX);
                 try (var box = ShulkerBoxAccessor.openAutoSaved(shulker)) {
-                    FeCA.LOGGER.debug("Box({}): {}", box.size(), box.list());
                     if (storage.tryPopTo(item, Integer.MAX_VALUE, box.list()) > 0) {
                         requireRelease(Items.SHULKER_BOX);
                         return shulker;
@@ -690,7 +689,6 @@ public class InfinityInventoryMenu implements RuleImpl {
                     }
                 }
             }
-            FeCA.LOGGER.debug("fail");
             return ItemStack.EMPTY;
         }
 
@@ -762,6 +760,7 @@ public class InfinityInventoryMenu implements RuleImpl {
                     outputItem.isEmpty() ? createOutputPlaceholder() : outputItem);
             menuContainer.setItem(SLOT_BARRIER,
                     barrierItem.isEmpty() ? createBarrierPlaceholder() : barrierItem);
+            refreshCraftButton();
         }
 
         private @NonNull CraftingInput collectCraftingInput() {
@@ -823,25 +822,322 @@ public class InfinityInventoryMenu implements RuleImpl {
             onRecipeChanged();
         }
 
-        private void handleClearRecipe() {
-            if (player.level().isClientSide()) return;
+        // =========================================================
+        // 合成按钮
+        // =========================================================
 
-            for (int s : RECIPE_SLOTS) {
-                ItemStack stack = menuContainer.getItem(s);
-                if (stack.isEmpty() || isInputPlaceholder(stack)) continue;
+        private void handleCraft(int buttonNum, ContainerInput containerInput) {
+            if (!getCarried().isEmpty()) {
+                depositCarriedToStorage();
+                return;
+            }
 
-                storage().push(stack);
+            ItemStack output = menuContainer.getItem(SLOT_OUTPUT);
+            if (output.isEmpty() || isOutputPlaceholder(output)) return;
 
-                if (stack.isEmpty()) {
-                    menuContainer.setItem(s, createInputPlaceholder());
-                } else {
-                    menuContainer.setItem(s, stack);
+            Item resultItem = output.getItem();
+
+            pendingRefresh.clear();
+            try {
+                switch (containerInput) {
+                    case PICKUP -> {
+                        if (buttonNum == 0)      craftStackToCursor(resultItem);
+                        else if (buttonNum == 1) craftBoxToCursor(resultItem);
+                    }
+                    case QUICK_MOVE -> {
+                        if (buttonNum == 0)      craftStackToInventory(resultItem);
+                        else if (buttonNum == 1) craftBoxToInventory(resultItem);
+                    }
+                    default -> { }
+                }
+            } finally {
+                pendingRefresh.clear();
+            }
+
+            onRecipeChanged();
+            this.slotsChanged(menuContainer);
+        }
+
+        private void craftStackToCursor(Item item) {
+            if (!getCarried().isEmpty()) return;
+            int maxCraftable = computeMaxCraftable();
+            if (maxCraftable <= 0) return;
+
+            int target = Math.min(maxCraftable, item.getDefaultMaxStackSize());
+            ItemStack crafted = doCraft(item, target);
+            if (crafted.isEmpty()) return;
+
+            setCarried(crafted);
+            applyPendingRefresh();
+        }
+
+        private void craftStackToInventory(Item item) {
+            int maxCraftable = computeMaxCraftable();
+            if (maxCraftable <= 0) return;
+
+            int target = Math.min(maxCraftable, item.getDefaultMaxStackSize());
+            ItemStack probe = new ItemStack(item, target);
+            if (!canFullyFit(player, probe)) {
+                player.sendSystemMessage(
+                        Component.literal("背包空间不足").withStyle(ChatFormatting.RED));
+                return;
+            }
+
+            ItemStack crafted = doCraft(item, target);
+            if (crafted.isEmpty()) return;
+
+            giveToPlayer(crafted);
+            applyPendingRefresh();
+        }
+
+        /**
+         * 右键：合成一盒到光标。
+         * 光标必须为空（已在 handleCraft 里前置判断），空间不足时直接失败。
+         */
+        private void craftBoxToCursor(Item item) {
+            if (!getCarried().isEmpty()) return;
+
+            if (storage().getCount(Items.SHULKER_BOX) <= 0) {
+                player.sendSystemMessage(
+                        Component.literal("没有潜影盒").withStyle(ChatFormatting.RED));
+                return;
+            }
+
+            int maxCraftable = computeMaxCraftable();
+            if (maxCraftable <= 0) return;
+
+            int shulkerSize = item.getDefaultMaxStackSize()
+                    * ShulkerBoxBlockEntity.CONTAINER_SIZE;
+            int target = Math.min(maxCraftable, shulkerSize);
+
+            if (!storage().pop(Items.SHULKER_BOX, 1)) return;
+            ItemStack shulker = new ItemStack(Items.SHULKER_BOX);
+            requireRelease(Items.SHULKER_BOX);
+
+            try (var accessor = ShulkerBoxAccessor.openAutoSaved(shulker)) {
+                ItemStack crafted = doCraft(item, target);
+                if (crafted.isEmpty()) {
+                    storage().push(shulker);
+                    return;
+                }
+                var list = accessor.list();
+                int remaining = crafted.getCount();
+                for (int i = 0; i < list.size() && remaining > 0; i++) {
+                    if (list.get(i).isEmpty()) {
+                        int put = Math.min(remaining, item.getDefaultMaxStackSize());
+                        list.set(i, new ItemStack(item, put));
+                        remaining -= put;
+                    }
                 }
             }
 
-            refreshInventoryView();
-            onRecipeChanged();
-            this.slotsChanged(menuContainer);
+            setCarried(shulker);
+            applyPendingRefresh();
+        }
+
+        private void craftBoxToInventory(Item item) {
+            if (storage().getCount(Items.SHULKER_BOX) <= 0) {
+                player.sendSystemMessage(
+                        Component.literal("没有潜影盒").withStyle(ChatFormatting.RED));
+                return;
+            }
+
+            if (!canFullyFit(player, new ItemStack(Items.SHULKER_BOX))) {
+                player.sendSystemMessage(
+                        Component.literal("背包空间不足").withStyle(ChatFormatting.RED));
+                return;
+            }
+
+            int maxCraftable = computeMaxCraftable();
+            if (maxCraftable <= 0) return;
+
+            int shulkerSize = item.getDefaultMaxStackSize()
+                    * ShulkerBoxBlockEntity.CONTAINER_SIZE;
+            int target = Math.min(maxCraftable, shulkerSize);
+
+            if (!storage().pop(Items.SHULKER_BOX, 1)) return;
+            ItemStack shulker = new ItemStack(Items.SHULKER_BOX);
+            requireRelease(Items.SHULKER_BOX);
+
+            try (var accessor = ShulkerBoxAccessor.openAutoSaved(shulker)) {
+                ItemStack crafted = doCraft(item, target);
+                if (crafted.isEmpty()) {
+                    storage().push(shulker);
+                    return;
+                }
+                var list = accessor.list();
+                int remaining = crafted.getCount();
+                for (int i = 0; i < list.size() && remaining > 0; i++) {
+                    if (list.get(i).isEmpty()) {
+                        int put = Math.min(remaining, item.getDefaultMaxStackSize());
+                        list.set(i, new ItemStack(item, put));
+                        remaining -= put;
+                    }
+                }
+            }
+
+            giveToPlayer(shulker);
+            applyPendingRefresh();
+        }
+
+        // =========================================================
+        // 合成计算
+        // =========================================================
+
+        /**
+         * 基于当前输入模板 + 库存原料，计算最多可合成的产物总数。
+         * 每种原料的消耗按"每个 Ingredient 格 1 个"计算。
+         */
+        private int computeMaxCraftable() {
+            if (!(player.level() instanceof ServerLevel serverLevel)) return 0;
+
+            CraftingInput input = collectCraftingInput();
+            if (countNonEmpty(input) == 0) return 0;
+
+            Optional<RecipeHolder<CraftingRecipe>> recipeOpt = serverLevel.getServer()
+                    .getRecipeManager()
+                    .getRecipeFor(RecipeType.CRAFTING, input, serverLevel);
+            if (recipeOpt.isEmpty()) return 0;
+
+            CraftingRecipe recipe = recipeOpt.get().value();
+            ItemStack prototype = recipe.assemble(input);
+            if (prototype.isEmpty()) return 0;
+
+            Map<Item, Integer> needed = computeNeededIngredients(recipe);
+            if (needed.isEmpty()) return 0;
+
+            int maxCrafts = Integer.MAX_VALUE;
+            for (Map.Entry<Item, Integer> e : needed.entrySet()) {
+                int available = storage().getCount(e.getKey());
+                maxCrafts = Math.min(maxCrafts, available / e.getValue());
+            }
+            if (maxCrafts == Integer.MAX_VALUE || maxCrafts <= 0) return 0;
+
+            return maxCrafts * prototype.getCount();
+        }
+
+        /**
+         * 统计一份配方需要每种 Item 各多少个。
+         * 对每个 Ingredient 从候选物品中挑库存最多的那个，累加需求量。
+         */
+        private @NonNull Map<Item, Integer> computeNeededIngredients(@NonNull CraftingRecipe recipe) {
+            PlacementInfo placement = recipe.placementInfo();
+            if (placement == PlacementInfo.NOT_PLACEABLE) return Map.of();
+
+            Map<Item, Integer> needed = new HashMap<>();
+
+            for (Ingredient ing : placement.ingredients()) {
+                if (ing.isEmpty()) continue;
+
+                Item bestItem = null;
+                int bestCount = -1;
+
+                for (Item item : BuiltInRegistries.ITEM) {
+                    ItemStack probe = new ItemStack(item);
+                    if (ing.test(probe)) {
+                        int cnt = storage().getCount(item);
+                        if (cnt > bestCount) {
+                            bestCount = cnt;
+                            bestItem = item;
+                        }
+                    }
+                }
+
+                if (bestItem == null || bestCount <= 0) return Map.of();
+                needed.merge(bestItem, 1, Integer::sum);
+            }
+            return needed;
+        }
+
+        /**
+         * 实际执行合成：按 targetCount 产量需求，消耗原料并返回产物。
+         * 返回的产物数量可能小于 targetCount（按整份配方合成、且受库存上限截断）。
+         */
+        private ItemStack doCraft(Item expectedItem, int targetCount) {
+            if (targetCount <= 0) return ItemStack.EMPTY;
+            if (!(player.level() instanceof ServerLevel serverLevel)) return ItemStack.EMPTY;
+
+            CraftingInput input = collectCraftingInput();
+            Optional<RecipeHolder<CraftingRecipe>> recipeOpt = serverLevel.getServer()
+                    .getRecipeManager()
+                    .getRecipeFor(RecipeType.CRAFTING, input, serverLevel);
+            if (recipeOpt.isEmpty()) return ItemStack.EMPTY;
+
+            CraftingRecipe recipe = recipeOpt.get().value();
+            ItemStack prototype = recipe.assemble(input);
+            if (prototype.isEmpty() || prototype.getItem() != expectedItem) return ItemStack.EMPTY;
+
+            int perCraft = prototype.getCount();
+            int craftTimes = (int) Math.ceil((double) targetCount / perCraft);
+
+            Map<Item, Integer> needed = computeNeededIngredients(recipe);
+            if (needed.isEmpty()) return ItemStack.EMPTY;
+
+            int maxCrafts = Integer.MAX_VALUE;
+            for (Map.Entry<Item, Integer> e : needed.entrySet()) {
+                maxCrafts = Math.min(maxCrafts, storage().getCount(e.getKey()) / e.getValue());
+            }
+            craftTimes = Math.min(craftTimes, maxCrafts);
+            if (craftTimes <= 0) return ItemStack.EMPTY;
+
+            for (Map.Entry<Item, Integer> e : needed.entrySet()) {
+                int toConsume = e.getValue() * craftTimes;
+                storage().pop(e.getKey(), toConsume);
+                requireRelease(e.getKey());
+            }
+
+            return prototype.copyWithCount(perCraft * craftTimes);
+        }
+
+        // =========================================================
+        // 合成按钮 Lore
+        // =========================================================
+
+        private void refreshCraftButton() {
+            ItemStack icon = createCraftIcon();
+
+            ItemStack output = menuContainer.getItem(SLOT_OUTPUT);
+            if (output.isEmpty() || isOutputPlaceholder(output)) {
+                List<Component> lore = new ArrayList<>();
+                lore.add(line().append(Component.literal("无匹配配方").withStyle(ChatFormatting.GRAY)));
+                icon.set(DataComponents.LORE, new ItemLore(lore));
+                menuContainer.setItem(SLOT_CRAFT, icon);
+                return;
+            }
+
+            // 名称：合成 + 金色产物名
+            MutableComponent name = Component.empty()
+                    .append(Component.literal("合成 ").setStyle(style(ChatFormatting.WHITE)))
+                    .append(Component.empty()
+                            .append(output.getHoverName().copy())
+                            .setStyle(style(ChatFormatting.GOLD)));
+            icon.set(DataComponents.CUSTOM_NAME, name);
+
+            int maxCraftable = computeMaxCraftable();
+            icon.set(DataComponents.LORE, new ItemLore(buildCraftLore(maxCraftable, output.getItem())));
+            menuContainer.setItem(SLOT_CRAFT, icon);
+        }
+
+        private @NonNull List<Component> buildCraftLore(int maxCraftable, Item resultItem) {
+            List<Component> lines = new ArrayList<>();
+
+            lines.add(line()
+                    .append(label("可合成 "))
+                    .append(value(String.valueOf(maxCraftable)))
+                    .append(label(" 个")));
+
+            if (maxCraftable > 0) {
+                lines.addAll(buildCountBreakdown(resultItem, maxCraftable));
+            }
+
+            lines.add(line()
+                    .append(Component.literal("───────────────")
+                            .withStyle(ChatFormatting.DARK_GRAY)));
+
+            lines.add(action("左键(Shift)", "合成一组到光标(背包)"));
+            lines.add(action("右键(Shift)", "合成一盒到光标(背包)"));
+
+            return lines;
         }
 
         /**
