@@ -1,6 +1,5 @@
 package feca.utils;
 
-import feca.FeCA;
 import feca.mixin.accessor.ItemContainerContentsAccessor;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.Item;
@@ -49,12 +48,10 @@ public class ShulkerBoxAccessor implements Iterable<ItemStack> {
                 for (Optional<ItemStackTemplate> template : templates) {
                     slots.add(template.map(ItemStackTemplate::create).orElse(ItemStack.EMPTY));
                 }
-                FeCA.LOGGER.debug("slots({}): {}", slots.size(), slots);
                 return slots;
             }
         }
 
-        FeCA.LOGGER.debug("null");
         return new ArrayList<>(Collections.nCopies(ShulkerBoxBlockEntity.CONTAINER_SIZE, ItemStack.EMPTY));
     }
 

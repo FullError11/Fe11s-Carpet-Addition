@@ -26,6 +26,7 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         public ItemStorageData() { this(0); }
         public ItemStorageData(int count) { this.count = count; }
 
+        /// @return 修改后的库存余量
         public int modifyCount(int modify) { count += modify; return count; }
         public int getCount() { return count; }
 
@@ -36,18 +37,18 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         );
     }
 
-    private final HashMap<Item, ItemStorageData> items;
+    private final LinkedHashMap<Item, ItemStorageData> items;
     private final HashMap<Item, ArrayList<ComplexItemPushProcessor>> complexItemPushProcessors = new HashMap<>();
 
-    private InfinityInventoryStorage(HashMap<Item, ItemStorageData> items) {
+    private InfinityInventoryStorage(LinkedHashMap<Item, ItemStorageData> items) {
         this.items = items;
     }
-    private static @NonNull InfinityInventoryStorage ofWithDefaultProcessors(HashMap<Item, ItemStorageData> items) {
+    private static @NonNull InfinityInventoryStorage ofWithDefaultProcessors(LinkedHashMap<Item, ItemStorageData> items) {
         var result = new InfinityInventoryStorage(items);
         registerDefaultComplexItemProcessor(result);
         return result;
     }
-    protected InfinityInventoryStorage() { this(new HashMap<>()); }
+    protected InfinityInventoryStorage() { this(new LinkedHashMap<>()); }
     public static @NonNull InfinityInventoryStorage create() {
         return new InfinityInventoryStorage();
     }
@@ -64,11 +65,12 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
     public static final Codec<InfinityInventoryStorage> NBT_CODEC = RecordCodecBuilder.create(instance -> {
             return instance.group(
                             Codec.unboundedMap(BuiltInRegistries.ITEM.byNameCodec(), ItemStorageData.NBT_CODEC)
-                                    .xmap(HashMap::new, Function.identity())
+                                    .xmap(LinkedHashMap::new, Function.identity())
                                     .fieldOf("items").forGetter(s -> s.items)
                     )
                     .apply(instance, InfinityInventoryStorage::ofWithDefaultProcessors);
     });
+
 
     /// @param stack 储存物品，在储存后将清空 {@code stack}
     /// @return true: 储存成功，此时  {@code stack} 被清空；
@@ -100,7 +102,9 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         if (data == null || data.getCount() <= popCount) {
             return false;
         }
-        data.modifyCount(-popCount);
+        if (data.modifyCount(-popCount) <= 0) {
+            items.remove(item, data);
+        }
         return true;
     }
 
@@ -112,8 +116,9 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         var data = items.get(item);
         if (data == null) return 0;
         var count = data.getCount();
-        if (count < popCount) {
+        if (count <= popCount) {
             data.modifyCount(-count);
+            items.remove(item, data);
             return count;
         } else {
             data.modifyCount(-popCount);
@@ -183,6 +188,10 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
             missCount -= modifyCount;
         }
 
+        if (data.getCount() <= 0) {
+            items.remove(item, data);
+        }
+
         return popCount - missCount;
     }
 
@@ -196,8 +205,59 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
     /// @return 修改后的库存总数
     @SuppressWarnings("UnusedReturnValue")
     public int modifyCount(Item item, int modify) {
-        return items.computeIfAbsent(item, _ -> new ItemStorageData()).modifyCount(modify);
+        var data = items.computeIfAbsent(item, _ -> new ItemStorageData());
+        var result = data.modifyCount(modify);
+        if (result <= 0) {
+            items.remove(item, data);
+        }
+        return result;
     }
+
+    public static final class View {
+        private final Map.Entry<Item, ItemStorageData> entry;
+
+        View(Map.@NonNull Entry<Item, ItemStorageData> entry) {
+            this.entry = entry;
+        }
+
+        public Item item() { return entry.getKey(); }
+        public int count() { return entry.getValue().getCount(); }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof View view)) return false;
+            return entry.equals(view.entry);
+        }
+
+        @Override public int hashCode() { return entry.hashCode(); }
+        @Override public String toString() { return entry.toString(); }
+    }
+
+    /**
+     * @throws IndexOutOfBoundsException first < 0
+     * @throws IllegalArgumentException  count < 0
+     */
+    public List<View> subView(int first, int count) {
+        if (first < 0) throw new IndexOutOfBoundsException("first < 0: " + first);
+        if (count < 0) throw new IllegalArgumentException("count < 0: " + count);
+
+        List<View> result = new ArrayList<>(Math.min(count, items.size()));
+        if (count == 0) return result;
+
+        var it = items.entrySet().iterator();
+
+        // 跳过前 first 个
+        for (int i = 0; i < first && it.hasNext(); i++) {
+            it.next();
+        }
+        // 取 count 个
+        for (int i = 0; i < count && it.hasNext(); i++) {
+            result.add(new View(it.next()));
+        }
+        return result;
+    }
+
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private static boolean isNormal(@NonNull ItemStack stack) {
