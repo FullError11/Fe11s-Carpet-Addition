@@ -1163,7 +1163,7 @@ public class InfinityInventoryMenu implements RuleImpl {
 
                 lines.add(line()
                         .append(label("可合成 "))
-                        .append(value(String.valueOf(maxCraftable)))
+                        .append(value(maxCraftable))
                         .append(label(" 个")));
 
                 if (maxCraftable > 0) {
