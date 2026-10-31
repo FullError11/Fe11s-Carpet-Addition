@@ -1,7 +1,7 @@
 package feca.function;
 
 import feca.FeCA;
-import feca.utils.InfinityInventoryStorage;
+import feca.function.utils.InfinityInventoryStorage;
 import feca.rule.utils.RuleImpl;
 import feca.utils.ClassForceLoader;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;

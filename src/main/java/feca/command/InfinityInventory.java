@@ -17,7 +17,7 @@ import feca.command.arguments.IntegerExpressionArgument;
 import feca.command.arguments.ItemArgument;
 import feca.command.utils.CommandResult;
 import feca.command.utils.PlayerExecutor;
-import feca.utils.InfinityInventoryStorage;
+import feca.function.utils.InfinityInventoryStorage;
 import feca.utils.ContainerHelper;
 import feca.registry.OnInitializeCallbackRegistry;
 import feca.rule.Rules;
