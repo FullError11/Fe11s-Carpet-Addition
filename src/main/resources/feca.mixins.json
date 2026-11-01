@@ -14,7 +14,8 @@
         "SugarCaneBlockMixin",
         "TurtleEggBlockMixin",
         "accessor.ItemContainerContentsAccessor",
-        "accessor.VillagerAccessor"
+        "accessor.VillagerAccessor",
+        "debug.CommandsMixin"
     ],
     "injectors": {
         "defaultRequire": 1
