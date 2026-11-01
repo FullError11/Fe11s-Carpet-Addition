@@ -99,7 +99,7 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
     /// @apiNote 应手动处理 {@link ItemStack} 创建 (根据 {@code popCount})
     public boolean pop(Item item, int popCount) {
         var data = items.get(item);
-        if (data == null || data.getCount() <= popCount) {
+        if (data == null || data.getCount() < popCount) {
             return false;
         }
         if (data.modifyCount(-popCount) <= 0) {
@@ -200,6 +200,7 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         return data == null ? 0 : data.getCount();
     }
 
+    public int size() { return items.size(); }
     public void clear() { items.clear(); }
 
     /// @return 修改后的库存总数
@@ -232,6 +233,15 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
 
         @Override public int hashCode() { return entry.hashCode(); }
         @Override public String toString() { return entry.toString(); }
+
+        public static final View NONE = new View(new Map.Entry<>() {
+            @Override public Item getKey() { return Items.AIR; }
+            @Override public ItemStorageData getValue() { return new ItemStorageData(0); }
+            @Override
+            public ItemStorageData setValue(ItemStorageData value) {
+                throw new UnsupportedOperationException();
+            }
+        });
     }
 
     /**
