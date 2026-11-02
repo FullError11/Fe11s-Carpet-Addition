@@ -10,7 +10,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.Registry;
 import net.minecraft.core.cauldron.CauldronInteraction;
 import net.minecraft.core.component.DataComponentType;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -20,6 +22,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
+import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -59,7 +62,18 @@ public class LargeBucket implements RuleImpl {
 
     private static int modifyBucketContentCount(@NonNull ItemStack stack, int modify) {
         var newValue = Math.max(stack.getOrDefault(BUCKET_CONTENT_COUNT, 1) + modify, 1);
-        stack.set(BUCKET_CONTENT_COUNT, newValue);
+
+        if (newValue <= 1) {
+            // 删掉这些自定义数据，防止丢不进 InfinityInventory
+            stack.remove(BUCKET_CONTENT_COUNT);
+            stack.remove(DataComponents.LORE);
+        } else {
+            stack.set(BUCKET_CONTENT_COUNT, newValue);
+            stack.set(DataComponents.LORE, new ItemLore(List.of(
+                    Component.literal("内容量: " + newValue).withStyle(style -> style.withItalic(false))
+            )));
+        }
+
         return newValue;
     }
 
