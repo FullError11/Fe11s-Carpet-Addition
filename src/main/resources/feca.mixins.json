@@ -9,6 +9,7 @@
         "LivingEntityMixin",
         "ObserverBlockMixin",
         "RemoveBlockGoalMixin",
+        "ServerGamePacketListenerImplMixin",
         "ServerLevelMixin",
         "SolidBucketItemMixin",
         "SugarCaneBlockMixin",

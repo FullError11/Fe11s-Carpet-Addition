@@ -47,6 +47,7 @@
 
     "feca.msg.common.enterCommand": "输入命令到聊天框",
     "feca.msg.common.pageNumberOutOfRange": "页码 %d 不存在，请输入 %d ~ %d 间的数字",
+    "feca.msg.common.inventoryFull": "背包内无空间",
 
     "feca.msg.cmd.util.requireExecByPlayer.err": "该命令必须由玩家执行",
 
