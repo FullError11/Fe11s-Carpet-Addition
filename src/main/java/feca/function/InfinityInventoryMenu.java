@@ -4,6 +4,7 @@ import feca.FeCA;
 import feca.function.utils.InfinityInventoryCraftHelper;
 import feca.function.utils.InfinityInventoryStorage;
 import feca.rule.utils.RuleImpl;
+import feca.utils.CraftingRecipeCaches;
 import feca.utils.PlayerInventoryHelper;
 import feca.utils.ShulkerBoxAccessor;
 import feca.utils.ShulkerBoxPacker;
@@ -864,8 +865,80 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
     /// 潜影盒槽：显示并取出库存中的空潜影盒
     private final class ShulkerBoxVirtualSlot extends AbstractItemVirtualSlot {
         // TODO: 匹配染色的潜影盒
-        // TODO: 在潜影盒不足时退化到通过合成创建 (需要库存存在箱子和潜影盒)
         public ShulkerBoxVirtualSlot(int slotIndex) { super(slotIndex); }
+
+        @Override
+        public void clicked(@NonNull ContainerInput input, int buttonNum) {
+            // 取盒前若库存为空，先用材料补一个（光标有物品时是存入，不需要补）
+            if (input == ContainerInput.QUICK_MOVE
+                    || (input == ContainerInput.PICKUP && getCarried().isEmpty())) {
+                craftShulkerBoxIfMissing();
+            }
+            super.clicked(input, buttonNum);
+        }
+
+        @Override
+        protected @NonNull ItemStack buildIcon() {
+            var stack = item().getDefaultInstance();
+            int count = count();
+            int shown = count > 0 ? count : craftableCount();
+
+            // 有库存时显示库存量，需要合成时显示按 best 配方估算的可合成数量
+            var label = Component.translatable(count > 0
+                    ? "feca.msg.gui.infinityInventory.label.storage"
+                    : "feca.msg.gui.infinityInventory.label.craftable");
+
+            return LoreUtils.applyLore(stack,
+                    LoreUtils.line(LoreUtils.label(label), LoreUtils.value(shown)),
+                    LoreUtils.buildCountBreakdown(item(), shown),
+                    LoreUtils.separator(),
+                    LoreUtils.action(
+                            Component.translatable("feca.msg.gui.infinityInventory.key.left"),
+                            Component.translatable("feca.msg.gui.infinityInventory.action.takeStack")));
+        }
+
+        /// 库存没有潜影盒时，按 best 配方合成一个；没有配方或材料不足则跳过
+        private void craftShulkerBoxIfMissing() {
+            if (count() > 0) return;
+
+            var recipes = shulkerRecipes();
+            if (recipes == null) return;
+
+            var best = recipes.best(this::countOf);
+            if (best.isEmpty()) return;
+
+            var input = CraftingRecipeCaches.Recipes.inputFor(best.get(), this::countOf);
+            if (input == null) return;
+
+            var crafted = InfinityInventoryCraftHelper.tryCraftSafelyCount(
+                    storage, best.get(), input, 1,
+                    stack -> { if (!stack.isEmpty()) storage.push(stack); },
+                    stack -> { if (!stack.isEmpty()) storage.push(stack); });
+            if (crafted.getSecond() <= 0) return;
+
+            storage.push(crafted.getFirst().copyWithCount(crafted.getSecond()));
+        }
+
+        /// 按 best 配方估算的可合成数量
+        private int craftableCount() {
+            var recipes = shulkerRecipes();
+            if (recipes == null) return 0;
+
+            return recipes.best(this::countOf)
+                    .map(recipe -> CraftingRecipeCaches.Recipes.craftable(recipe, this::countOf))
+                    .orElse(0);
+        }
+
+        /// 服务端下缓存的潜影盒配方；客户端返回 {@code null}
+        private CraftingRecipeCaches.@Nullable Recipes shulkerRecipes() {
+            if (!(player.level() instanceof ServerLevel level)) return null;
+            return CraftingRecipeCaches.getRecipe(Items.SHULKER_BOX, level.recipeAccess());
+        }
+
+        /// 物品在库存中的数量，供 {@link CraftingRecipeCaches.Recipes#best} 使用
+        private int countOf(@NonNull ItemStack stack) {
+            return storage.getCount(stack.getItem());
+        }
 
         @Override protected Item item() { return Items.SHULKER_BOX; }
         @Override protected int count() { return storage.getCount(item()); }
@@ -1167,14 +1240,18 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
         }
 
         /// 把 stack 的 lore 设置为给定行
+        /// @apiNote 会自动移除空行 ({@link Component#getString()} 为空)
         @Contract("_, _ -> param1")
         static @NonNull ItemStack applyLore(@NonNull ItemStack stack, Component... loreLines) {
-            return applyLore(stack, List.of(loreLines));
+            return applyLore(stack, new ArrayList<>(List.of(loreLines)));
         }
 
         /// 把 stack 的 lore 设置为给定行
+        /// @param loreLines 要求 List 可以执行 {@link List#remove}
+        /// @apiNote 会自动移除空行 ({@link Component#getString()} 为空)
         @Contract("_, _ -> param1")
-        static @NonNull ItemStack applyLore(@NonNull ItemStack stack, List<Component> loreLines) {
+        static @NonNull ItemStack applyLore(@NonNull ItemStack stack, @NonNull List<Component> loreLines) {
+            loreLines.removeIf(component -> component.getString().isEmpty());
             stack.set(DataComponents.LORE, new ItemLore(loreLines));
             return stack;
         }

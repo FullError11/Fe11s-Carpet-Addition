@@ -5,6 +5,7 @@ import carpet.CarpetServer;
 import feca.command.FeCADebug;
 import feca.command.arguments.custom.CustomArgumentTypes;
 import feca.registry.OnInitializeCallbackRegistry;
+import feca.registry.OnReloadCallbackRegistry;
 import feca.registry.OnServerLoadedCallbackRegistry;
 import feca.rule.Rules;
 import feca.rule.utils.RuleTranslator;
@@ -81,6 +82,11 @@ public class FeCA implements ModInitializer, CarpetExtension {
 	public void onServerClosed(MinecraftServer server) {
 		CarpetExtension.super.onServerClosed(server);
 		CONFIG.saveAndRelease();
+	}
+
+	@Override
+	public void onReload(MinecraftServer server) {
+		OnReloadCallbackRegistry.CALLBACKS.forEach(Runnable::run);
 	}
 
 	@Override
