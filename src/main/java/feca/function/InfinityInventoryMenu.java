@@ -1,9 +1,9 @@
 package feca.function;
 
+import feca.FeCA;
 import feca.function.utils.InfinityInventoryCraftHelper;
-import feca.function.utils.InfinityInventoryTransferHelper;
-import feca.rule.utils.RuleImpl;
 import feca.function.utils.InfinityInventoryStorage;
+import feca.rule.utils.RuleImpl;
 import feca.utils.PlayerInventoryHelper;
 import feca.utils.ShulkerBoxAccessor;
 import feca.utils.ShulkerBoxPacker;
@@ -13,1216 +13,1170 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.Container;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.stats.Stats;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.*;
+import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.ContainerInput;
+import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
-import net.minecraft.world.item.crafting.*;
+import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
 import net.minecraft.world.level.block.entity.ShulkerBoxBlockEntity;
+import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.IntFunction;
 
-public class InfinityInventoryMenu implements RuleImpl {
-// Menu:
-//    [物品(00)][物品(01)][物品(02)][物品(03)][物品(04)][物品(05)][合成模板输入(06)][合成模板输入(07)][合成模板输入(08)]
-//    [物品(09)][物品(10)][物品(11)][物品(12)][物品(13)][物品(14)][合成模板输入(15)][合成模板输入(16)][合成模板输入(17)]
-//    [物品(18)][物品(19)][物品(20)][物品(21)][物品(22)][物品(23)][合成模板输入(24)][合成模板输入(25)][合成模板输入(26)]
-//    [物品(27)][物品(28)][物品(29)][物品(30)][物品(31)][物品(32)][清空合成模板(33)][合成模板输出(34)][物品匹配输出(35)]
-//    [物品(36)][物品(37)][物品(38)][物品(39)][物品(40)][物品(41)][操作（占位）(42)][操作（占位）(43)][   潜影盒  (44)]
-//    [物品(45)][物品(46)][物品(47)][物品(48)][物品(49)][物品(50)][  上一页   (51)][   输入槽  (52)][  下一页   (53)]
+public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
 
-    public static class OperationMenu extends ChestMenu {
+    private final SimpleContainer menuContainer;
+    /// 打开菜单的玩家
+    private final Player player;
+    /// 该玩家的无限库存
+    private final InfinityInventoryStorage storage;
 
-        private final Player player;
-        private final SimpleContainer menuContainer;
-        private final InventoryPageController pages = new InventoryPageController();
-        private final SlotRefreshTracker tracker = new SlotRefreshTracker();
+    /// 当前页码与页内库存视图
+    private final Page page = new Page();
 
+    /// 全部虚拟槽位，下标与容器槽位号一致
+    private final VirtualSlot[] virtualSlots;
+    /// 物品槽
+    private final ItemVirtualSlot[] itemSlots = new ItemVirtualSlot[Layout.ITEM_SLOTS];
+    /// 合成模板输入槽
+    private final CraftTemplateInputVirtualSlot[] craftTemplateInputSlots =
+            new CraftTemplateInputVirtualSlot[Layout.CRAFT_TP_INPUT_SLOTS];
 
+    /// 当前合成模板的解析结果（输入 / 产物 / 配方）
+    private CraftData craftData = CraftData.newDefault();
 
-        public OperationMenu(int syncId, Inventory playerInv, SimpleContainer container) {
-            super(MenuType.GENERIC_9x6, syncId, playerInv, container, Layout.ROWS);
-            this.player = playerInv.player;
-            this.menuContainer = container;
-            rebuildSlots(playerInv);
-            initPlaceholders();
-            refreshInventoryView();
+    public InfinityInventoryMenu(int containerId, Inventory inventory, SimpleContainer container) {
+        super(Layout.MENU_TYPE, containerId, inventory, container, Layout.ROWS);
+
+        this.menuContainer = container;
+        this.player = inventory.player;
+        this.storage = InfinityInventory.getStorage(this.player);
+        this.page.updatePageData();
+        // 依赖 pages 内部数据，在 page.updatePageData() 后初始化
+        this.virtualSlots = buildVirtualSlots();
+
+        refreshAllSlots();
+    }
+
+    public InfinityInventoryMenu(int syncId, Inventory playerInv) {
+        this(syncId, playerInv, new SimpleContainer(Layout.SLOTS));
+    }
+
+    /// 为玩家打开无限库存菜单
+    public static void open(@NonNull Player player) {
+        player.openMenu(new SimpleMenuProvider(
+                (syncId, inv, _) -> new InfinityInventoryMenu(syncId, inv),
+                Component.translatable("feca.msg.gui.infinityInventory.title")
+        ));
+    }
+
+    @Override
+    public void clicked(int slotIndex, int buttonNum, @NonNull ContainerInput containerInput, @NonNull Player player) {
+        FeCA.LOGGER.debug("clicked: slot index: {}", slotIndex);
+        // 虚拟槽位自行处理点击，其余槽位交给原版
+        if (slotIndex < virtualSlots.length && slotIndex >= 0) {
+            virtualSlots[slotIndex].clicked(containerInput, buttonNum);
+
+            page.update();
+        } else {
+            super.clicked(slotIndex, buttonNum, containerInput, player);
+
+            // 双击（PICKUP_ALL）会把虚拟槽中的同类物品收集到光标，绕过 VirtualSlot.clicked，
+            // 因此需要重算配方并重建图标（否则模板槽会显示为空槽而不是占位符）
+            if (containerInput == ContainerInput.PICKUP_ALL) {
+                craftTemplateInputChange();
+                page.update();
+            }
+        }
+    }
+
+    @Override
+    public @NonNull ItemStack quickMoveStack(@NonNull Player player, int slotIndex) {
+        // 背包 -> 库存：Shift 点击背包物品时存入库存
+
+        // 在 clicked 的逻辑限定下，只有 背包 -> 库存 的 QUICK_MOVE 会进入这个函数
+        var stack = slots.get(slotIndex).getItem();
+        var stackCopy = stack.copy();
+
+        if (!storage.push(stack) && stack.getCount() == stackCopy.getCount()) {
+            // 完全没存进去：通常是物品带有不支持的数据组件（NBT）
+            sendStoreFailure();
+            return ItemStack.EMPTY;
         }
 
-        public OperationMenu(int syncId, Inventory playerInv) {
-            this(syncId, playerInv, new SimpleContainer(Layout.CONTAINER_SLOT_COUNT));
+        page.update();
+        return stackCopy;
+    }
+
+    /// 菜单关闭时，通知需要归还物品的虚拟槽位
+    @Override
+    public void removed(@NonNull Player player) {
+        if (!(player instanceof ServerPlayer serverPlayer)) return;
+
+        for (var virtualSlot : virtualSlots) {
+            if (virtualSlot instanceof VirtualSlot.Removed removed) {
+                removed.removed(serverPlayer);
+            }
+        }
+    }
+
+    /// 提示「无法存入库存」：通常表示物品带有不支持的数据组件（NBT）
+    private void sendStoreFailure() {
+        sendMenuMessage(Component.translatable(
+                "feca.msg.gui.infinityInventory.err.unsupportedData").withStyle(ChatFormatting.RED));
+    }
+
+    /// 只在服务端发送聊天提示，避免客户端预测执行 `clicked` 时重复提示
+    private void sendMenuMessage(@NonNull Component message) {
+        if (player.level().isClientSide()) return;
+        player.sendSystemMessage(message);
+    }
+
+    // =========================================================
+    // SLOT LAYOUT
+    // =========================================================
+
+    /// 构建全部虚拟槽位
+    private VirtualSlot[] buildVirtualSlots() {
+        return new VirtualSlotsBuilder()
+                .pushItems(6, ItemVirtualSlot::new).pushCraftInputs(3, CraftTemplateInputVirtualSlot::new)
+                .pushItems(6, ItemVirtualSlot::new).pushCraftInputs(3, CraftTemplateInputVirtualSlot::new)
+                .pushItems(6, ItemVirtualSlot::new).pushCraftInputs(3, CraftTemplateInputVirtualSlot::new)
+                .pushItems(6, ItemVirtualSlot::new)
+                .push(DoCraftVirtualSlot::new)
+                .push(CraftTemplateOutputVirtualSlot::new)
+                .push(CraftTemplateMatchVirtualSlot::new)
+                .pushItems(6, ItemVirtualSlot::new).push(NoneVirtualSlot::new, 2).push(ShulkerBoxVirtualSlot::new)
+                .pushItems(6, ItemVirtualSlot::new).push(PrevPageVirtualSlot::new).push(ItemInputVirtualSlot::new).push(NextPageVirtualSlot::new)
+                .build();
+    }
+
+    /// 刷新所有槽位
+    private void refreshAllSlots() {
+        for (VirtualSlot virtualSlot : virtualSlots) {
+            virtualSlot.updateIcon();
+        }
+    }
+
+    /// 刷新物品槽，只应该在翻页时使用
+    private void refreshItemSlots() {
+        for (ItemVirtualSlot slot : itemSlots) {
+            slot.updateIcon();
+        }
+    }
+
+    // =========================================================
+    // CRAFT
+    // =========================================================
+
+    /// 把 3×3 模板槽转换为配方的 {@link CraftingInput}；
+    /// 占位符与空槽按空处理，且只取物品的默认实例（不带堆叠与组件）
+    private @NonNull CraftingInput getCraftingInput() {
+        final var placeholder = CraftTemplateInputVirtualSlot.placeholder();
+
+        var items = new ArrayList<ItemStack>(Layout.CRAFT_TP_INPUT_SLOTS);
+        for (var slot : craftTemplateInputSlots) {
+            var item = slot.getSlotItem();
+            if (item.is(placeholder)) {
+                items.add(ItemStack.EMPTY);
+            } else {
+                // 明确仅支持 无堆叠，无NBT 的物品
+                var normalItem = item.getItem().getDefaultInstance();
+                items.add(normalItem);
+            }
         }
 
+        return CraftingInput.of(
+                Layout.CRAFT_TP_INPUT_SLOT_COLS,
+                Layout.CRAFT_TP_INPUT_SLOT_ROWS,
+                items
+        );
+    }
 
+    /// 模板变化后重新检索配方并刷新 {@link #craftData}
+    private void craftTemplateInputChange() {
+        var pLevel = player.level();
+        if (pLevel.isClientSide() || !(pLevel instanceof ServerLevel level)) return;
+
+        craftData = CraftData.of(level, getCraftingInput());
+
+        if (FeCA.DEBUG) {
+            var log = new StringBuilder("Recipe: ");
+            for (int i = 0; i < craftData.input.height(); i++) {
+                log.append("\n<").append(i).append("> ");
+                for (int j = 0; j < craftData.input.width(); j++) {
+                    log.append("[").append(craftData.input.getItem(j, i)).append("]");
+                }
+            }
+            log.append("\noutput: ").append(craftData.output);
+            FeCA.LOGGER.debug(log.toString());
+        }
+    }
+
+    /// 当前合成模板的解析结果（输入、产物、命中的配方）
+    ///
+    /// @param input               配方的输入
+    /// @param output              配方的输出
+    /// @param recipe              匹配到的配方，未匹配时为 {@code null}
+    /// @param inputMonotonousItem 配方输入为单调时的输入物品，如果输入非单调，则为 AIR
+    private record CraftData(
+            CraftingInput input,
+            ItemStack output,
+            @Nullable RecipeHolder<CraftingRecipe> recipe,
+            Item inputMonotonousItem
+    ) {
+
+        @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+        public boolean isMonotonousInput() {
+            return inputMonotonousItem != Items.AIR;
+        }
+
+        /// 是否匹配到配方且产物非空
+        @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+        public boolean isCraftable() {
+            return recipe != null && !output.isEmpty();
+        }
+
+        @Contract(" -> new")
+        public static @NonNull CraftData newDefault() {
+            return new CraftData(
+                    CraftingInput.of(
+                            Layout.CRAFT_TP_INPUT_SLOT_COLS,
+                            Layout.CRAFT_TP_INPUT_SLOT_ROWS,
+                            Collections.nCopies(Layout.CRAFT_TP_INPUT_SLOTS, ItemStack.EMPTY)
+                    ),
+                    ItemStack.EMPTY,
+                    null,
+                    Items.AIR
+            );
+        }
+
+        /// 按当前输入检索配方并装配产物
+        @Contract("_, _ -> new")
+        public static @NonNull CraftData of(@NonNull ServerLevel level, @NonNull CraftingInput input) {
+            var recipeOpt = level.recipeAccess().getRecipeFor(RecipeType.CRAFTING, input, level);
+            var recipe = recipeOpt.orElse(null);
+            ItemStack output = recipe == null ? ItemStack.EMPTY : recipe.value().assemble(input);
+
+            return new CraftData(input, output, recipe, monotonousItem(input));
+        }
+
+        /// @return 输入为单调时的单调物品；非单调或输入为空时返回 {@link Items#AIR}
+        private static @NonNull Item monotonousItem(@NonNull CraftingInput input) {
+            Item monotonousItem = Items.AIR;
+            boolean found = false;
+            for (int i = 0; i < input.size(); i++) {
+                ItemStack stack = input.getItem(i);
+                if (stack.isEmpty()) {
+                    continue;
+                }
+                Item item = stack.getItem();
+                if (!found) {
+                    monotonousItem = item;
+                    found = true;
+                } else if (monotonousItem != item) {
+                    return Items.AIR;
+                }
+            }
+            return monotonousItem;
+        }
+    }
+
+    // =========================================================
+    // VIRTUAL SLOT
+    // =========================================================
+
+    /// 虚拟槽位：每个实例对应一个固定槽位号，用容器图标模拟交互
+    private abstract class VirtualSlot {
+        protected final int slotIndex;
+
+        private VirtualSlot(int slotIndex) {
+            this.slotIndex = slotIndex;
+        }
+
+        /// 处理点击；{@code input} 为原版点击类型，{@code buttonNum} 为按键
+        public abstract void clicked(ContainerInput input, int buttonNum);
+
+        /// 重新生成并写入图标
+        public void updateIcon() {
+            menuContainer.setItem(slotIndex, buildIcon());
+        }
+
+        /// 生成当前显示的图标
+        protected abstract ItemStack buildIcon();
+
+        /// 读取槽位当前物品
+        protected ItemStack getSlotItem() { return menuContainer.getItem(slotIndex); }
+        /// 写入槽位当前物品
+        protected void setSlotItem(ItemStack stack) { menuContainer.setItem(slotIndex, stack); }
+
+        /// 把物品交给玩家：背包放不下时退回库存并提示
+        ///
+        /// 注意：创造模式下 {@link Inventory#add} 放不下时会直接丢弃并返回 `true`，
+        /// 因此先用 {@link PlayerInventoryHelper#canFullyFit} 预判
+        protected void giveToPlayer(@NonNull ItemStack stack) {
+            if (stack.isEmpty()) return;
+
+            if (!PlayerInventoryHelper.canFullyFit(player, stack)) {
+                // 放不下：原样退回库存；库存也收不下时交给玩家，避免静默丢失
+                if (!storage.push(stack)) {
+                    PlayerInventoryHelper.giveOrDrop(player, stack);
+                }
+                sendMenuMessage(
+                        Component.translatable("feca.msg.gui.infinityInventory.err.inventoryFull")
+                                .withStyle(ChatFormatting.RED));
+                return;
+            }
+
+            PlayerInventoryHelper.giveOrDrop(player, stack);
+        }
+
+        /// 把光标物品存入库存：左键全部 / 右键一个
+        protected void depositCarried(int buttonNum) {
+            var carried = getCarried();
+            if (carried.isEmpty()) return;
+
+            if (buttonNum == 0) {
+                if (!storage.push(carried)) sendStoreFailure();
+            } else if (buttonNum == 1) {
+                var buf = carried.split(1);
+                if (!storage.push(buf)) {
+                    carried.grow(buf.getCount());
+                    sendStoreFailure();
+                }
+            }
+        }
+
+        /// 菜单关闭时需要归还物品的槽位实现此接口
+        interface Removed {
+            void removed(@NonNull ServerPlayer player);
+        }
+    }
+
+    private class NoneVirtualSlot extends VirtualSlot {
+        public NoneVirtualSlot(int slotIndex) { super(slotIndex); }
+        @Override public void clicked(ContainerInput input, int buttonNum) {}
+        @Override protected ItemStack buildIcon() { return ItemStack.EMPTY; }
+    }
+
+    private abstract class AbstractItemVirtualSlot extends VirtualSlot {
+        public AbstractItemVirtualSlot(int slotIndex) {
+            super(slotIndex);
+        }
 
         @Override
-        public void removed(@NonNull Player player) {
-            if (!player.level().isClientSide()) {
-                // 合成模板输入槽内的实际物品归还玩家
-                for (int s : Layout.RECIPE_SLOTS) {
-                    ItemStack stack = menuContainer.getItem(s);
-                    if (stack.isEmpty() || MenuPlaceholders.isInput(stack)) {
-                        menuContainer.setItem(s, ItemStack.EMPTY);
-                        continue;
+        public void clicked(@NonNull ContainerInput input, int buttonNum) {
+            // 左键取一组 / 右键取一盒；
+            // 光标已有物品时存入库存
+            switch (input) {
+                case PICKUP -> {
+                    if (!getCarried().isEmpty()) {
+                        depositCarried(buttonNum);
+                    } else if (buttonNum == 0) {
+                        setCarried(takeStack());
+                    } else if (buttonNum == 1) {
+                        setCarried(takeBox());
                     }
-                    if (!player.getInventory().add(stack)) {
-                        player.drop(stack, false);
-                    }
-                    menuContainer.setItem(s, ItemStack.EMPTY);
                 }
-                // 清空动态占位槽（重开时由 initPlaceholders 重建）
-                menuContainer.setItem(Layout.SLOT_OUTPUT,           ItemStack.EMPTY);
-                menuContainer.setItem(Layout.SLOT_MATCH,            ItemStack.EMPTY);
-                menuContainer.setItem(Layout.SLOT_SHULKER,          ItemStack.EMPTY);
-                menuContainer.setItem(Layout.SLOT_PLACEHOLDERS[0],  ItemStack.EMPTY);
-                menuContainer.setItem(Layout.SLOT_PLACEHOLDERS[1],  ItemStack.EMPTY);
+                case QUICK_MOVE -> {
+                    if (buttonNum == 0) giveToPlayer(takeStack());
+                    else if (buttonNum == 1) giveToPlayer(takeBox());
+                }
+                default -> {}
             }
-            super.removed(player);
+        }
+
+        @Contract(pure = true)
+        @Override
+        protected @NonNull ItemStack buildIcon() {
+            return LoreUtils.applyLore(item().getDefaultInstance(),
+                    LoreUtils.line(
+                            LoreUtils.label(Component.translatable("feca.msg.gui.infinityInventory.label.storage")),
+                            LoreUtils.value(count())),
+                    LoreUtils.buildCountBreakdown(item(), count()),
+                    LoreUtils.separator(),
+                    LoreUtils.action(
+                            Component.translatable("feca.msg.gui.infinityInventory.key.left"),
+                            Component.translatable("feca.msg.gui.infinityInventory.action.takeStack")),
+                    LoreUtils.action(
+                            Component.translatable("feca.msg.gui.infinityInventory.key.right"),
+                            Component.translatable("feca.msg.gui.infinityInventory.action.takeBox"))
+            );
+        }
+
+        /// 从库存取出一组
+        private @NonNull ItemStack takeStack() {
+            var item = item();
+            var popCount = storage.tryPop(item, item.getDefaultMaxStackSize());
+            if (popCount > 0)
+                return new ItemStack(item, popCount);
+            return ItemStack.EMPTY;
+        }
+        /// 从库存取出一盒：消耗一个空潜影盒并把物品装入
+        private @NonNull ItemStack takeBox() {
+            if (count() <= 0) return ItemStack.EMPTY;
+            var item = item();
+
+            // 物品本身是潜影盒时退化为取一组
+            if (Block.byItem(item) instanceof ShulkerBoxBlock) return takeStack();
+
+            if (storage.pop(Items.SHULKER_BOX, 1)) {
+                var shulker = Items.SHULKER_BOX.getDefaultInstance();
+
+                try (var box = ShulkerBoxAccessor.openAutoSaved(shulker)) {
+                    if (storage.tryPopTo(item, Integer.MAX_VALUE, box.list()) > 0) {
+                        return shulker;
+                    }
+                }
+            } else {
+                sendMenuMessage(Component.translatable("feca.msg.gui.infinityInventory.err.noShulker")
+                        .withStyle(ChatFormatting.RED));
+            }
+            return ItemStack.EMPTY;
+        }
+
+        /// 槽位对应的物品
+        protected abstract Item item();
+        /// 槽位对应的库存数量
+        protected abstract int count();
+    }
+
+    /// 库存物品槽：显示并取出库存中的某一项
+    private final class ItemVirtualSlot extends AbstractItemVirtualSlot {
+        private final int storageIndex;
+
+        public ItemVirtualSlot(int slotIndex, int storageIndex) {
+            if (storageIndex >= Layout.ITEM_SLOTS) {
+                throw new IllegalArgumentException("storageIndex out of bounds");
+            }
+
+            super(slotIndex);
+            this.storageIndex = storageIndex;
+            itemSlots[this.storageIndex] = this;
+
+            FeCA.LOGGER.debug("itemSlots[{}]: (slot{}){}", storageIndex, slotIndex, this);
+        }
+
+        private InfinityInventoryStorage.View view() {
+            return page.at(storageIndex);
+        }
+
+        @Override protected Item item() { return view().item(); }
+        @Override protected int count() { return view().count(); }
+    }
+
+    /// 合成模板槽：存放配方输入，关闭菜单时归还玩家
+    private final class CraftTemplateInputVirtualSlot extends VirtualSlot implements VirtualSlot.Removed {
+        public CraftTemplateInputVirtualSlot(int slotIndex, int craftIndex) {
+            if (craftIndex >= Layout.CRAFT_TP_INPUT_SLOTS) {
+                throw new IllegalArgumentException("craftIndex out of bounds");
+            }
+
+            super(slotIndex);
+            craftTemplateInputSlots[craftIndex] = this;
+
+            FeCA.LOGGER.debug("craftTemplateInputSlots[{}]: (slot{}){}", craftIndex, slotIndex, this);
         }
 
         @Override
-        public void clicked(int slotId, int buttonNum, @NonNull ContainerInput containerInput, @NonNull Player player) {
-            // 交换 / 快速合成一律不处理
-            if (containerInput == ContainerInput.SWAP) {
-                return;
-            }
-            if (containerInput == ContainerInput.QUICK_CRAFT
-                    && slotId != AbstractContainerMenu.SLOT_CLICKED_OUTSIDE) {
-                return;
-            }
+        public void clicked(ContainerInput input, int buttonNum) {
+            var carried = getCarried();
+            var stack = menuContainer.getItem(slotIndex);
 
-            // 容器外槽位交回父类
-            if (slotId < 0 || slotId >= Layout.CONTAINER_SLOT_COUNT) {
-                super.clicked(slotId, buttonNum, containerInput, player);
-                return;
-            }
+            if (input == ContainerInput.PICKUP) {
+                if (carried.isEmpty()) {
+                    // 容器 -> 光标
+                    if (stack.isEmpty() || stack.is(placeholder())) return;
 
-            // ---- 物品展示区 ----
-            if (Layout.isItemSlot(slotId)) {
-                if (!player.level().isClientSide()) {
-                    handleItemClick(slotId, buttonNum, containerInput);
+                    if (buttonNum == 0) {
+                        // 左键，全部移出
+                        setCarried(stack);
+                        setSlotItem(newPlaceholder());
+                    } else if (buttonNum == 1) {
+                        // 右键，移出一半
+                        setCarried(stack.split((stack.getCount() + 1) / 2));
+                        if (stack.isEmpty()) {
+                            setSlotItem(newPlaceholder());
+                        }
+                    }
+
+                    craftTemplateInputChange();
+                } else {
+                    // 光标 -> 容器
+                    if (stack.isEmpty() || stack.is(placeholder())) {
+                        // 空/占位符
+                        if (buttonNum == 0) {
+                            setSlotItem(carried);
+                            setCarried(ItemStack.EMPTY);
+                        } else if (buttonNum == 1) {
+                            setSlotItem(carried.split(1));
+                        }
+
+                        craftTemplateInputChange();
+                    } else if (ItemStack.isSameItemSameComponents(carried, stack)) {
+                        // 相同物品
+                        if (buttonNum == 0) {
+                            // 左键，尽可能把光标上的物品放入
+                            var stackCanGrows = stack.getMaxStackSize() - stack.getCount();
+                            if (stackCanGrows > 0) {
+                                if (stackCanGrows >= carried.getCount()) {
+                                    // 可以全部放入
+                                    stack.grow(carried.getCount());
+                                    setCarried(ItemStack.EMPTY);
+                                } else {
+                                    // 只能放入部分
+                                    stack.grow(stackCanGrows);
+                                    carried.shrink(stackCanGrows);
+                                }
+                            }
+                        } else if (buttonNum == 1) {
+                            // 右键，放入一个
+                            if (stack.getCount() < stack.getMaxStackSize()) {
+                                stack.grow(1);
+                                carried.shrink(1);
+                            }
+                        }
+
+                        craftTemplateInputChange();
+                    } else {
+                        // 不同物品：与光标交换
+                        setSlotItem(carried);
+                        setCarried(stack);
+                        craftTemplateInputChange();
+                    }
                 }
-                return;
-            }
+            } else if (input == ContainerInput.QUICK_MOVE) {
+                if (stack.isEmpty() || stack.is(placeholder())) return;
 
-            // ---- 合成模板输入槽 ----
-            if (Layout.isRecipeSlot(slotId)) {
-                if (containerInput == ContainerInput.PICKUP
-                        && !getCarried().isEmpty()
-                        && MenuPlaceholders.isInput(menuContainer.getItem(slotId))) {
-                    // 光标有物品时点击输入槽：先清掉占位符，再把物品放进去
-                    menuContainer.setItem(slotId, ItemStack.EMPTY);
-                }
-                super.clicked(slotId, buttonNum, containerInput, player);
-                if (!player.level().isClientSide()) {
-                    ensureInputPlaceholders();
-                    onRecipeChanged();
-                }
-                return;
-            }
-
-            // ---- 合成按钮 ----
-            if (slotId == Layout.SLOT_CRAFT) {
-                if (!player.level().isClientSide()) {
-                    handleCraft(buttonNum, containerInput);
-                }
-                return;
-            }
-
-            // ---- 合成输出 ----
-            if (slotId == Layout.SLOT_OUTPUT) {
-                if (!player.level().isClientSide()) {
-                    handleTakeOutput(buttonNum, containerInput);
-                }
-                return;
-            }
-
-            // ---- 上一页 ----
-            if (slotId == Layout.SLOT_PREV_PAGE) {
-                if (!player.level().isClientSide()
-                        && containerInput == ContainerInput.PICKUP
-                        && buttonNum == 0
-                        && pages.prev()) {
-                    refreshInventoryView();
-                }
-                return;
-            }
-
-            // ---- 下一页 ----
-            if (slotId == Layout.SLOT_NEXT_PAGE) {
-                if (!player.level().isClientSide()
-                        && containerInput == ContainerInput.PICKUP
-                        && buttonNum == 0) {
-                    pages.next();
-                    refreshInventoryView();
-                }
-                return;
-            }
-
-            // ---- 输入槽（把光标物品放入存储） ----
-            if (slotId == Layout.SLOT_INPUT) {
-                if (!player.level().isClientSide() && containerInput == ContainerInput.PICKUP) {
-                    ItemStack carried = getCarried();
-                    if (!carried.isEmpty()) {
-                        int original = carried.getCount();
-                        storage().push(carried);
-                        if (carried.getCount() < original) {
-                            setCarried(carried.isEmpty() ? ItemStack.EMPTY : carried);
-                            refreshInventoryView();
+                if (buttonNum == 0) {
+                    // 左键：全部移动到背包
+                    if (PlayerInventoryHelper.canFullyFit(player, stack)) {
+                        PlayerInventoryHelper.giveOrDrop(player, stack);
+                        setSlotItem(newPlaceholder());
+                    } else {
+                        sendMenuMessage(
+                                Component.translatable("feca.msg.gui.infinityInventory.err.inventoryFull")
+                                        .withStyle(ChatFormatting.RED));
+                    }
+                } else if (buttonNum == 1) {
+                    // 右键：移出到只剩一个
+                    if (stack.getCount() > 1) {
+                        var buf = stack.split(stack.getCount() - 1);
+                        if (PlayerInventoryHelper.canFullyFit(player, buf)) {
+                            PlayerInventoryHelper.giveOrDrop(player, buf);
+                        } else {
+                            stack.grow(buf.getCount());
+                            sendMenuMessage(
+                                    Component.translatable("feca.msg.gui.infinityInventory.err.inventoryFull")
+                                            .withStyle(ChatFormatting.RED));
                         }
                     }
                 }
-                return;
-            }
 
-            // ---- 潜影盒槽 ----
-            if (slotId == Layout.SLOT_SHULKER) {
-                if (!player.level().isClientSide()) {
-                    handleItemClick(Layout.SLOT_SHULKER, buttonNum, containerInput);
-                }
-                return;
+                craftTemplateInputChange();
             }
-
-            // ---- 物品匹配输出槽 ----
-            if (slotId == Layout.SLOT_MATCH) {
-                if (!player.level().isClientSide()) {
-                    handleTakeBarrier(buttonNum, containerInput);
-                }
-                return;
-            }
-
-            // ---- 纯占位按钮 ----
-            if (Layout.isPlaceholder(slotId)) {
-                return;
-            }
-
-            super.clicked(slotId, buttonNum, containerInput, player);
         }
 
         @Override
-        public @NonNull ItemStack quickMoveStack(@NonNull Player player, int index) {
-            if (index < 0 || index >= this.slots.size()) return ItemStack.EMPTY;
-            Slot slot = this.slots.get(index);
-            if (!slot.hasItem()) return ItemStack.EMPTY;
+        public void removed(@NonNull ServerPlayer player) {
+            // 关闭菜单时把模板物品退回背包（放不下则掉落）
+            var stack = getSlotItem();
+            if (stack.isEmpty() || stack.is(placeholder())) return;
+            player.getInventory().placeItemBackInInventory(stack);
+        }
 
-            // 玩家背包 → 无限库存
-            if (index >= Layout.CONTAINER_SLOT_COUNT) {
-                return depositToStorage(slot);
+        @Contract(pure = true)
+        @Override
+        protected @NonNull ItemStack buildIcon() {
+            // 空槽显示占位符，否则显示物品本身
+            var item = getSlotItem();
+            if (item.isEmpty()) {
+                return newPlaceholder();
+            }
+            return item;
+        }
+
+        private static @NonNull ItemStack newPlaceholder() {
+            var s = placeholder().getDefaultInstance();
+            s.set(DataComponents.CUSTOM_NAME,
+                    Component.translatable("feca.msg.gui.infinityInventory.placeholder.craftInput"));
+            return s;
+        }
+
+        public static Item placeholder() { return Items.STRUCTURE_VOID; }
+    }
+
+    /// 合成按钮
+    private final class DoCraftVirtualSlot extends VirtualSlot {
+        public DoCraftVirtualSlot(int slotIndex) { super(slotIndex); }
+
+
+        @Override
+        public void clicked(@NonNull ContainerInput input, int buttonNum) {
+            // 左键 / Shift 左键：合成一组；
+            // 右键 / Shift 右键：合成一盒；
+            // 光标有物品时先存入库存，与物品槽的取物行为一致
+
+            if (!craftData.isCraftable()) return;
+
+            switch (input) {
+                case PICKUP -> {
+                    if (!getCarried().isEmpty()) {
+                        depositCarried(buttonNum);
+                        return;
+                    }
+                    if (buttonNum == 0) setCarried(craftStack());
+                    else if (buttonNum == 1) setCarried(craftBox());
+                }
+                case QUICK_MOVE -> {
+                    if (buttonNum == 0) giveToPlayer(craftStack());
+                    else if (buttonNum == 1) giveToPlayer(craftBox());
+                }
+                default -> {}
+            }
+        }
+
+        @Override
+        protected @NonNull ItemStack buildIcon() {
+            // 图标：显示产物与可合成数量；不可合成时显示占位文案
+            var s = Items.CRAFTING_TABLE.getDefaultInstance();
+            boolean craftable = craftData.isCraftable();
+            int maxCraftable = craftable ? maxCraftableCount() : 0;
+
+            s.set(DataComponents.CUSTOM_NAME, craftable
+                    ? craftButtonName(craftData.output().getHoverName())
+                    : Component.translatable("feca.msg.gui.infinityInventory.placeholder.noCraft"));
+
+            List<Component> lore = new ArrayList<>(5);
+            lore.add(LoreUtils.line(
+                    LoreUtils.label(Component.translatable("feca.msg.gui.infinityInventory.label.craftable")),
+                    LoreUtils.value(maxCraftable)));
+            if (craftable) {
+                lore.add(LoreUtils.buildCountBreakdown(craftData.output().getItem(), maxCraftable));
+            }
+            lore.add(LoreUtils.separator());
+            lore.add(LoreUtils.action(
+                    Component.translatable("feca.msg.gui.infinityInventory.key.left"),
+                    Component.translatable("feca.msg.gui.infinityInventory.action.craftStack")));
+            lore.add(LoreUtils.action(
+                    Component.translatable("feca.msg.gui.infinityInventory.key.right"),
+                    Component.translatable("feca.msg.gui.infinityInventory.action.craftBox")));
+
+            return LoreUtils.applyLore(s, lore.toArray(Component[]::new));
+        }
+
+        // =====================================================
+        // 合成执行
+        // =====================================================
+
+        private @NonNull ItemStack craftStack() {
+            int maxCraftable = maxCraftableCount();
+            if (maxCraftable <= 0) return ItemStack.EMPTY;
+
+            int target = Math.min(maxCraftable, craftData.output().getMaxStackSize());
+            return craft(target);
+        }
+
+        private @NonNull ItemStack craftBox() {
+            Item item = craftData.output().getItem();
+
+            // 潜影盒本身无法再装箱，退化为「一组」
+            if (Block.byItem(item) instanceof ShulkerBoxBlock) return craftStack();
+
+            int maxCraftable = maxCraftableCount();
+            if (maxCraftable <= 0) return ItemStack.EMPTY;
+
+            int boxSize = item.getDefaultMaxStackSize() * ShulkerBoxBlockEntity.CONTAINER_SIZE;
+            int target = Math.min(maxCraftable, boxSize);
+
+            if (storage.getCount(Items.SHULKER_BOX) <= 0) {
+                sendMenuMessage(
+                        Component.translatable("feca.msg.gui.infinityInventory.err.noShulker")
+                                .withStyle(ChatFormatting.RED));
+                return ItemStack.EMPTY;
             }
 
-            // 容器内 → 父类（可能进入玩家背包）
-            ItemStack result = super.quickMoveStack(player, index);
-            if (!player.level().isClientSide() && Layout.isRecipeSlot(index)) {
-                ensureInputPlaceholders();
-                onRecipeChanged();
+            // 先占用一个空潜影盒，合成失败则退回库存
+            if (!storage.pop(Items.SHULKER_BOX, 1)) return ItemStack.EMPTY;
+            ItemStack shulker = Items.SHULKER_BOX.getDefaultInstance();
+
+            ItemStack crafted = craft(target);
+            if (crafted.isEmpty()) {
+                storage.push(shulker);
+                return ItemStack.EMPTY;
+            }
+
+            try (var accessor = ShulkerBoxAccessor.openAutoSaved(shulker)) {
+                int remaining = ShulkerBoxPacker.fill(accessor, item, crafted.getCount());
+                if (remaining > 0) collectSideProduct(new ItemStack(item, remaining));
+            }
+
+            return shulker;
+        }
+
+        /// 调用 {@link InfinityInventoryCraftHelper} 执行一次尽力合成
+        ///
+        /// 配方剩余物与整次合成的溢出产物都通过 {@link #collectSideProduct} 处理
+        ///
+        /// @param count 期望产量
+        /// @return 产物；未能合成时返回 {@link ItemStack#EMPTY}
+        private @NonNull ItemStack craft(int count) {
+            var recipe = craftData.recipe();
+            if (recipe == null) return ItemStack.EMPTY;
+
+            var crafted = InfinityInventoryCraftHelper.tryCraftSafelyCount(
+                    storage, recipe, craftData.input(), count,
+                    this::collectSideProduct, this::collectSideProduct);
+
+            int craftedCount = crafted.getSecond();
+            if (craftedCount <= 0) return ItemStack.EMPTY;
+
+            player.awardStat(Stats.ITEM_CRAFTED.get(crafted.getFirst().getItem()), craftedCount);
+            return crafted.getFirst().copyWithCount(craftedCount);
+        }
+
+        /// 处理合成副产物（剩余物 / 溢出产物）：优先回存库存，失败时直接交给玩家
+        private void collectSideProduct(@NonNull ItemStack stack) {
+            if (stack.isEmpty()) return;
+            if (!storage.push(stack)) {
+                PlayerInventoryHelper.giveOrDrop(player, stack);
+            }
+        }
+
+        /// @return 当前输入与库存下可产出的最大数量；超出 {@code int} 时截断
+        private int maxCraftableCount() {
+            var recipe = craftData.recipe();
+            if (recipe == null) return 0;
+
+            long times = InfinityInventoryCraftHelper.canCraftTimes(storage, craftData.input());
+            long count = times * craftData.output().getCount();
+            return (int) Math.min(count, Integer.MAX_VALUE);
+        }
+
+        /// 「合成 <产物名>」标题
+        private static @NonNull MutableComponent craftButtonName(@NonNull Component outputName) {
+            return Component.empty()
+                    .append(Component.translatable("feca.msg.gui.infinityInventory.craftPrefix")
+                            .setStyle(LoreUtils.style(ChatFormatting.WHITE)))
+                    .append(Component.empty()
+                            .append(outputName.copy())
+                            .setStyle(LoreUtils.style(ChatFormatting.GOLD)));
+        }
+    }
+
+    /// 产物快捷槽：显示配方产物，并支持直接从库存取出该物品
+    private final class CraftTemplateOutputVirtualSlot extends AbstractItemVirtualSlot {
+        public CraftTemplateOutputVirtualSlot(int slotIndex) { super(slotIndex); }
+
+        @Override
+        public void clicked(@NonNull ContainerInput input, int buttonNum) {
+            // 无可合成物时禁用，否则按物品槽行为取出
+            if (craftData.output.isEmpty()) return;
+            super.clicked(input, buttonNum);
+        }
+
+        @Override
+        protected @NonNull ItemStack buildIcon() {
+            // 不可合成时显示占位符
+            if (craftData.output.isEmpty()) {
+                return newPlaceholder();
+            }
+            return super.buildIcon();
+        }
+
+        @Override
+        protected @NonNull Item item() {
+            return craftData.output.getItem();
+        }
+
+        @Override
+        protected int count() {
+            return storage.getCount(craftData.output.getItem());
+        }
+
+        private static @NonNull ItemStack newPlaceholder() {
+            var s = placeholder().getDefaultInstance();
+            s.set(DataComponents.CUSTOM_NAME,
+                    Component.translatable("feca.msg.gui.infinityInventory.placeholder.noCraft"));
+            return s;
+        }
+
+        public static Item placeholder() { return Items.BARRIER; }
+    }
+
+    /// 匹配快捷槽：输入为单调物品时显示该物品，并支持直接从库存取出
+    private final class CraftTemplateMatchVirtualSlot extends AbstractItemVirtualSlot {
+        public CraftTemplateMatchVirtualSlot(int slotIndex) { super(slotIndex); }
+
+        @Override
+        public void clicked(@NonNull ContainerInput input, int buttonNum) {
+            if (!craftData.isMonotonousInput()) return;
+            super.clicked(input, buttonNum);
+        }
+
+        @Override
+        protected @NonNull ItemStack buildIcon() {
+            if (!craftData.isMonotonousInput()) {
+                return newPlaceholder();
+            }
+            return super.buildIcon();
+        }
+
+        @Override
+        protected Item item() {
+            return craftData.inputMonotonousItem;
+        }
+
+        @Override
+        protected int count() {
+            return storage.getCount(craftData.inputMonotonousItem);
+        }
+
+        private static @NonNull ItemStack newPlaceholder() {
+            var s = placeholder().getDefaultInstance();
+            s.set(DataComponents.CUSTOM_NAME,
+                    Component.translatable("feca.msg.gui.infinityInventory.placeholder.noMatch"));
+            return s;
+        }
+
+        public static Item placeholder() { return Items.BARRIER; }
+    }
+
+    /// 潜影盒槽：显示并取出库存中的空潜影盒
+    private final class ShulkerBoxVirtualSlot extends AbstractItemVirtualSlot {
+        // TODO: 匹配染色的潜影盒
+        // TODO: 在潜影盒不足时退化到通过合成创建 (需要库存存在箱子和潜影盒)
+        public ShulkerBoxVirtualSlot(int slotIndex) { super(slotIndex); }
+
+        @Override protected Item item() { return Items.SHULKER_BOX; }
+        @Override protected int count() { return storage.getCount(item()); }
+    }
+
+    /// 上一页按钮
+    private final class PrevPageVirtualSlot extends VirtualSlot {
+        public PrevPageVirtualSlot(int slotIndex) { super(slotIndex); }
+
+        @Override
+        public void clicked(ContainerInput input, int buttonNum) {
+            if (input == ContainerInput.PICKUP && buttonNum == 0) {
+                page.prev();
+            }
+        }
+
+        @Contract(pure = true)
+        @Override
+        protected @NonNull ItemStack buildIcon() {
+            var s = Items.DYE.red().getDefaultInstance();
+            s.set(DataComponents.CUSTOM_NAME,
+                    Component.translatable("feca.msg.gui.infinityInventory.page.prev"));
+            return s;
+        }
+    }
+
+    /// 下一页按钮
+    private final class NextPageVirtualSlot extends VirtualSlot {
+        public NextPageVirtualSlot(int slotIndex) { super(slotIndex); }
+
+        @Override
+        public void clicked(ContainerInput input, int buttonNum) {
+            if (input == ContainerInput.PICKUP && buttonNum == 0) {
+                page.next();
+            }
+        }
+
+        @Contract(pure = true)
+        @Override
+        protected @NonNull ItemStack buildIcon() {
+            var s = Items.DYE.lime().getDefaultInstance();
+            s.set(DataComponents.CUSTOM_NAME,
+                    Component.translatable("feca.msg.gui.infinityInventory.page.next"));
+            return s;
+        }
+    }
+
+    /// 物品输入槽
+    private final class ItemInputVirtualSlot extends VirtualSlot {
+        public ItemInputVirtualSlot(int slotIndex) { super(slotIndex); }
+
+        @Override
+        public void clicked(ContainerInput input, int buttonNum) {
+            var carried = getCarried();
+            if (carried.isEmpty()) return;
+
+            // 把光标物品存入库存（左键全部 / 右键一个）
+            if (input == ContainerInput.PICKUP) {
+                if (buttonNum == 0) {
+                    if (!storage.push(carried)) sendStoreFailure();
+                } else if (buttonNum == 1) {
+                    var buf = carried.split(1);
+                    if (!storage.push(buf)) {
+                        carried.grow(buf.getCount());
+                        sendStoreFailure();
+                    }
+                }
+            }
+        }
+
+        @Contract(pure = true)
+        @Override
+        protected ItemStack buildIcon() {
+            return ItemStack.EMPTY;
+        }
+    }
+
+    // =========================================================
+    // UTILS
+    // =========================================================
+
+    /// 分页：保存当前页码与页内库存视图
+    private final class Page {
+        private int page = 0;
+        private List<InfinityInventoryStorage.View> views;
+
+        /// 取页内第 {@code index} 个视图，越界返回 {@link InfinityInventoryStorage.View#NONE}
+        public InfinityInventoryStorage.View at(int index) {
+            if (index >= views.size()) {
+                FeCA.LOGGER.warn("Page：at index={} out of sub view (size={})", index, views.size());
+                return InfinityInventoryStorage.View.NONE;
+            }
+            return views.get(index);
+        }
+
+        /// 上一页
+        /// @apiNote 第 0 页时不动作
+        public void prev() {
+            if (page > 0) {
+                page--;
+                updatePageData();
+                refreshItemSlots();
+            }
+        }
+
+        /// 下一页
+        /// @apiNote 已是最后一页时不动作
+        public void next() {
+            final int nextPageFirst = (page + 1) * Layout.ITEM_SLOTS;
+
+            FeCA.LOGGER.debug("Page: next: page={}({} ~ {}), storage size={}",
+                    page, page * Layout.ITEM_SLOTS, nextPageFirst - 1, storage.size());
+
+            if (nextPageFirst < storage.size()) {
+                page++;
+                updatePageData();
+                refreshItemSlots();
+            }
+        }
+
+        /// 按当前页码重建页内视图，并用 NONE 补齐 36 格
+        public void updatePageData() {
+            this.views = storage.subView(page * Layout.ITEM_SLOTS, Layout.ITEM_SLOTS);
+            FeCA.LOGGER.debug("Page: update: page={}, got size={}", page, views.size());
+            while (this.views.size() < Layout.ITEM_SLOTS) {
+                this.views.add(InfinityInventoryStorage.View.NONE);
+            }
+        }
+
+        /// 重建页内视图并刷新全部图标
+        public void update() {
+            updatePageData();
+            refreshAllSlots();
+        }
+    }
+
+    // =========================================================
+    // STATIC
+    // =========================================================
+
+    /// 菜单布局常量
+    private interface Layout {
+        int ROWS = 6;
+        int COLS = 9;
+        int SLOTS = ROWS * COLS;
+
+        int ITEM_SLOT_ROWS = 6;
+        int ITEM_SLOT_COLS = 6;
+        int ITEM_SLOTS = ITEM_SLOT_ROWS * ITEM_SLOT_COLS;
+
+        int CRAFT_TP_INPUT_SLOT_ROWS = 3;
+        int CRAFT_TP_INPUT_SLOT_COLS = 3;
+        int CRAFT_TP_INPUT_SLOTS = CRAFT_TP_INPUT_SLOT_ROWS * CRAFT_TP_INPUT_SLOT_COLS;
+
+        MenuType<ChestMenu> MENU_TYPE = MenuType.GENERIC_9x6;
+    }
+
+    @FunctionalInterface
+    private interface VirtualSlotFactory {
+        VirtualSlot create(int slotIndex, int storageIndex);
+    }
+
+    /// 依次构建虚拟槽位，并维护槽位号 / 库存下标 / 模板下标三个游标
+    private static final class VirtualSlotsBuilder {
+        private int slotCursor = 0;
+        private int storageCursor = 0;
+        private int craftInputCursor = 0;
+        private final VirtualSlot[] virtualSlots = new VirtualSlot[Layout.SLOTS];
+
+        /// 连续放置 n 个槽位
+        public VirtualSlotsBuilder push(IntFunction<VirtualSlot> factory, int n) {
+            for (int i = 0; i < n; i++) push(factory);
+            return this;
+        }
+
+        /// 放置一个槽位
+        @Contract("_ -> this")
+        public VirtualSlotsBuilder push(@NonNull IntFunction<VirtualSlot> factory) {
+            virtualSlots[slotCursor] = factory.apply(slotCursor);
+            slotCursor++;
+            return this;
+        }
+
+        /// 连续放置 n 个物品槽，{@code storageIndex} 按 {@code builder} 计数器递增，与页内视图顺序对齐
+        public VirtualSlotsBuilder pushItems(int n, VirtualSlotFactory factory) {
+            for (int i = 0; i < n; i++) {
+                virtualSlots[slotCursor] = factory.create(slotCursor, storageCursor);
+                slotCursor++;
+                storageCursor++;
+            }
+            return this;
+        }
+
+        /// 连续放置 n 个模板槽，{@code craftIndex} 按独立计数器递增，与 {@code getCraftingInput()} 顺序对齐
+        public VirtualSlotsBuilder pushCraftInputs(int n, VirtualSlotFactory factory) {
+            for (int i = 0; i < n; i++) {
+                virtualSlots[slotCursor] = factory.create(slotCursor, craftInputCursor);
+                slotCursor++;
+                craftInputCursor++;
+            }
+            return this;
+        }
+
+        /// 返回构建好的槽位数组
+        public VirtualSlot[] build() {
+            return virtualSlots;
+        }
+    }
+
+    /// 提示文本（lore）构建工具
+    private interface LoreUtils {
+        /// 统一的非斜体样式
+        static @NonNull Style style(ChatFormatting color) {
+            return Style.EMPTY.withItalic(false).withColor(color);
+        }
+
+        static @NonNull MutableComponent line() {
+            return Component.empty().setStyle(style(ChatFormatting.GRAY));
+        }
+
+        static @NonNull MutableComponent line(Component @NonNull ... components) {
+            var result = line();
+            for (Component component : components) {
+                result.append(component);
             }
             return result;
         }
 
-        // =========================================================
-        // 物品区点击
-        // =========================================================
+        static @NonNull MutableComponent label(@NonNull Component text) {
+            return text.copy().setStyle(style(ChatFormatting.YELLOW));
+        }
 
-        /**
-         * 物品区/潜影盒/输出/匹配槽的统一点击入口。
-         * <ul>
-         *     <li>光标有物品 → 存入存储</li>
-         *     <li>否则按点击物品 + 鼠标动作分派</li>
-         * </ul>
-         */
-        private void handleItemClick(int slotId, int buttonNum, ContainerInput containerInput) {
-            // 光标有物品：一律优先存入存储
-            if (!getCarried().isEmpty()) {
-                depositCarriedToStorage();
-                return;
+        static @NonNull MutableComponent value(@NonNull Component text) {
+            return text.copy().setStyle(style(ChatFormatting.AQUA));
+        }
+
+        static @NonNull MutableComponent value(int count) {
+            return value(Component.literal(String.format("%,d", count)));
+        }
+
+        static @NonNull MutableComponent action(@NonNull Component key, @NonNull Component desc) {
+            Component k = key.copy().setStyle(style(ChatFormatting.GOLD));
+            Component d = desc.copy().setStyle(style(ChatFormatting.GRAY));
+            return Component.empty()
+                    .append(Component.literal("▪ ").setStyle(style(ChatFormatting.DARK_GRAY)))
+                    .append(Component.literal("[").setStyle(style(ChatFormatting.DARK_GRAY)))
+                    .append(k)
+                    .append(Component.literal("] ").setStyle(style(ChatFormatting.DARK_GRAY)))
+                    .append(d);
+        }
+
+        static @NonNull Component separator() {
+            return line().append(Component.literal("───────────────").withStyle(ChatFormatting.DARK_GRAY));
+        }
+
+        /// 「约 xx盒xx组xx个」分解行；不可堆叠、不足一组或只剩「个」时返回空组件
+        static @NonNull Component buildCountBreakdown(@NonNull Item item, int count) {
+            if (count <= 0) return Component.empty();
+
+            int maxStack = item.getDefaultMaxStackSize();
+            if (maxStack <= 0) return Component.empty();
+
+            boolean canBeBoxed = !(Block.byItem(item) instanceof ShulkerBoxBlock);
+            int perBox = maxStack * ShulkerBoxBlockEntity.CONTAINER_SIZE;
+
+            if (maxStack > 1 && count < maxStack) return Component.empty();
+
+            int boxes = 0;
+            int remainder = count;
+            if (canBeBoxed && perBox > 0) {
+                boxes = count / perBox;
+                remainder = count % perBox;
             }
 
-            ItemStack display = menuContainer.getItem(slotId);
-            if (display.isEmpty()) return;
-            Item clickedItem = display.getItem();
-
-            tracker.runScoped(() -> {
-                requireRelease(clickedItem);
-                switch (containerInput) {
-                    case PICKUP -> {
-                        if (buttonNum == 0)      takeToCursor(clickedItem, true);
-                        else if (buttonNum == 1) takeToCursorBox(clickedItem);
-                    }
-                    case QUICK_MOVE -> {
-                        if (buttonNum == 0)      takeToInventoryStack(clickedItem);
-                        else if (buttonNum == 1) takeToInventoryBox(clickedItem);
-                    }
-                    default -> { }
-                }
-            });
-        }
-
-        /// 把光标物品整体存入无限库存。
-        private void depositCarriedToStorage() {
-            ItemStack carried = getCarried();
-            if (carried.isEmpty()) return;
-
-            int originalCount = carried.getCount();
-            ItemStack leftover = InfinityInventoryTransferHelper.deposit(storage(), carried);
-
-            // 完全失败（无限堆叠下几乎不会发生，纯防御）
-            if (leftover.getCount() >= originalCount) {
-                player.sendSystemMessage(
-                        Component.literal("无法存入").withStyle(ChatFormatting.RED));
-                return;
+            int stacks = 0;
+            int items = remainder;
+            if (maxStack > 1) {
+                stacks = remainder / maxStack;
+                items = remainder % maxStack;
             }
 
-            setCarried(leftover.isEmpty() ? ItemStack.EMPTY : leftover);
-            refreshInventoryView();   // 左侧 36 格 + 44 潜影盒槽
-            onRecipeChanged();        // 34 / 35 的 Lore 库存量
-        }
+            if (boxes == 0 && stacks == 0) return Component.empty();
 
-        /// 把玩家背包槽位中的物品存入无限库存。
-        private ItemStack depositToStorage(@NonNull Slot slot) {
-            if (!slot.hasItem()) return ItemStack.EMPTY;
+            // 按「盒 / 组 / 个」组合成可翻译文本
+            List<Component> parts = new ArrayList<>(3);
+            if (boxes > 0) parts.add(Component.translatable("feca.msg.gui.infinityInventory.count.box", boxes));
+            if (stacks > 0) parts.add(Component.translatable("feca.msg.gui.infinityInventory.count.stack", stacks));
+            if (items > 0) parts.add(Component.translatable("feca.msg.gui.infinityInventory.count.item", items));
 
-            ItemStack stack = slot.getItem();
-            ItemStack before = stack.copy();
-            int originalCount = stack.getCount();
-
-            ItemStack leftover = InfinityInventoryTransferHelper.deposit(storage(), stack);
-
-            // 完全失败
-            if (leftover.getCount() >= originalCount) {
-                return ItemStack.EMPTY;
+            MutableComponent text = Component.empty();
+            for (int i = 0; i < parts.size(); i++) {
+                if (i > 0) text.append(" ");
+                text.append(parts.get(i));
             }
 
-            slot.set(leftover.isEmpty() ? ItemStack.EMPTY : leftover);
-            slot.setChanged();
-
-            refreshInventoryView();
-            onRecipeChanged();
-
-            return before;
+            return line()
+                    .append(label(Component.translatable("feca.msg.gui.infinityInventory.label.countPrefix")))
+                    .append(value(text));
         }
 
-        // =========================================================
-        // 物品区取物
-        // =========================================================
-
-        /// 取一组/一个到光标。若光标已有同种物品则合并；否则忽略。
-        private void takeToCursor(@NonNull Item item, @SuppressWarnings("SameParameterValue") boolean fullStack) {
-            ItemStack carried = getCarried();
-            ItemStack probe = item.getDefaultInstance();
-
-            if (!carried.isEmpty()
-                    && !ItemStack.isSameItemSameComponents(carried, probe)) {
-                return; // 光标有其他物品
-            }
-
-            int cursorRoom = carried.isEmpty()
-                    ? probe.getMaxStackSize()
-                    : carried.getMaxStackSize() - carried.getCount();
-            if (cursorRoom <= 0) return;
-
-            int request = fullStack ? probe.getMaxStackSize() : 1;
-            int takeCount = Math.min(request, cursorRoom);
-
-            int popCount = InfinityInventoryTransferHelper.extractUpTo(storage(), item, takeCount);
-            if (popCount <= 0) return;
-
-            if (carried.isEmpty()) {
-                setCarried(new ItemStack(item, popCount));
-            } else {
-                carried.grow(popCount);
-            }
-            tracker.apply();
+        /// 把 stack 的 lore 设置为给定行
+        @Contract("_, _ -> param1")
+        static @NonNull ItemStack applyLore(@NonNull ItemStack stack, Component... loreLines) {
+            return applyLore(stack, List.of(loreLines));
         }
 
-        /// 取一盒（潜影盒）到光标。若光标已有相同内容的盒子则叠加。
-        private void takeToCursorBox(@NonNull Item item) {
-            var extraction = InfinityInventoryTransferHelper.extractBox(storage(), item);
-            if (extraction.isEmpty()) return;
-
-            for (Item consumed : extraction.extraConsumed()) {
-                requireRelease(consumed);
-            }
-
-            ItemStack box = extraction.stack();
-            ItemStack carried = getCarried();
-
-            if (carried.isEmpty()) {
-                setCarried(box);
-                tracker.apply();
-                return;
-            }
-
-            // 光标必须已有相同内容的潜影盒才能叠加
-            if (!ItemStack.isSameItemSameComponents(carried, box)
-                    || carried.getCount() >= carried.getMaxStackSize()) {
-                InfinityInventoryTransferHelper.returnToStorage(storage(), box);
-                return;
-            }
-
-            carried.grow(box.getCount());
-            tracker.apply();
-        }
-
-        /// Shift 左键：取一组直接塞入玩家背包。
-        private void takeToInventoryStack(@NonNull Item item) {
-            deliverToInventory(InfinityInventoryTransferHelper.extractStack(storage(), item));
-        }
-
-        /// Shift 右键：取一盒直接塞入玩家背包。
-        private void takeToInventoryBox(@NonNull Item item) {
-            var extraction = InfinityInventoryTransferHelper.extractBox(storage(), item);
-            if (extraction.isEmpty()) return;
-
-            for (Item consumed : extraction.extraConsumed()) {
-                requireRelease(consumed);
-            }
-            deliverToInventory(extraction.stack());
-        }
-
-        /// 把取出的物品交给玩家背包；空间不足则提示。
-        private void deliverToInventory(@NonNull ItemStack extracted) {
-            if (extracted.isEmpty()) return;
-            if (!InfinityInventoryTransferHelper.deliverToInventory(player, storage(), extracted)) {
-                player.sendSystemMessage(
-                        Component.literal("背包空间不足").withStyle(ChatFormatting.RED));
-                return;
-            }
-            tracker.apply();
-        }
-
-        // =========================================================
-        // 合成输出 / 匹配槽点击
-        // =========================================================
-
-        private void handleTakeOutput(int buttonNum, ContainerInput containerInput) {
-            ItemStack stack = menuContainer.getItem(Layout.SLOT_OUTPUT);
-            if (stack.isEmpty() || MenuPlaceholders.isOutput(stack)) return;
-            handleItemClick(Layout.SLOT_OUTPUT, buttonNum, containerInput);
-            onRecipeChanged();
-        }
-
-        private void handleTakeBarrier(int buttonNum, ContainerInput containerInput) {
-            ItemStack stack = menuContainer.getItem(Layout.SLOT_MATCH);
-            if (stack.isEmpty() || MenuPlaceholders.isBarrier(stack)) return;
-            handleItemClick(Layout.SLOT_MATCH, buttonNum, containerInput);
-            onRecipeChanged();
-        }
-
-        // =========================================================
-        // 合成按钮点击
-        // =========================================================
-
-        private void handleCraft(int buttonNum, ContainerInput containerInput) {
-            // 光标有物品：先存入
-            if (!getCarried().isEmpty()) {
-                depositCarriedToStorage();
-                return;
-            }
-
-            ItemStack output = menuContainer.getItem(Layout.SLOT_OUTPUT);
-            if (output.isEmpty() || MenuPlaceholders.isOutput(output)) return;
-            Item resultItem = output.getItem();
-
-            tracker.runScoped(() -> {
-                switch (containerInput) {
-                    case PICKUP -> {
-                        if (buttonNum == 0)      craftStackToCursor(resultItem);
-                        else if (buttonNum == 1) craftBoxToCursor(resultItem);
-                    }
-                    case QUICK_MOVE -> {
-                        if (buttonNum == 0)      craftStackToInventory(resultItem);
-                        else if (buttonNum == 1) craftBoxToInventory(resultItem);
-                    }
-                    default -> { }
-                }
-            });
-
-            onRecipeChanged();
-            this.slotsChanged(menuContainer);
-        }
-
-        /// 左键：合成一组到光标。
-        private void craftStackToCursor(Item item) {
-            if (!getCarried().isEmpty()) return;
-            int maxCraftable = computeMaxCraftable();
-            if (maxCraftable <= 0) return;
-
-            int target = Math.min(maxCraftable, item.getDefaultMaxStackSize());
-            ItemStack crafted = doCraft(item, target);
-            if (crafted.isEmpty()) return;
-
-            setCarried(crafted);
-            tracker.apply();
-        }
-
-        /// Shift 左键：合成一组直接塞入玩家背包。
-        private void craftStackToInventory(@NonNull Item item) {
-            int maxCraftable = computeMaxCraftable();
-            if (maxCraftable <= 0) return;
-
-            int target = Math.min(maxCraftable, item.getDefaultMaxStackSize());
-            ItemStack probe = new ItemStack(item, target);
-            if (!PlayerInventoryHelper.canFullyFit(player, probe)) {
-                player.sendSystemMessage(
-                        Component.literal("背包空间不足").withStyle(ChatFormatting.RED));
-                return;
-            }
-
-            ItemStack crafted = doCraft(item, target);
-            if (crafted.isEmpty()) return;
-
-            PlayerInventoryHelper.giveOrDrop(player, crafted);
-            tracker.apply();
-        }
-
-        /**
-         * 右键：合成一盒到光标。
-         * 光标必须为空（已在 handleCraft 里前置判断），空间不足时直接失败。
-         */
-        private void craftBoxToCursor(@NonNull Item item) {
-            if (!getCarried().isEmpty()) return;
-
-            if (storage().getCount(Items.SHULKER_BOX) <= 0) {
-                player.sendSystemMessage(
-                        Component.literal("没有潜影盒").withStyle(ChatFormatting.RED));
-                return;
-            }
-
-            int maxCraftable = computeMaxCraftable();
-            if (maxCraftable <= 0) return;
-
-            int shulkerSize = item.getDefaultMaxStackSize()
-                    * ShulkerBoxBlockEntity.CONTAINER_SIZE;
-            int target = Math.min(maxCraftable, shulkerSize);
-
-            ItemStack shulker = InfinityInventoryTransferHelper.extractOne(storage(), Items.SHULKER_BOX);
-            if (shulker.isEmpty()) return;
-            requireRelease(Items.SHULKER_BOX);
-
-            try (var accessor = ShulkerBoxAccessor.openAutoSaved(shulker)) {
-                ItemStack crafted = doCraft(item, target);
-                if (crafted.isEmpty()) {
-                    InfinityInventoryTransferHelper.returnToStorage(storage(), shulker);
-                    return;
-                }
-                ShulkerBoxPacker.fill(accessor, item, crafted.getCount());
-            }
-
-            setCarried(shulker);
-            tracker.apply();
-        }
-
-        /// Shift 右键：合成一盒直接塞入玩家背包。
-        private void craftBoxToInventory(@NonNull Item item) {
-            if (storage().getCount(Items.SHULKER_BOX) <= 0) {
-                player.sendSystemMessage(
-                        Component.literal("没有潜影盒").withStyle(ChatFormatting.RED));
-                return;
-            }
-
-            if (!PlayerInventoryHelper.canFullyFit(player, new ItemStack(Items.SHULKER_BOX))) {
-                player.sendSystemMessage(
-                        Component.literal("背包空间不足").withStyle(ChatFormatting.RED));
-                return;
-            }
-
-            int maxCraftable = computeMaxCraftable();
-            if (maxCraftable <= 0) return;
-
-            int shulkerSize = item.getDefaultMaxStackSize()
-                    * ShulkerBoxBlockEntity.CONTAINER_SIZE;
-            int target = Math.min(maxCraftable, shulkerSize);
-
-            ItemStack shulker = InfinityInventoryTransferHelper.extractOne(storage(), Items.SHULKER_BOX);
-            if (shulker.isEmpty()) return;
-            requireRelease(Items.SHULKER_BOX);
-
-            try (var accessor = ShulkerBoxAccessor.openAutoSaved(shulker)) {
-                ItemStack crafted = doCraft(item, target);
-                if (crafted.isEmpty()) {
-                    InfinityInventoryTransferHelper.returnToStorage(storage(), shulker);
-                    return;
-                }
-                ShulkerBoxPacker.fill(accessor, item, crafted.getCount());
-            }
-
-            PlayerInventoryHelper.giveOrDrop(player, shulker);
-            tracker.apply();
-        }
-
-        // =========================================================
-        // 合成计算
-        // =========================================================
-
-        private int computeMaxCraftable() {
-            if (!(player.level() instanceof ServerLevel serverLevel)) return 0;
-            return InfinityInventoryCraftHelper.computeMaxCraftable(
-                    serverLevel, collectCraftingInput(), storage());
-        }
-
-        private ItemStack doCraft(Item expectedItem, int targetCount) {
-            if (!(player.level() instanceof ServerLevel serverLevel)) return ItemStack.EMPTY;
-
-            InfinityInventoryCraftHelper.CraftResult result =
-                    InfinityInventoryCraftHelper.craft(
-                            serverLevel, collectCraftingInput(), expectedItem, targetCount, storage());
-
-            if (result.isEmpty()) return ItemStack.EMPTY;
-
-            for (Item consumed : result.consumedIngredients()) {
-                requireRelease(consumed);
-            }
-            return result.output();
-        }
-
-        // =========================================================
-        // 合成配方检测
-        // =========================================================
-
-        private void onRecipeChanged() {
-            if (player.level().isClientSide()) return;
-
-            InfinityInventoryStorage storage = storage();
-
-            CraftingInput input = collectCraftingInput();
-            int nonEmptyCount = InfinityInventoryCraftHelper.countNonEmpty(input);
-
-            ItemStack outputItem = ItemStack.EMPTY;
-            ItemStack barrierItem = ItemStack.EMPTY;
-
-            if (nonEmptyCount > 0 && player.level() instanceof ServerLevel serverLevel) {
-                Optional<RecipeHolder<CraftingRecipe>> recipeOpt =
-                        InfinityInventoryCraftHelper.findRecipe(serverLevel, input);
-
-                if (recipeOpt.isPresent()) {
-                    // 匹配到配方
-                    ItemStack result = recipeOpt.get().value().assemble(input);
-                    if (!result.isEmpty()) {
-                        outputItem = buildDisplay(result.getItem(),
-                                storage.getCount(result.getItem()));
-
-                        // 输入只有一个物品 → SLOT_MATCH 额外显示该物品的库存
-                        if (nonEmptyCount == 1) {
-                            Item singleItem = InfinityInventoryCraftHelper.findFirstItem(input);
-                            if (singleItem != null) {
-                                barrierItem = buildDisplay(singleItem,
-                                        storage.getCount(singleItem));
-                            }
-                        }
-                    }
-                } else if (nonEmptyCount == 1) {
-                    Item singleItem = InfinityInventoryCraftHelper.findFirstItem(input);
-                    if (singleItem != null) {
-                        if (InfinityInventoryCraftHelper.isAnyRecipeIngredient(serverLevel, singleItem)) {
-                            // 可作为原料 → SLOT_MATCH 显示该物品库存
-                            barrierItem = buildDisplay(singleItem,
-                                    storage.getCount(singleItem));
-                        } else {
-                            // 不可作为原料 → 输出槽显示该物品库存
-                            outputItem = buildDisplay(singleItem,
-                                    storage.getCount(singleItem));
-                        }
-                    }
-                }
-            }
-
-            menuContainer.setItem(Layout.SLOT_OUTPUT,
-                    outputItem.isEmpty() ? MenuPlaceholders.createOutputPlaceholder() : outputItem);
-            menuContainer.setItem(Layout.SLOT_MATCH,
-                    barrierItem.isEmpty() ? MenuPlaceholders.createBarrierPlaceholder() : barrierItem);
-            refreshCraftButton();
-        }
-
-        private @NonNull CraftingInput collectCraftingInput() {
-            return InfinityInventoryCraftHelper.collectInput(
-                    menuContainer, Layout.RECIPE_SLOTS, 3, 3,
-                    MenuPlaceholders::isInput);
-        }
-
-        /// 刷新合成按钮的名称与 Lore（可合成数量 / 分解 / 操作提示）。
-        private void refreshCraftButton() {
-            ItemStack icon = MenuPlaceholders.createCraftIcon();
-
-            ItemStack output = menuContainer.getItem(Layout.SLOT_OUTPUT);
-            if (output.isEmpty() || MenuPlaceholders.isOutput(output)) {
-                List<Component> lore = new ArrayList<>();
-                lore.add(Component.literal("无匹配配方").withStyle(ChatFormatting.GRAY));
-                icon.set(DataComponents.LORE, new ItemLore(lore));
-                menuContainer.setItem(Layout.SLOT_CRAFT, icon);
-                return;
-            }
-
-            icon.set(DataComponents.CUSTOM_NAME,
-                    Lore.craftButtonName(output.getHoverName()));
-
-            int maxCraftable = computeMaxCraftable();
-            icon.set(DataComponents.LORE,
-                    new ItemLore(Lore.buildCraftLore(maxCraftable, output.getItem())));
-            menuContainer.setItem(Layout.SLOT_CRAFT, icon);
-        }
-
-        /**
-         * 确保所有合成模板输入槽都处于「有内容」状态：
-         * 空槽位用输入占位符填充。
-         * 在 clicked / quickMoveStack 中取走物品后调用。
-         */
-        private void ensureInputPlaceholders() {
-            for (int s : Layout.RECIPE_SLOTS) {
-                if (menuContainer.getItem(s).isEmpty()) {
-                    menuContainer.setItem(s, MenuPlaceholders.createInputPlaceholder());
-                }
-            }
-        }
-
-        // =========================================================
-        // 库存展示
-        // =========================================================
-
-        private void refreshInventoryView() {
-            if (player.level().isClientSide()) return;
-
-            List<InfinityInventoryStorage.View> view = pages.currentView(storage());
-
-            for (int i = 0; i < Layout.ITEMS_PER_PAGE; i++) {
-                int row = i / Layout.ITEM_COLS;
-                int col = i % Layout.ITEM_COLS;
-                int slot = row * Layout.COLS + col;
-
-                ItemStack display = ItemStack.EMPTY;
-                if (i < view.size()) {
-                    InfinityInventoryStorage.View v = view.get(i);
-                    display = buildDisplay(v.item(), v.count());
-                }
-                menuContainer.setItem(slot, display);
-            }
-
-            refreshShulkerBoxSlot();
-        }
-
-        private void refreshShulkerBoxSlot() {
-            int count = storage().getCount(Items.SHULKER_BOX);
-            menuContainer.setItem(Layout.SLOT_SHULKER, buildDisplay(Items.SHULKER_BOX, count));
-        }
-
-        private @NonNull ItemStack buildDisplay(Item item, int count) {
-            ItemStack stack = new ItemStack(item);
-            stack.setCount(1);
-            stack.set(DataComponents.LORE,
-                    new ItemLore(Lore.buildLore(item, count)));
+        /// 把 stack 的 lore 设置为给定行
+        @Contract("_, _ -> param1")
+        static @NonNull ItemStack applyLore(@NonNull ItemStack stack, List<Component> loreLines) {
+            stack.set(DataComponents.LORE, new ItemLore(loreLines));
             return stack;
-        }
-
-        private @NonNull InfinityInventoryStorage storage() {
-            return InfinityInventory.getStorage(player);
-        }
-
-        // =========================================================
-        // 布局
-        // =========================================================
-
-        private void rebuildSlots(Inventory playerInv) {
-            this.slots.clear();
-
-            // 容器 6×9
-            for (int row = 0; row < Layout.ROWS; row++) {
-                for (int col = 0; col < Layout.COLS; col++) {
-                    Slot slot = getSlot(row, col);
-                    addSlot(slot);
-                }
-            }
-
-            // 玩家背包 3×9 + 快捷栏
-            int invY = 18 + Layout.ROWS * 18 + 14;
-            for (int row = 0; row < 3; row++) {
-                for (int col = 0; col < 9; col++) {
-                    addSlot(new Slot(playerInv, col + row * 9 + 9, 8 + col * 18, invY + row * 18));
-                }
-            }
-            for (int col = 0; col < 9; col++) {
-                addSlot(new Slot(playerInv, col, 8 + col * 18, invY + 3 * 18 + 4));
-            }
-        }
-
-        private @NonNull Slot getSlot(int row, int col) {
-            int idx = row * Layout.COLS + col;
-            int x = 8 + col * 18;
-            int y = 18 + row * 18;
-
-            Slot slot;
-            if (Layout.isItemSlot(idx)) {
-                slot = new DisplaySlot(menuContainer, idx, x, y);
-            } else if (Layout.isRecipeSlot(idx)) {
-                slot = new RecipeSlot(menuContainer, idx, x, y);
-            } else if (idx == Layout.SLOT_OUTPUT) {
-                slot = new OutputSlot(menuContainer, idx, x, y);
-            } else {
-                slot = new ButtonSlot(menuContainer, idx, x, y);
-            }
-            return slot;
-        }
-
-        private void initPlaceholders() {
-            for (int s : Layout.RECIPE_SLOTS) {
-                menuContainer.setItem(s, MenuPlaceholders.createInputPlaceholder());
-            }
-
-            menuContainer.setItem(Layout.SLOT_CRAFT,            MenuPlaceholders.createCraftIcon());
-            menuContainer.setItem(Layout.SLOT_OUTPUT,           MenuPlaceholders.createOutputPlaceholder());
-            menuContainer.setItem(Layout.SLOT_MATCH,            MenuPlaceholders.createBarrierPlaceholder());
-            menuContainer.setItem(Layout.SLOT_PREV_PAGE,        MenuPlaceholders.createPrevPageIcon());
-            menuContainer.setItem(Layout.SLOT_INPUT,            MenuPlaceholders.createInputSlotIcon());
-            menuContainer.setItem(Layout.SLOT_NEXT_PAGE,        MenuPlaceholders.createNextPageIcon());
-            menuContainer.setItem(Layout.SLOT_PLACEHOLDERS[0],  MenuPlaceholders.createActionPlaceholder());
-            menuContainer.setItem(Layout.SLOT_PLACEHOLDERS[1],  MenuPlaceholders.createActionPlaceholder());
-        }
-
-        // =========================================================
-        // 工具
-        // =========================================================
-
-        protected void requireRelease(@NonNull Item item) {
-            tracker.mark(item);
-        }
-
-        // =========================================================
-        // 分页控制器
-        // =========================================================
-
-        /**
-         * 物品展示区的分页状态与视图获取。
-         * <p>
-         * 空页回退规则：
-         * <ul>
-         *     <li>{@link #currentView} 会在「当前页为空且不在第 0 页」时向前回退，直到命中非空页</li>
-         *     <li>{@link #peekView} 不做回退，供「按当前页局部刷新」使用</li>
-         * </ul>
-         */
-        private static final class InventoryPageController {
-            private int page = 0;
-
-            int offset() {
-                return page * Layout.ITEMS_PER_PAGE;
-            }
-
-            /// 当前有效页的视图；必要时向前回退空页。
-            List<InfinityInventoryStorage.View> currentView(@NonNull InfinityInventoryStorage storage) {
-                List<InfinityInventoryStorage.View> view;
-                while (true) {
-                    view = storage.subView(offset(), Layout.ITEMS_PER_PAGE);
-                    if (!view.isEmpty() || page == 0) break;
-                    page--;
-                }
-                return view;
-            }
-
-            /// 仅取当前页视图，不回退；用于局部刷新。
-            List<InfinityInventoryStorage.View> peekView(@NonNull InfinityInventoryStorage storage) {
-                return storage.subView(offset(), Layout.ITEMS_PER_PAGE);
-            }
-
-            /// 成功翻到上一页时返回 true。
-            boolean prev() {
-                if (page <= 0) return false;
-                page--;
-                return true;
-            }
-
-            void next() {
-                page++;
-            }
-        }
-
-        // =========================================================
-        // 待刷新集合
-        // =========================================================
-
-        /**
-         * 当前取出/合成操作中「需要额外刷新」的物品集合。
-         * <p>
-         * 由 {@link #mark} 登记，操作末尾调用 {@link #apply} 做局部刷新，
-         * {@link #runScoped} 用于保证一次操作结束后自动清空标记。
-         */
-        private final class SlotRefreshTracker {
-            private final Set<Item> marked = new HashSet<>();
-
-            void mark(@NonNull Item item) {
-                marked.add(item);
-            }
-
-            void runScoped(@NonNull Runnable body) {
-                marked.clear();
-                try {
-                    body.run();
-                } finally {
-                    marked.clear();
-                }
-            }
-
-            /**
-             * 尝试只刷新「受影响物品所在槽位」。
-             * 任一条件不满足（物品已归零、所在槽位已变更等）则退化为整页刷新。
-             */
-            void apply() {
-                if (marked.isEmpty()) return;
-
-                InfinityInventoryStorage storage = storage();
-
-                // 物品已归零 → 整页刷新，避免残留显示
-                for (Item item : marked) {
-                    if (storage.getCount(item) <= 0) {
-                        refreshInventoryView();
-                        return;
-                    }
-                }
-
-                List<InfinityInventoryStorage.View> view = pages.peekView(storage);
-
-                for (int i = 0; i < Layout.ITEMS_PER_PAGE && i < view.size(); i++) {
-                    int slot = (i / Layout.ITEM_COLS) * Layout.COLS
-                            + (i % Layout.ITEM_COLS);
-                    InfinityInventoryStorage.View v = view.get(i);
-                    if (!marked.contains(v.item())) continue;
-
-                    ItemStack current = menuContainer.getItem(slot);
-                    if (current.isEmpty() || !current.is(v.item())) {
-                        refreshInventoryView();
-                        return;
-                    }
-                    menuContainer.setItem(slot, buildDisplay(v.item(), v.count()));
-                }
-
-                if (marked.contains(Items.SHULKER_BOX)) {
-                    refreshShulkerBoxSlot();
-                }
-
-                slotsChanged(menuContainer);
-            }
-        }
-
-        // =========================================================
-        // Slot 类型
-        // =========================================================
-
-        private static class RecipeSlot extends Slot {
-            RecipeSlot(Container container, int idx, int x, int y) { super(container, idx, x, y); }
-
-            @Override
-            public boolean mayPickup(@NonNull Player player) {
-                return !MenuPlaceholders.isInput(getItem());
-            }
-
-            @Override
-            public boolean mayPlace(@NonNull ItemStack stack) {
-                // 允许放入；占位由 clicked() 在放置前清除
-                return true;
-            }
-        }
-
-        private static class DisplaySlot extends Slot {
-            DisplaySlot(Container container, int idx, int x, int y) { super(container, idx, x, y); }
-            @Override public boolean mayPickup(@NonNull Player player) { return false; }
-            @Override public boolean mayPlace(@NonNull ItemStack stack) { return false; }
-        }
-
-        private static class OutputSlot extends Slot {
-            OutputSlot(Container container, int idx, int x, int y) { super(container, idx, x, y); }
-            @Override public boolean mayPickup(@NonNull Player player) { return false; }
-            @Override public boolean mayPlace(@NonNull ItemStack stack) { return false; }
-        }
-
-        private static class ButtonSlot extends Slot {
-            ButtonSlot(Container container, int idx, int x, int y) { super(container, idx, x, y); }
-            @Override public boolean mayPickup(@NonNull Player player) { return false; }
-            @Override public boolean mayPlace(@NonNull ItemStack stack) { return false; }
-        }
-
-        // =========================================================
-        // 布局常量
-        // =========================================================
-
-        private static final class Layout {
-            private Layout() {}
-
-            public static final int ROWS = 6;
-            public static final int COLS = 9;
-            public static final int CONTAINER_SLOT_COUNT = ROWS * COLS;
-
-            public static final int ITEM_COLS = 6;
-            public static final int ITEM_ROWS = 6;
-            public static final int ITEMS_PER_PAGE = ITEM_COLS * ITEM_ROWS;
-
-            /** 3x3 合成模板输入槽，顺序即 3x3 网格顺序。 */
-            public static final int[] RECIPE_SLOTS = {
-                    6, 7, 8, 15, 16, 17, 24, 25, 26
-            };
-
-            public static final int SLOT_CRAFT       = 33;
-            public static final int SLOT_OUTPUT      = 34;
-            public static final int SLOT_MATCH       = 35;
-            public static final int[] SLOT_PLACEHOLDERS = {42, 43};
-            public static final int SLOT_SHULKER     = 44;
-            public static final int SLOT_PREV_PAGE   = 51;
-            public static final int SLOT_INPUT       = 52;
-            public static final int SLOT_NEXT_PAGE   = 53;
-
-            public static boolean isItemSlot(int idx) {
-                int col = idx % COLS;
-                int row = idx / COLS;
-                return row < ITEM_ROWS && col < ITEM_COLS;
-            }
-
-            public static boolean isRecipeSlot(int idx) {
-                for (int s : RECIPE_SLOTS) if (s == idx) return true;
-                return false;
-            }
-
-            public static boolean isPlaceholder(int idx) {
-                for (int s : SLOT_PLACEHOLDERS) if (s == idx) return true;
-                return false;
-            }
-        }
-
-        // =========================================================
-        // 占位符
-        // =========================================================
-
-        private static final class MenuPlaceholders {
-
-            private MenuPlaceholders() {}
-
-            public static final Component PH_INPUT_NAME   = Component.literal("合成模板输入");
-            public static final Component PH_OUTPUT_NAME  = Component.literal("合成模板输出");
-            public static final Component PH_BARRIER_NAME = Component.literal("占位");
-
-            // =========================================================
-            // 工厂
-            // =========================================================
-
-            public static @NonNull ItemStack createCraftIcon() {
-                ItemStack s = new ItemStack(Items.CRAFTING_TABLE);
-                s.set(DataComponents.CUSTOM_NAME, Component.literal("合成"));
-                return s;
-            }
-
-            public static @NonNull ItemStack createInputPlaceholder() {
-                ItemStack s = new ItemStack(Items.STRUCTURE_VOID);
-                s.set(DataComponents.CUSTOM_NAME, PH_INPUT_NAME);
-                return s;
-            }
-
-            public static @NonNull ItemStack createOutputPlaceholder() {
-                ItemStack s = new ItemStack(Items.BARRIER);
-                s.set(DataComponents.CUSTOM_NAME, PH_OUTPUT_NAME);
-                return s;
-            }
-
-            public static @NonNull ItemStack createBarrierPlaceholder() {
-                ItemStack s = new ItemStack(Items.BARRIER);
-                s.set(DataComponents.CUSTOM_NAME, PH_BARRIER_NAME);
-                return s;
-            }
-
-            public static @NonNull ItemStack createPrevPageIcon() {
-                ItemStack s = new ItemStack(Items.DYE.red());
-                s.set(DataComponents.CUSTOM_NAME, Component.literal("上一页"));
-                return s;
-            }
-
-            public static @NonNull ItemStack createNextPageIcon() {
-                ItemStack s = new ItemStack(Items.DYE.lime());
-                s.set(DataComponents.CUSTOM_NAME, Component.literal("下一页"));
-                return s;
-            }
-
-            public static @NonNull ItemStack createInputSlotIcon() {
-                ItemStack s = new ItemStack(Items.STAINED_GLASS_PANE.lightGray());
-                s.set(DataComponents.CUSTOM_NAME, Component.literal("输入槽"));
-                return s;
-            }
-
-            public static @NonNull ItemStack createActionPlaceholder() {
-                ItemStack s = new ItemStack(Items.STAINED_GLASS_PANE.gray());
-                s.set(DataComponents.CUSTOM_NAME, Component.literal("操作（占位）"));
-                return s;
-            }
-
-            // =========================================================
-            // 识别
-            // =========================================================
-
-            public static boolean isInput(@NonNull ItemStack stack) {
-                return !stack.isEmpty()
-                        && stack.is(Items.STRUCTURE_VOID)
-                        && PH_INPUT_NAME.equals(stack.get(DataComponents.CUSTOM_NAME));
-            }
-
-            public static boolean isOutput(@NonNull ItemStack stack) {
-                return !stack.isEmpty()
-                        && stack.is(Items.BARRIER)
-                        && PH_OUTPUT_NAME.equals(stack.get(DataComponents.CUSTOM_NAME));
-            }
-
-            public static boolean isBarrier(@NonNull ItemStack stack) {
-                return !stack.isEmpty()
-                        && stack.is(Items.BARRIER)
-                        && PH_BARRIER_NAME.equals(stack.get(DataComponents.CUSTOM_NAME));
-            }
-        }
-
-        // =========================================================
-        // Lore 文本
-        // =========================================================
-
-        public static final class Lore {
-            private Lore() {}
-
-            // =========================================================
-            // 对外入口
-            // =========================================================
-
-            /** 物品展示格的 Lore：库存量 + 分解 + 操作提示。 */
-            public static @NonNull List<Component> buildLore(@NonNull Item item, int count) {
-                List<Component> lines = new ArrayList<>();
-
-                lines.add(line()
-                        .append(label("库存量: "))
-                        .append(value(count)));
-
-                lines.addAll(buildCountBreakdown(item, count));
-
-                lines.add(line()
-                        .append(Component.literal("───────────────")
-                                .withStyle(ChatFormatting.DARK_GRAY)));
-
-                lines.add(action("左键(Shift)", "取出一组到光标(背包)"));
-                lines.add(action("右键(Shift)", "取出一盒到光标(背包)"));
-
-                return lines;
-            }
-
-            /**
-             * 「约 xx盒xx组xx个」分解行。
-             * <ul>
-             *     <li>每组堆叠 = item.getDefaultMaxStackSize()</li>
-             *     <li>每盒 = 一组堆叠 × 27</li>
-             *     <li>不可堆叠 → 不显示「组」</li>
-             *     <li>潜影盒本身 → 不显示「盒」</li>
-             *     <li>可堆叠且不足一组 → 整行不显示</li>
-             *     <li>只剩「个」→ 整行不显示（与第一行重复）</li>
-             * </ul>
-             */
-            public static @NonNull List<Component> buildCountBreakdown(@NonNull Item item, int count) {
-                if (count <= 0) return List.of();
-
-                int maxStack = item.getDefaultMaxStackSize();
-                if (maxStack <= 0) return List.of();
-
-                boolean canBeBoxed = !(Block.byItem(item) instanceof ShulkerBoxBlock);
-                int perBox = maxStack * ShulkerBoxBlockEntity.CONTAINER_SIZE;
-
-                if (maxStack > 1 && count < maxStack) return List.of();
-
-                int boxes = 0;
-                int remainder = count;
-                if (canBeBoxed && perBox > 0) {
-                    boxes = count / perBox;
-                    remainder = count % perBox;
-                }
-
-                int stacks = 0;
-                int items = remainder;
-                if (maxStack > 1) {
-                    stacks = remainder / maxStack;
-                    items = remainder % maxStack;
-                }
-
-                if (boxes == 0 && stacks == 0) return List.of();
-
-                StringBuilder sb = new StringBuilder();
-                if (boxes > 0)  sb.append(boxes).append("盒 ");
-                if (stacks > 0) sb.append(stacks).append("组 ");
-                if (items > 0)  sb.append(items).append("个");
-
-                String text = sb.toString().trim();
-                if (text.isEmpty()) return List.of();
-
-                return List.of(line().append(label("约 ")).append(value(text)));
-            }
-
-            /** 合成按钮的 Lore：可合成数量 + 分解 + 操作提示。 */
-            public static @NonNull List<Component> buildCraftLore(int maxCraftable, @NonNull Item resultItem) {
-                List<Component> lines = new ArrayList<>();
-
-                lines.add(line()
-                        .append(label("可合成 "))
-                        .append(value(maxCraftable))
-                        .append(label(" 个")));
-
-                if (maxCraftable > 0) {
-                    lines.addAll(buildCountBreakdown(resultItem, maxCraftable));
-                }
-
-                lines.add(line()
-                        .append(Component.literal("───────────────")
-                                .withStyle(ChatFormatting.DARK_GRAY)));
-
-                lines.add(action("左键(Shift)", "合成一组到光标(背包)"));
-                lines.add(action("右键(Shift)", "合成一盒到光标(背包)"));
-
-                return lines;
-            }
-
-            /** 合成按钮的名称：「合成 」+ 金色产物名。 */
-            public static @NonNull MutableComponent craftButtonName(@NonNull Component outputName) {
-                return Component.empty()
-                        .append(Component.literal("合成 ").setStyle(style(ChatFormatting.WHITE)))
-                        .append(Component.empty()
-                                .append(outputName.copy())
-                                .setStyle(style(ChatFormatting.GOLD)));
-            }
-
-            // =========================================================
-            // 样式工具
-            // =========================================================
-
-            private static @NonNull Style style(ChatFormatting color) {
-                return Style.EMPTY.withItalic(false).withColor(color);
-            }
-
-            private static @NonNull MutableComponent line() {
-                return Component.empty().setStyle(style(ChatFormatting.GRAY));
-            }
-
-            private static @NonNull MutableComponent label(String text) {
-                return Component.literal(text).setStyle(style(ChatFormatting.YELLOW));
-            }
-
-            private static @NonNull MutableComponent value(String text) {
-                return Component.literal(text).setStyle(style(ChatFormatting.AQUA));
-            }
-
-            private static @NonNull MutableComponent value(int count) {
-                return value(String.format("%,d", count));
-            }
-
-            private static @NonNull MutableComponent action(String key, String desc) {
-                Component k = Component.literal(key).setStyle(style(ChatFormatting.GOLD));
-                Component d = Component.literal(desc).setStyle(style(ChatFormatting.GRAY));
-                return Component.empty()
-                        .append(Component.literal("▪ ").setStyle(style(ChatFormatting.DARK_GRAY)))
-                        .append(Component.literal("[").setStyle(style(ChatFormatting.DARK_GRAY)))
-                        .append(k)
-                        .append(Component.literal("] ").setStyle(style(ChatFormatting.DARK_GRAY)))
-                        .append(d);
-            }
         }
     }
 }

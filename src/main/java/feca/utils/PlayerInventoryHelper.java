@@ -39,11 +39,18 @@ public final class PlayerInventoryHelper {
         return false;
     }
 
-    /** 把 stack 放入玩家背包，放不下时掉落到脚下。 */
+    /**
+     * 把 stack 放入玩家背包，放不下时掉落到脚下。
+     * <p>
+     * 注意：创造模式下 {@link Inventory#add} 放不下时会把物品静默丢弃（并返回 `true`），
+     * 因此这里先用 {@link #canFullyFit} 判断，放不下时直接掉落，避免物品丢失。
+     */
     public static void giveOrDrop(@NonNull Player player, @NonNull ItemStack stack) {
         if (stack.isEmpty()) return;
-        if (!player.getInventory().add(stack)) {
+        if (!canFullyFit(player, stack)) {
             player.drop(stack, false);
+            return;
         }
+        player.getInventory().add(stack);
     }
 }

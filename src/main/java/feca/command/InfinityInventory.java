@@ -21,7 +21,9 @@ import feca.function.InfinityInventoryMenu;
 import feca.function.utils.InfinityInventoryStorage;
 import feca.utils.ContainerHelper;
 import feca.registry.OnInitializeCallbackRegistry;
+import feca.registry.RuleChangeCallbackRegistry;
 import feca.rule.Rules;
+import feca.rule.options.CommandPermissionOptions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
@@ -32,7 +34,6 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.SimpleMenuProvider;
 import org.jspecify.annotations.NonNull;
 
 import java.util.*;
@@ -54,10 +55,7 @@ public class InfinityInventory {
                         .then(Commands.literal("menu")
                                 .requires(_ -> Rules.infinityInventoryMenu)
                                 .executes(PlayerExecutor.requireExecByPlayer((_, player) -> {
-                                    player.openMenu(new SimpleMenuProvider(
-                                            (syncId, inv, _) -> new InfinityInventoryMenu.OperationMenu(syncId, inv),
-                                            Component.literal("Infinity Inventory Menu")
-                                    ));
+                                    InfinityInventoryMenu.open(player);
                                     return CommandResult.SUCCESS;
                                 }))
                         )
@@ -65,7 +63,22 @@ public class InfinityInventory {
             });
         });
 
+        // 规则变化后重发命令树：命令是否可见由 .requires 决定，
+        // 而客户端命令树只在登录时下发，运行中修改规则需要主动刷新（否则命令会显示为红色不可用）
+        RuleChangeCallbackRegistry.registerFor(feca.function.InfinityInventory.class,
+                (source, _, _, _) -> resendCommands(source), CommandPermissionOptions.class);
+        RuleChangeCallbackRegistry.registerFor(InfinityInventoryMenu.class,
+                (source, _, _, _) -> resendCommands(source), Boolean.class);
+
         registerDebug();
+    }
+
+    /// 向所有在线玩家重新下发命令树（规则变化后刷新命令可见性）
+    private static void resendCommands(@NonNull CommandSourceStack source) {
+        var server = source.getServer();
+        for (var player : server.getPlayerList().getPlayers()) {
+            server.getCommands().sendCommands(player);
+        }
     }
 
     private static class SubCommands {
@@ -81,9 +94,9 @@ public class InfinityInventory {
 
                         var hasCount = inventory.countItem(item);
                         if (hasCount < count) {
-                            source.sendFailure(Component.literal("背包内的 ")
-                                    .append(item.getDefaultInstance().getDisplayName())
-                                    .append(String.format(" 数量不足: 需要 %d 个，只有 %d 个", count, hasCount)));
+                            source.sendFailure(Component.translatable(
+                                    "feca.msg.cmd.infinityInventory.store.notEnough",
+                                    item.getDefaultInstance().getDisplayName(), count, hasCount));
                             return CommandResult.FAILURE;
                         }
 
@@ -107,9 +120,9 @@ public class InfinityInventory {
 
                         }
 
-                        source.sendSystemMessage(Component.literal("储存了 " + count + " 个 ")
-                                .append(itemName)
-                                .append("; 库存共有 " + storage.getCount(item) + " 个"));
+                        source.sendSystemMessage(Component.translatable(
+                                "feca.msg.cmd.infinityInventory.store.succ",
+                                count, itemName, storage.getCount(item)));
                         return CommandResult.SUCCESS;
                     });
 
@@ -127,9 +140,9 @@ public class InfinityInventory {
                                 int pushTimes = 0;
                                 for (var slot : player.getInventory().getNonEquipmentItems()) {
                                     if (slot.isStackable()) {
-                                        var msg = Component.literal("储存: ")
-                                                .append(slot.getDisplayName())
-                                                .append(" * " + slot.getCount());
+                                        var msg = Component.translatable(
+                                                "feca.msg.cmd.infinityInventory.store.allStackable.item",
+                                                slot.getDisplayName(), slot.getCount());
                                         if (storage.push(slot)) {
                                             ctx.getSource().sendSystemMessage(msg);
                                             pushTimes++;
@@ -137,9 +150,11 @@ public class InfinityInventory {
                                     }
                                 }
                                 if (pushTimes > 0) {
-                                    ctx.getSource().sendSystemMessage(Component.literal("共储存了 " + pushTimes + " 次"));
+                                    ctx.getSource().sendSystemMessage(Component.translatable(
+                                            "feca.msg.cmd.infinityInventory.store.allStackable.succ", pushTimes));
                                 } else {
-                                    ctx.getSource().sendFailure(Component.literal("未进行储存"));
+                                    ctx.getSource().sendFailure(Component.translatable(
+                                            "feca.msg.cmd.infinityInventory.store.allStackable.fail"));
                                 }
                                 return CommandResult.SUCCESS;
                             }))
@@ -157,7 +172,8 @@ public class InfinityInventory {
 
                     var hasCount = storage.getCount(item);
                     if (hasCount < count) {
-                        var msg = Component.literal("取出失败: 库存内只有 " + hasCount + " 个，但期望取出 " + count + " 个");
+                        var msg = Component.translatable(
+                                "feca.msg.cmd.infinityInventory.take.notEnough", hasCount, count);
                         ctx.getSource().sendFailure(msg);
                         return CommandResult.FAILURE;
                     }
@@ -165,7 +181,8 @@ public class InfinityInventory {
                     // == 于 INVENTORY_CAN_STORE 无意义
                     var canStoreCount = ContainerHelper.canStoreCount(inventory.getNonEquipmentItems(), item);
                     if (canStoreCount < count) {
-                        var msg = Component.literal("取出失败: 背包内只能存入 " + canStoreCount + " 个，但期望为 " + count + " 个");
+                        var msg = Component.translatable(
+                                "feca.msg.cmd.infinityInventory.take.noSpace", canStoreCount, count);
                         ctx.getSource().sendFailure(msg);
                         return CommandResult.FAILURE;
                     }
@@ -174,7 +191,8 @@ public class InfinityInventory {
                     var popCount = storage.tryPopTo(item, count, inventory.getNonEquipmentItems());
 
                     var name = item.getDefaultInstance().getDisplayName();
-                    var msg = Component.literal("取出了 " + popCount + " 个 ").append(name);
+                    var msg = Component.translatable(
+                            "feca.msg.cmd.infinityInventory.take.succ", popCount, name);
                     ctx.getSource().sendSystemMessage(msg);
 
                     return CommandResult.SUCCESS;
@@ -206,10 +224,12 @@ public class InfinityInventory {
                                 var name = item.getDefaultInstance().getDisplayName();
                                 // noinspection IfStatementWithIdenticalBranches
                                 if (count <= 0) {
-                                    var msg = Component.literal("库存内没有 ").withColor(TextColor.RED).append(name);
+                                    var msg = Component.translatable(
+                                            "feca.msg.cmd.infinityInventory.count.fail", name).withColor(TextColor.RED);
                                     ctx.getSource().sendSystemMessage(msg);
                                 } else {
-                                    var msg = Component.literal("库存内共有 " + count + " 个 ").append(name);
+                                    var msg = Component.translatable(
+                                            "feca.msg.cmd.infinityInventory.count.succ", count, name);
                                     ctx.getSource().sendSystemMessage(msg);
                                 }
 
@@ -313,7 +333,8 @@ public class InfinityInventory {
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     private static boolean requireCountIsPositive(int count, CommandContext<CommandSourceStack> ctx) {
         if (count <= 0) {
-            ctx.getSource().sendFailure(Component.literal("count 需要是正数，但实际为: " + count));
+            ctx.getSource().sendFailure(Component.translatable(
+                    "feca.msg.cmd.infinityInventory.err.countNotPositive", count));
             return false;
         }
         return true;
@@ -346,7 +367,8 @@ public class InfinityInventory {
                 if (!requireCountIsPositive(count, ctx)) return CommandResult.FAILURE;
 
                 storage.modifyCount(item, count);
-                var msg = Component.literal("添加完成(添加了 " + count + " 个)，库存共有 " + storage.getCount(item) + " 个");
+                var msg = Component.translatable(
+                        "feca.msg.cmd.infinityInventory.debug.store.succ", count, storage.getCount(item));
                 ctx.getSource().sendSystemMessage(msg);
 
                 return CommandResult.SUCCESS;
@@ -360,7 +382,8 @@ public class InfinityInventory {
                 if (!requireCountIsPositive(count, ctx)) return CommandResult.FAILURE;
 
                 storage.modifyCount(item, -count);
-                var msg = Component.literal("销毁完成(销毁了 " + count + " 个)，库存共有 " + storage.getCount(item) + " 个");
+                var msg = Component.translatable(
+                        "feca.msg.cmd.infinityInventory.debug.take.succ", count, storage.getCount(item));
                 ctx.getSource().sendSystemMessage(msg);
                 return CommandResult.SUCCESS;
             });
@@ -396,7 +419,8 @@ public class InfinityInventory {
                 .then(Commands.literal("clear")
                         .executes(PlayerExecutor.requireExecByPlayer((ctx, player) -> {
                             getStorage(player).clear();
-                            ctx.getSource().sendSystemMessage(Component.literal("已清空全部库存"));
+                            ctx.getSource().sendSystemMessage(Component.translatable(
+                                    "feca.msg.cmd.infinityInventory.debug.clear.succ"));
                             return CommandResult.SUCCESS;
                         }))
                 )
