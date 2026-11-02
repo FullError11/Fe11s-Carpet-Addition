@@ -873,7 +873,6 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
 
     /// 潜影盒槽：显示并取出库存中的空潜影盒
     private final class ShulkerBoxVirtualSlot extends AbstractItemVirtualSlot {
-        // TODO: 匹配染色的潜影盒
         public ShulkerBoxVirtualSlot(int slotIndex) { super(slotIndex); }
 
         @Override
@@ -949,8 +948,18 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
             return storage.getCount(stack.getItem());
         }
 
-        @Override protected Item item() { return Items.SHULKER_BOX; }
-        @Override protected int count() { return storage.getCount(item()); }
+        /// 优先使用第一个有库存的染色潜影盒；全部为空时使用默认（无染色）潜影盒
+        @Override
+        protected Item item() {
+            var colored = storage.getFirstNotEmpty(Items.DYED_SHULKER_BOX);
+            return colored == Items.AIR ? Items.SHULKER_BOX : colored;
+        }
+
+        /// 所有潜影盒（默认 + 染色）的库存总数
+        @Override
+        protected int count() {
+            return storage.getCount(Items.SHULKER_BOX) + storage.getTotalCount(Items.DYED_SHULKER_BOX);
+        }
     }
 
     /// 上一页按钮
