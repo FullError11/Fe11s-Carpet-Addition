@@ -270,7 +270,7 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
 
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
-    private static boolean isNormal(@NonNull ItemStack stack) {
+    public static boolean isNormal(@NonNull ItemStack stack) {
         return ItemStack.isSameItemSameComponents(stack, stack.getItem().getDefaultInstance());
     }
 

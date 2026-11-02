@@ -110,5 +110,6 @@
     "feca.msg.gui.infinityInventory.page.next": "下一页",
     "feca.msg.gui.infinityInventory.err.inventoryFull": "背包空间不足",
     "feca.msg.gui.infinityInventory.err.noShulker": "库存内缺少潜影盒",
-    "feca.msg.gui.infinityInventory.err.unsupportedData": "该物品含有不支持的数据，无法存入库存"
+    "feca.msg.gui.infinityInventory.err.unsupportedData": "该物品含有不支持的数据，无法存入库存",
+    "feca.msg.gui.infinityInventory.err.addToInvFail": "存入库存失败"
 }

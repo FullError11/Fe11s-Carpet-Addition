@@ -119,8 +119,8 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
         var stackCopy = stack.copy();
 
         if (!storage.push(stack) && stack.getCount() == stackCopy.getCount()) {
-            // 完全没存进去：通常是物品带有不支持的数据组件（NBT）
-            sendStoreFailure();
+            // 完全没存进去
+            sendStoreFailure(stack);
             return ItemStack.EMPTY;
         }
 
@@ -140,10 +140,19 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
         }
     }
 
-    /// 提示「无法存入库存」：通常表示物品带有不支持的数据组件（NBT）
-    private void sendStoreFailure() {
-        sendMenuMessage(Component.translatable(
-                "feca.msg.gui.infinityInventory.err.unsupportedData").withStyle(ChatFormatting.RED));
+    /// 提示「无法存入库存」
+    private void sendStoreFailure(@NonNull ItemStack stack) {
+        if (stack.isEmpty()) return;
+
+        if (!InfinityInventoryStorage.isNormal(stack)) {
+            sendMenuMessage(Component.translatable(
+                    "feca.msg.gui.infinityInventory.err.unsupportedData").withStyle(ChatFormatting.RED));
+        } else {
+            sendMenuMessage(Component.translatable(
+                    "feca.msg.gui.infinityInventory.err.addToInvFail").withStyle(ChatFormatting.RED));
+            FeCA.LOGGER.warn("<InfinityInventoryMenu> Failed to add item to inventory(unknown error): stack={}(components={}), inventory count={}",
+                    stack, stack.getComponents(), storage.getCount(stack.getItem()));
+        }
     }
 
     /// 只在服务端发送聊天提示，避免客户端预测执行 `clicked` 时重复提示
@@ -357,12 +366,12 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
             if (carried.isEmpty()) return;
 
             if (buttonNum == 0) {
-                if (!storage.push(carried)) sendStoreFailure();
+                if (!storage.push(carried)) sendStoreFailure(carried);
             } else if (buttonNum == 1) {
                 var buf = carried.split(1);
                 if (!storage.push(buf)) {
                     carried.grow(buf.getCount());
-                    sendStoreFailure();
+                    sendStoreFailure(buf);
                 }
             }
         }
@@ -998,12 +1007,12 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
             // 把光标物品存入库存（左键全部 / 右键一个）
             if (input == ContainerInput.PICKUP) {
                 if (buttonNum == 0) {
-                    if (!storage.push(carried)) sendStoreFailure();
+                    if (!storage.push(carried)) sendStoreFailure(carried);
                 } else if (buttonNum == 1) {
                     var buf = carried.split(1);
                     if (!storage.push(buf)) {
                         carried.grow(buf.getCount());
-                        sendStoreFailure();
+                        sendStoreFailure(buf);
                     }
                 }
             }
