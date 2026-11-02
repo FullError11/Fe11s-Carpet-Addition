@@ -138,6 +138,8 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
                 removed.removed(serverPlayer);
             }
         }
+
+        super.removed(player);
     }
 
     /// 提示「无法存入库存」
