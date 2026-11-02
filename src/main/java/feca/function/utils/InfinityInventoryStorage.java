@@ -2,11 +2,13 @@ package feca.function.utils;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import feca.utils.ColorCollectionUtils;
 import feca.utils.ShulkerBoxAccessor;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.ColorCollection;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 
@@ -198,6 +200,22 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
     public int getCount(Item item) {
         var data = items.get(item);
         return data == null ? 0 : data.getCount();
+    }
+
+    /// @return 第一个库存量大于 0 的 {@code item}；若不存在则返回 {@link Items#AIR}
+    public Item getFirstNotEmpty(ColorCollection<Item> colorItems) {
+        for (var color : ColorCollectionUtils.iterable(colorItems)) {
+            var count = getCount(color);
+            if (count > 0) return color;
+        }
+        return Items.AIR;
+    }
+
+    public int getTotalCount(ColorCollection<Item> colorItems) {
+        int result = 0;
+        for (var color :  ColorCollectionUtils.iterable(colorItems))
+            result += getCount(color);
+        return result;
     }
 
     public int size() { return items.size(); }
