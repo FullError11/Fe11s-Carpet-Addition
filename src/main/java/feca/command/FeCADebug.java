@@ -21,7 +21,6 @@ import org.jspecify.annotations.NonNull;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.function.UnaryOperator;
 
 @SuppressWarnings("unused")
 public class FeCADebug {
