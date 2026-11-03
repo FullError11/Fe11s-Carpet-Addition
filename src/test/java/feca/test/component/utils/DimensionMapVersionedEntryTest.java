@@ -91,4 +91,48 @@ class DimensionMapVersionedEntryTest {
         final String secondRender = entry.CHAT_PAGES.use(renderPage);
         assertTrue(secondRender.contains("b"), "新增条目后分页缓存必须重建: " + secondRender);
     }
+
+    @Test
+    @DisplayName("变更监听器在每次实际变化后触发（overlay 靠它做事件驱动同步）")
+    void changeListenerFiresOnMutations() {
+        final var entry = newMap().getEntry(DimensionMapTest.OVERWORLD);
+        final int[] fires = {0};
+        entry.addChangeListener(() -> fires[0]++);
+
+        entry.add("a");                  // 触发
+        assertEquals(1, fires[0]);
+
+        entry.add("a");                  // 无变化，不触发
+        assertEquals(1, fires[0], "没有实际变化时不应触发监听器");
+
+        entry.remove("a");               // 触发
+        assertEquals(2, fires[0]);
+
+        // noinspection unchecked
+        entry.modify(storage -> ((Set<String>) storage).size());   // 触发
+        assertEquals(3, fires[0]);
+
+        entry.clear();                   // 触发
+        assertEquals(4, fires[0]);
+    }
+
+    @Test
+    @DisplayName("监听器注册在维度条目创建时（createMap 的初始化器）")
+    void entryInitializerRunsForEachDimension() {
+        final var seen = new ArrayList<String>();
+        final var map = DimensionMapVersionedPrintableEntry.<String, Set<String>>createMap(
+                HashSet::new,
+                (_, storage) -> Lazy.by(() -> ChatPaginator.doPaging(
+                        new ArrayList<>(storage), 10, (item, _) -> Component.literal(item))),
+                (dimension, entry) -> {
+                    seen.add(dimension.identifier().toString());
+                    entry.addChangeListener(() -> seen.add("changed"));
+                });
+
+        map.getEntry(DimensionMapTest.OVERWORLD).add("a");
+
+        assertEquals(2, seen.size(), seen.toString());
+        assertTrue(seen.get(0).contains("overworld"), seen.toString());
+        assertEquals("changed", seen.get(1));
+    }
 }

@@ -419,11 +419,15 @@ public class ObserverFreezeAreas {
                     ? "feca.msg.cmd.observerFreezeAreas.overlay.enabled"
                     : "feca.msg.cmd.observerFreezeAreas.overlay.disabled"
             );
+            // carpet 客户端切换 F3 调试渲染器时会清空形状表, 只能靠重新订阅补发
+            final Component f3Hint = Component.translatable("feca.msg.cmd.observerFreezeAreas.overlay.f3Hint")
+                    .withColor(TextColor.GRAY);
 
             return Commands.literal("overlay")
                     .executes(PlayerExecutor.requireExecByPlayer((ctx, player) -> {
                         var subscribed = ObserverFreezeAreasOverlay.toggle(player.getUUID());
                         ctx.getSource().sendSuccess(() -> subscriptionMsg.apply(subscribed), false);
+                        if (subscribed) player.sendSystemMessage(f3Hint);
                         return SUCCESS;
                     }))
                     .then(Commands.literal("enable")
@@ -434,6 +438,7 @@ public class ObserverFreezeAreas {
                                     return FAILURE;
                                 }
                                 ctx.getSource().sendSuccess(() -> subscriptionMsg.apply(true), false);
+                                player.sendSystemMessage(f3Hint);
                                 return SUCCESS;
                             }))
                     )
@@ -490,7 +495,7 @@ public class ObserverFreezeAreas {
                     var dimensionStr = dimension.identifier().toString();
                     var aabbMsg = AABB2Component(aabb);
 
-                    if (ObserverFreezeAreasOverlay.setRendered(dimension, aabb, rendered)) {
+                    if (CommandObserverFreezeAreas.setRendered(dimension, aabb, rendered)) {
                         FeCA.LOGGER.info("Set rendered={} for {}:{} in ObserverFreezeAreas", rendered, dimensionStr, aabbMsg.getString());
                         context.getSource().sendSuccess(() -> Component.translatable(succKey, dimensionStr, aabbMsg), true);
                         return SUCCESS;
@@ -506,7 +511,7 @@ public class ObserverFreezeAreas {
                     var dimension = dimensionGetter.get(context);
                     var dimensionStr = dimension.identifier().toString();
 
-                    var changed = ObserverFreezeAreasOverlay.setAllRendered(dimension, rendered);
+                    var changed = CommandObserverFreezeAreas.setAllRendered(dimension, rendered);
                     if (changed > 0) {
                         FeCA.LOGGER.info("Set rendered={} for all ({}) ObserverFreezeAreas at {}", rendered, changed, dimensionStr);
                         context.getSource().sendSuccess(() -> Component.translatable(allSuccKey, dimensionStr, changed), true);

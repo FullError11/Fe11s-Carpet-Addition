@@ -1,9 +1,13 @@
 package feca.utils;
 
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 
 import java.util.Collection;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @SuppressWarnings("unused")
@@ -34,6 +38,8 @@ public class DimensionMapVersionedPrintableEntry<T, S extends Collection<T>> ext
 
 
     private final Version VERSION;
+    /// 内容变化回调(在版本号自增之后触发); 默认没有监听者
+    private final List<Runnable> CHANGE_LISTENERS = new CopyOnWriteArrayList<>();
 
     public DimensionMapVersionedPrintableEntry(S storage, Lazy<ChatPaginator.ChatPages<T>> chatPages, Version version) {
         super(storage, chatPages);
@@ -47,10 +53,23 @@ public class DimensionMapVersionedPrintableEntry<T, S extends Collection<T>> ext
         return VERSION.get();
     }
 
+    /// 注册内容变化回调(用于事件驱动地刷新派生数据, 例如 overlay 渲染)
+    public void addChangeListener(@NonNull Runnable listener) {
+        CHANGE_LISTENERS.add(listener);
+    }
+
+    /// 版本号自增 + 通知监听者
+    private void changed() {
+        VERSION.bump();
+        for (Runnable listener : CHANGE_LISTENERS) {
+            listener.run();
+        }
+    }
+
     @Override
     public boolean add(T item) {
         if (super.add(item)) {
-            VERSION.bump();
+            changed();
             return true;
         }
         return false;
@@ -59,7 +78,7 @@ public class DimensionMapVersionedPrintableEntry<T, S extends Collection<T>> ext
     @Override
     public boolean remove(T item) {
         if (super.remove(item)) {
-            VERSION.bump();
+            changed();
             return true;
         }
         return false;
@@ -68,12 +87,12 @@ public class DimensionMapVersionedPrintableEntry<T, S extends Collection<T>> ext
     @Override
     public void clear() {
         super.clear();
-        VERSION.bump();
+        changed();
     }
 
     @Override
     public <R> R modify(@NonNull Accessor<R> modifier) {
-        VERSION.bump();
+        changed();
         return super.modify(modifier);
     }
 
@@ -82,10 +101,26 @@ public class DimensionMapVersionedPrintableEntry<T, S extends Collection<T>> ext
     public static <T, S extends Collection<T>> @NonNull DimensionMap<T, DimensionMapVersionedPrintableEntry<T, S>> createMap(
             DimensionMap.@NonNull DefaultStorageCreator<T, S> defaultStorageCreator,
             DimensionMap.@NonNull DefaultChatPagesCreator<T, S> defaultChatPagesCreator) {
+        return createMap(defaultStorageCreator, defaultChatPagesCreator, (_, _) -> {});
+    }
+
+    /// 同上, 但每个维度的条目创建后会交给 {@code entryInitializer} 做额外初始化(例如挂变更回调)
+    @Contract("_, _, _ -> new")
+    public static <T, S extends Collection<T>> @NonNull DimensionMap<T, DimensionMapVersionedPrintableEntry<T, S>> createMap(
+            DimensionMap.@NonNull DefaultStorageCreator<T, S> defaultStorageCreator,
+            DimensionMap.@NonNull DefaultChatPagesCreator<T, S> defaultChatPagesCreator,
+            @NonNull EntryInitializer<T, S> entryInitializer) {
         return new DimensionMap<>(dimension -> {
             var storage = defaultStorageCreator.create();
-            return new DimensionMapVersionedPrintableEntry<>(storage, defaultChatPagesCreator.create(dimension, storage));
+            var entry = new DimensionMapVersionedPrintableEntry<>(storage, defaultChatPagesCreator.create(dimension, storage));
+            entryInitializer.initialize(dimension, entry);
+            return entry;
         });
+    }
+
+    /// 条目创建后的额外初始化
+    public interface EntryInitializer<T, S extends Collection<T>> {
+        void initialize(ResourceKey<Level> dimension, @NonNull DimensionMapVersionedPrintableEntry<T, S> entry);
     }
 
 }

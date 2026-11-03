@@ -12,6 +12,7 @@ import feca.rule.utils.RuleImpl;
 import feca.utils.*;
 import feca.utils.mixin.FreezeStats;
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.phys.AABB;
@@ -36,6 +37,20 @@ public class CommandObserverFreezeAreas implements RuleImpl {
             }
         }
         return false;
+    }
+
+    /// 设置单个区域是否参与 overlay 渲染 (不影响冻结判定)
+    /// @return 是否发生了变化 (区域不存在或状态相同时为 {@code false})
+    public static boolean setRendered(@NonNull ResourceKey<Level> dimension, @NonNull AABB aabb, boolean rendered) {
+        var entry = DIMENSION_MAP.tryGetEntry(dimension).orElse(null);
+        return entry != null && entry.modify(storage -> ((NameableAABBMap) storage).setRendered(aabb, rendered));
+    }
+
+    /// 设置该维度全部区域是否参与 overlay 渲染
+    /// @return 发生变化的区域数
+    public static int setAllRendered(@NonNull ResourceKey<Level> dimension, boolean rendered) {
+        var entry = DIMENSION_MAP.tryGetEntry(dimension).orElse(null);
+        return entry == null ? 0 : entry.modify(storage -> ((NameableAABBMap) storage).setAllRendered(rendered));
     }
 
 
@@ -220,7 +235,9 @@ public class CommandObserverFreezeAreas implements RuleImpl {
                             ObserverFreezeAreas.getJumpPageCommandCreator(dimension)
                     );
                 });
-            });
+            },
+            // 通知 overlay 同步
+            (_, entry) -> entry.addChangeListener(ObserverFreezeAreasOverlay::onAreasChanged));
 
     static {
         // 注册命令
@@ -230,6 +247,8 @@ public class CommandObserverFreezeAreas implements RuleImpl {
             var cmd = "carpet setDefault " + rule.name() + " " + ui;
             var cmdServer = stack.getServer().getCommands();
             cmdServer.performPrefixedCommand(stack, cmd);
+            // 规则开关变化时立即同步/清理 overlay
+            ObserverFreezeAreasOverlay.onRuleChanged();
         }, CommandPermissionOptions.class);
         // 关联到配置
         FeCA.CONFIG.register(

@@ -69,6 +69,7 @@
     "feca.msg.cmd.observerFreezeAreas.getDimensionFromExectorFail": "无法从执行者获取维度信息: 该变体仅支持玩家",
 
     "feca.msg.cmd.observerFreezeAreas.overlay.enabled": "已订阅侦测器冻结区域渲染",
+    "feca.msg.cmd.observerFreezeAreas.overlay.f3Hint": "提示: 受限于 carpet，切换 F3 及 切换维度 需要重新开关一次 overlay",
     "feca.msg.cmd.observerFreezeAreas.overlay.disabled": "已取消订阅侦测器冻结区域渲染",
     "feca.msg.cmd.observerFreezeAreas.overlay.enable.fail": "订阅失败: 你已订阅了渲染",
     "feca.msg.cmd.observerFreezeAreas.overlay.disable.fail": "取消订阅失败: 你未订阅渲染",
