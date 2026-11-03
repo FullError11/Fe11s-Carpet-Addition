@@ -1,19 +1,14 @@
 package feca.function;
 
-import com.mojang.serialization.Codec;
 import feca.FeCA;
 import feca.rule.Rules;
 import feca.rule.utils.RuleImpl;
 import net.minecraft.advancements.triggers.CriteriaTriggers;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.Registry;
 import net.minecraft.core.cauldron.CauldronInteraction;
-import net.minecraft.core.component.DataComponentType;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -22,6 +17,7 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.*;
+import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.ClipContext;
@@ -51,24 +47,32 @@ public class LargeBucket implements RuleImpl {
         return Rules.largeBucket;
     }
 
-    public static final DataComponentType<Integer> BUCKET_CONTENT_COUNT = Registry.register(
-            BuiltInRegistries.DATA_COMPONENT_TYPE,
-            FeCA.id("bucket_content_count"),
-            DataComponentType.<Integer>builder()
-                    .persistent(Codec.INT)
-                    .networkSynchronized(ByteBufCodecs.VAR_INT)
-                    .build()
-    );
+    private static final String BUCKET_CONTENT_KEY = "feca:bucket_content";
 
+    /// 读取大桶内容量。
+    ///
+    /// @return 内容量; **没有该数据时为 1** (桶本身正盛着的那一份)
+    public static int getBucketContentCount(@NonNull ItemStack stack) {
+        return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY)
+                .copyTag()
+                .getInt(BUCKET_CONTENT_KEY)
+                .orElse(1);
+    }
+
+    /// 增减内容量
+    ///
+    /// @return 增减后的内容量; <b>0 表示桶已被用空</b>, 调用方据此把桶换成空桶
+    /// @apiNote 内容量包含桶本身盛着的那一份 (无数据时读作 1), 因此这里**不能** clamp 到 1:
+    ///          否则 0 永远不会出现, 最后一份内容就永远消耗不掉
     private static int modifyBucketContentCount(@NonNull ItemStack stack, int modify) {
-        var newValue = Math.max(stack.getOrDefault(BUCKET_CONTENT_COUNT, 1) + modify, 1);
+        var newValue = Math.max(getBucketContentCount(stack) + modify, 0);
 
         if (newValue <= 1) {
             // 删掉这些自定义数据，防止丢不进 InfinityInventory
-            stack.remove(BUCKET_CONTENT_COUNT);
+            CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.remove(BUCKET_CONTENT_KEY));
             stack.remove(DataComponents.LORE);
         } else {
-            stack.set(BUCKET_CONTENT_COUNT, newValue);
+            CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putInt(BUCKET_CONTENT_KEY, newValue));
             stack.set(DataComponents.LORE, new ItemLore(List.of(
                     Component.literal("内容量: " + newValue).withStyle(style -> style.withItalic(false))
             )));
@@ -239,7 +243,7 @@ public class LargeBucket implements RuleImpl {
         if (!itemInHand.is(wantBucketItem)) return Optional.empty();
         // 如果炼药锅内的流体不是期望的流体，则放行至原版逻辑
         // 放行至的原版逻辑会调用到 emptyBucket,
-        // 并最终通过 修改后的逻辑 处理 LargeFluidBucket.BUCKET_CONTENT_COUNT
+        // 并最终通过 修改后的逻辑 处理 大桶的内容量数据
         // -
         // LargeFluidBucket 需要的是:
         // 当玩家尝试拿 流体桶 点击 装有同种流体的锅 时, 不填充锅, 收集内容到流体桶内
@@ -255,7 +259,7 @@ public class LargeBucket implements RuleImpl {
         // 一般情况下, fillBucket 的参数 itemInHand 总是 空桶，
         // 在 fillContentInteraction 调用的 interaction 内部，会使用一个 非空桶 调用 fillBucket。
         // 如果此时的 fillBucket 没有被修改 (即: 不因为 桶非空 而进入特制的逻辑)，
-        // 则会导致手上桶的 LargeFluidBucket.BUCKET_CONTENT_COUNT 数据丢失(失去此前储存的内容计数)。
+        // 则会导致手上桶的内容量数据丢失(失去此前储存的内容计数)。
         var result = interaction.interact(state, level, pos, player, hand, itemInHand);
         return Optional.of(result);
     }
@@ -317,7 +321,7 @@ public class LargeBucket implements RuleImpl {
         if (itemInHand.is(Items.BUCKET)) return Optional.empty();
         if (Lazy.BUCKET_CAULDRON_MAP.get(itemInHand.getItem()) != newState.getBlock()) return Optional.empty();
 
-        int bucketContentCount = itemInHand.getOrDefault(LargeBucket.BUCKET_CONTENT_COUNT, 1);
+        int bucketContentCount = LargeBucket.getBucketContentCount(itemInHand);
         if (bucketContentCount <= 1) return Optional.empty();
 
         if (!level.isClientSide()) {

@@ -1,35 +1,26 @@
 package feca.command;
 
-import com.mojang.brigadier.StringReader;
 import com.mojang.brigadier.arguments.ArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
-import com.mojang.brigadier.suggestion.Suggestions;
-import com.mojang.brigadier.suggestion.SuggestionsBuilder;
-import feca.FeCA;
 import feca.command.arguments.AbstractArgument;
 import feca.command.utils.CommandResult;
-import feca.registry.OnInitializeCallbackRegistry;
-import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
-import net.minecraft.commands.synchronization.SingletonArgumentInfo;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.NonNull;
 
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.function.UnaryOperator;
 
 @SuppressWarnings("unused")
@@ -56,47 +47,15 @@ public class FeCADebug {
             public String name() { return name; }
         }
 
-        private record VarArgumentType(Vars vars) implements ArgumentType<String> {
+        /// 变量名参数。
+        ///
+        /// @apiNote 刻意使用原版 {@code word} 参数而不是自定义 {@code ArgumentType}:
+        /// 自定义参数类型会进入<b>客户端同步注册表</b> ({@code minecraft:command_argument_type})，
+        /// 服务端注册后未安装 FeCA 的客户端会被 fabric-registry-sync 直接踢下线。
+        private static class VarArgument extends AbstractArgument.NonBuildContext<Var<?>> {
             private static final DynamicCommandExceptionType UNKNOWN_VARIABLE =
                     new DynamicCommandExceptionType(name -> Component.literal("变量不存在: " + name));
 
-            @Contract(value = "_ -> new", pure = true)
-            public static @NonNull VarArgumentType of(Vars vars) {
-                return new VarArgumentType(vars);
-            }
-
-            @Override
-            public @NonNull String parse(@NonNull StringReader reader) throws CommandSyntaxException {
-                int start = reader.getCursor();
-                String name = reader.readUnquotedString();
-                if (!vars.containsKey(name)) {
-                    reader.setCursor(start);
-                    throw UNKNOWN_VARIABLE.createWithContext(reader, name);
-                }
-                return name;
-            }
-
-            @Override
-            public <S> CompletableFuture<Suggestions> listSuggestions(CommandContext<S> context, @NonNull SuggestionsBuilder builder) {
-                String remaining = builder.getRemaining();
-                for (String name : vars.keySet()) {
-                    if (name.startsWith(remaining)) {
-                        builder.suggest(name);
-                    }
-                }
-                return builder.buildFuture();
-            }
-
-            @Contract(pure = true)
-            @Override
-            public @NonNull @Unmodifiable Collection<String> getExamples() {
-                return List.copyOf(vars.keySet());
-            }
-        }
-
-        final VarArgumentType VAR_ARGUMENT_TYPE = VarArgumentType.of(this);
-
-        static class VarArgument extends AbstractArgument.NonBuildContext<Var<?>> {
             private final Vars vars;
 
             public VarArgument(Vars vars, String name) {
@@ -104,18 +63,28 @@ public class FeCADebug {
                 this.vars = vars;
             }
 
+            @Contract(value = " -> new", pure = true)
             @Override
-            protected ArgumentType<?> argumentType() {
-                return vars.VAR_ARGUMENT_TYPE;
+            protected @NonNull ArgumentType<?> argumentType() {
+                return StringArgumentType.word();
             }
 
             @Override
-            public Var<?> get(@NonNull CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
-                return vars.get(ctx.getArgument(name, String.class));
+            public @NonNull Var<?> get(@NonNull CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
+                final String varName = ctx.getArgument(name, String.class);
+                final Var<?> var = vars.get(varName);
+                if (var == null) throw UNKNOWN_VARIABLE.create(varName);
+                return var;
             }
 
             public String getName(@NonNull CommandContext<CommandSourceStack> ctx) {
                 return ctx.getArgument(name, String.class);
+            }
+
+            /// 变量名补全 (原版参数类型没有内置补全，改由服务端提供)
+            @Override
+            public RequiredArgumentBuilder<CommandSourceStack, ?> require() {
+                return super.require().suggests((_, builder) -> SharedSuggestionProvider.suggest(vars.keySet(), builder));
             }
         }
 
@@ -156,14 +125,6 @@ public class FeCADebug {
     }
 
     public static void register() {
-        OnInitializeCallbackRegistry.register(() -> {
-            ArgumentTypeRegistry.registerArgumentType(
-                    FeCA.id("debugger/vars/var"),
-                    Vars.VarArgumentType.class,
-                    SingletonArgumentInfo.contextFree(() -> FeCADebug.VARS.VAR_ARGUMENT_TYPE)
-            );
-        });
-
         CommandRegistrationCallback.EVENT.register((dispatcher, buildContext, selection) -> {
             var varArg = new Vars.VarArgument(VARS, "var");
 
