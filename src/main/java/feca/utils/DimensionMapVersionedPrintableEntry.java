@@ -71,6 +71,12 @@ public class DimensionMapVersionedPrintableEntry<T, S extends Collection<T>> ext
         VERSION.bump();
     }
 
+    @Override
+    public <R> R modify(@NonNull Accessor<R> modifier) {
+        VERSION.bump();
+        return super.modify(modifier);
+    }
+
 
     @Contract("_, _ -> new")
     public static <T, S extends Collection<T>> @NonNull DimensionMap<T, DimensionMapVersionedPrintableEntry<T, S>> createMap(

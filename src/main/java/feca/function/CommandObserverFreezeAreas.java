@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import feca.FeCA;
 import feca.command.ObserverFreezeAreas;
+import feca.function.utils.ObserverFreezeAreasOverlay;
 import feca.registry.RuleChangeCallbackRegistry;
 import feca.rule.Rules;
 import feca.rule.options.CommandPermissionOptions;
@@ -38,21 +39,27 @@ public class CommandObserverFreezeAreas implements RuleImpl {
     }
 
 
+    /// @param rendered 是否参与 overlay 渲染 (不影响冻结判定)
     @SuppressWarnings("unused")
-    public record NameableAABB(AABB value, @Nullable String name) {
+    public record NameableAABB(AABB value, @Nullable String name, boolean rendered) {
+        /// 兼容构造: 默认参与渲染
+        public NameableAABB(AABB value, @Nullable String name) {
+            this(value, name, true);
+        }
+
         public boolean hasName() { return name() != null; }
 
         @Contract("_ -> new")
         public static @NonNull NameableAABB unnamed(AABB value) {
-            return new NameableAABB(value, null);
+            return new NameableAABB(value, null, true);
         }
         @Contract("_, _ -> new")
         public static @NonNull NameableAABB unnamed(BlockPos pos1, BlockPos pos2) {
-            return new NameableAABB(AABB.encapsulatingFullBlocks(pos1, pos2), null);
+            return new NameableAABB(AABB.encapsulatingFullBlocks(pos1, pos2), null, true);
         }
         @Contract("_, _ -> new")
         public static @NonNull NameableAABB named(@NonNull String name, AABB aabb) {
-            return new NameableAABB(aabb, name);
+            return new NameableAABB(aabb, name, true);
         }
 
         @Override
@@ -68,7 +75,13 @@ public class CommandObserverFreezeAreas implements RuleImpl {
      */
     @SuppressWarnings("unused")
     public static final class NameableAABBMap extends AbstractCollection<NameableAABB> {
-        private final HashMap<AABB, @Nullable String> aabbMap = new HashMap<>();
+        /// AABB 的附加信息; {@code rendered} 控制该区域是否参与 overlay 渲染
+        private record Meta(@Nullable String name, boolean rendered) {
+            @Contract("_ -> new")
+            @NonNull Meta withRendered(boolean rendered) { return new Meta(name, rendered); }
+        }
+
+        private final HashMap<AABB, Meta> aabbMap = new HashMap<>();
         private final HashMap<String, @NonNull AABB> nameMap = new HashMap<>();
 
         @Override
@@ -80,7 +93,7 @@ public class CommandObserverFreezeAreas implements RuleImpl {
                 if (nameMap.containsKey(name)) return false;
                 nameMap.put(name, aabb);
             }
-            aabbMap.put(aabb, name);
+            aabbMap.put(aabb, new Meta(name, nameableAABB.rendered()));
             return true;
         }
 
@@ -99,12 +112,33 @@ public class CommandObserverFreezeAreas implements RuleImpl {
 
         @SuppressWarnings("UnusedReturnValue")
         public boolean removeByAABB(AABB aabb) {
-            if (!aabbMap.containsKey(aabb)) return false;
-            var removedName = aabbMap.remove(aabb);
-            if (removedName != null) {
-                nameMap.remove(removedName);
+            var removed = aabbMap.remove(aabb);
+            if (removed == null) return false;
+            if (removed.name() != null) {
+                nameMap.remove(removed.name());
             }
             return true;
+        }
+
+        /// 设置单个区域的渲染状态
+        /// @return 是否发生了变化 (区域不存在或状态相同时为 {@code false})
+        public boolean setRendered(AABB aabb, boolean rendered) {
+            var meta = aabbMap.get(aabb);
+            if (meta == null || meta.rendered() == rendered) return false;
+            aabbMap.put(aabb, meta.withRendered(rendered));
+            return true;
+        }
+
+        /// 设置全部区域的渲染状态
+        /// @return 发生变化的区域数
+        public int setAllRendered(boolean rendered) {
+            int changed = 0;
+            for (var entry : aabbMap.entrySet()) {
+                if (entry.getValue().rendered() == rendered) continue;
+                entry.setValue(entry.getValue().withRendered(rendered));
+                changed++;
+            }
+            return changed;
         }
 
         @Override
@@ -132,10 +166,10 @@ public class CommandObserverFreezeAreas implements RuleImpl {
 
         @Override
         public @NonNull Iterator<NameableAABB> iterator() {
-            final Iterator<Map.Entry<AABB, @Nullable String>> it = aabbMap.entrySet().iterator();
+            final Iterator<Map.Entry<AABB, Meta>> it = aabbMap.entrySet().iterator();
 
             return new Iterator<>() {
-                private String lastName;
+                private Meta last;
 
                 @Override
                 public boolean hasNext() {
@@ -144,16 +178,16 @@ public class CommandObserverFreezeAreas implements RuleImpl {
 
                 @Override
                 public NameableAABB next() {
-                    Map.Entry<AABB, @Nullable String> entry = it.next();
-                    lastName = entry.getValue();
-                    return new NameableAABB(entry.getKey(), lastName);
+                    Map.Entry<AABB, Meta> entry = it.next();
+                    last = entry.getValue();
+                    return new NameableAABB(entry.getKey(), last.name(), last.rendered());
                 }
 
                 @Override
                 public void remove() {
                     it.remove();
-                    if (lastName != null) {
-                        nameMap.remove(lastName);
+                    if (last != null && last.name() != null) {
+                        nameMap.remove(last.name());
                     }
                 }
             };
@@ -212,6 +246,7 @@ public class CommandObserverFreezeAreas implements RuleImpl {
                         var json = new JsonObject();
                         json.add("name", nameCodec.toJson(value.name()));
                         json.add("area", aabbCodec.toJson(value.value()));
+                        json.addProperty("render", value.rendered());
                         return json;
                     }
 
@@ -220,10 +255,14 @@ public class CommandObserverFreezeAreas implements RuleImpl {
                         var json = element.getAsJsonObject();
                         return new NameableAABB(
                                 aabbCodec.fromJson(json.get("area")),
-                                nameCodec.fromJson(json.get("name"))
+                                nameCodec.fromJson(json.get("name")),
+                                json.get("render").getAsJsonPrimitive().getAsBoolean()
                         );
                     }
                 })
         );
+
+        // 加载 overlay 实现 (订阅名单 / 纯服务端渲染)
+        ClassForceLoader.load(ObserverFreezeAreasOverlay.class);
     }
 }

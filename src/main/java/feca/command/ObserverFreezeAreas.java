@@ -12,6 +12,7 @@ import feca.command.arguments.*;
 import feca.command.utils.PlayerExecutor;
 import feca.function.CommandObserverFreezeAreas;
 import feca.function.CommandObserverFreezeAreas.NameableAABB;
+import feca.function.utils.ObserverFreezeAreasOverlay;
 import feca.registry.OnInitializeCallbackRegistry;
 import feca.rule.Rules;
 import feca.utils.ChatPaginator;
@@ -49,6 +50,7 @@ public class ObserverFreezeAreas {
                         .then(SubCommands.add())
                         .then(SubCommands.remove())
                         .then(SubCommands.list())
+                        .then(SubCommands.overlay())
                 );
             });
         });
@@ -113,6 +115,12 @@ public class ObserverFreezeAreas {
                     .append(Component.literal(String.format("[%d] ", index)).withColor(TextColor.GRAY))
                     .append(AABB2Component(poss));
 
+            // 是否参与 overlay 渲染
+            if (!nameableAABB.rendered()) {
+                result.append(Component.translatable("feca.msg.cmd.observerFreezeAreas.list.nonRendered")
+                        .withStyle(ChatFormatting.DARK_GRAY));
+            }
+
             // 可能出现的 name
             if (nameableAABB.hasName()) {
                 var name = nameableAABB.name();
@@ -124,6 +132,25 @@ public class ObserverFreezeAreas {
                 );
                 result.append("(").append(msg).append(")");
             }
+
+            // 渲染开关 (点击切换该区域是否参与 overlay 渲染)
+            var rendered = nameableAABB.rendered();
+            var renderToggle = Component.translatable(rendered
+                    ? "feca.msg.cmd.observerFreezeAreas.list.fns.unrender"
+                    : "feca.msg.cmd.observerFreezeAreas.list.fns.render"
+            ).withStyle(style -> {
+                var toggleCmd = String.format("/observerFreezeAreas overlay %s %s %s %s",
+                        rendered ? "hide" : "show",
+                        dimension.identifier(),
+                        PhysUtils.blockPosToString(poss.getFirst()),
+                        PhysUtils.blockPosToString(poss.getSecond())
+                );
+                return style
+                        .withColor(rendered ? ChatFormatting.YELLOW : ChatFormatting.GREEN)
+                        .withHoverEvent(new HoverEvent.ShowText(Component.translatable("feca.msg.common.enterCommand")))
+                        .withClickEvent(new ClickEvent.SuggestCommand(toggleCmd));
+            });
+            result.append("  [").append(renderToggle).append("]");
 
             // 删除
             var remove = Component.translatable("feca.msg.cmd.observerFreezeAreas.list.fns.remove").withStyle(style -> {
@@ -384,6 +411,120 @@ public class ObserverFreezeAreas {
                                     .executes(ExecutorCreator.create(DimensionGetter.FROM_ARGUMENT, PageNumberGetter.FROM_ARGUMENT))
                             )
                     );
+        }
+
+        static ArgumentBuilder<CommandSourceStack, ?> overlay() {
+            // 订阅状态变更后的反馈
+            final Function<Boolean, Component> subscriptionMsg = subscribed -> Component.translatable(subscribed
+                    ? "feca.msg.cmd.observerFreezeAreas.overlay.enabled"
+                    : "feca.msg.cmd.observerFreezeAreas.overlay.disabled"
+            );
+
+            return Commands.literal("overlay")
+                    .executes(PlayerExecutor.requireExecByPlayer((ctx, player) -> {
+                        var subscribed = ObserverFreezeAreasOverlay.toggle(player.getUUID());
+                        ctx.getSource().sendSuccess(() -> subscriptionMsg.apply(subscribed), false);
+                        return SUCCESS;
+                    }))
+                    .then(Commands.literal("enable")
+                            .executes(PlayerExecutor.requireExecByPlayer((ctx, player) -> {
+                                if (!ObserverFreezeAreasOverlay.subscribe(player.getUUID())) {
+                                    ctx.getSource().sendFailure(Component.translatable(
+                                            "feca.msg.cmd.observerFreezeAreas.overlay.enable.fail"));
+                                    return FAILURE;
+                                }
+                                ctx.getSource().sendSuccess(() -> subscriptionMsg.apply(true), false);
+                                return SUCCESS;
+                            }))
+                    )
+                    .then(Commands.literal("disable")
+                            .executes(PlayerExecutor.requireExecByPlayer((ctx, player) -> {
+                                if (!ObserverFreezeAreasOverlay.unsubscribe(player.getUUID())) {
+                                    ctx.getSource().sendFailure(Component.translatable(
+                                            "feca.msg.cmd.observerFreezeAreas.overlay.disable.fail"));
+                                    return FAILURE;
+                                }
+                                ctx.getSource().sendSuccess(() -> subscriptionMsg.apply(false), false);
+                                return SUCCESS;
+                            }))
+                    )
+                    .then(Commands.literal("list").executes(ctx -> {
+                        var subscribers = ObserverFreezeAreasOverlay.subscribers();
+                        if (subscribers.isEmpty()) {
+                            ctx.getSource().sendSystemMessage(Component.translatable(
+                                    "feca.msg.cmd.observerFreezeAreas.overlay.list.empty"));
+                            return FAILURE;
+                        }
+
+                        var playerList = ctx.getSource().getServer().getPlayerList();
+                        var msg = Component.empty();
+                        msg.append(Component.translatable(
+                                "feca.msg.cmd.observerFreezeAreas.overlay.list.header", subscribers.size()));
+                        for (var uuid : subscribers) {
+                            var online = playerList.getPlayer(uuid);
+                            var name = online != null ? online.getName().getString() : uuid.toString();
+                            msg.append("\n").append(Component.translatable(
+                                    "feca.msg.cmd.observerFreezeAreas.overlay.list.entry", name));
+                        }
+                        ctx.getSource().sendSystemMessage(msg);
+                        return SUCCESS;
+                    }))
+                    .then(renderedOrNot(false))
+                    .then(renderedOrNot(true));
+        }
+
+        /// 区域渲染开关
+        /// @param rendered {@code true} = show(恢复渲染), {@code false} = hide(停止渲染)
+        static ArgumentBuilder<CommandSourceStack, ?> renderedOrNot(boolean rendered) {
+            final String action = rendered ? "show" : "hide";
+            final String succKey = "feca.msg.cmd.observerFreezeAreas.overlay." + action + ".succ";
+            final String failKey = "feca.msg.cmd.observerFreezeAreas.overlay." + action + ".fail";
+            final String allSuccKey = "feca.msg.cmd.observerFreezeAreas.overlay." + action + "All.succ";
+            final String allFailKey = "feca.msg.cmd.observerFreezeAreas.overlay." + action + "All.fail";
+
+            final Function<DimensionGetter, ArgumentBuilder<CommandSourceStack, ?>> single = dimensionGetter -> {
+                return Arguments.POS1.require().then(Arguments.POS2.require().executes(context -> {
+                    var dimension = dimensionGetter.get(context);
+                    var aabb = getAABB(context);
+
+                    var dimensionStr = dimension.identifier().toString();
+                    var aabbMsg = AABB2Component(aabb);
+
+                    if (ObserverFreezeAreasOverlay.setRendered(dimension, aabb, rendered)) {
+                        FeCA.LOGGER.info("Set rendered={} for {}:{} in ObserverFreezeAreas", rendered, dimensionStr, aabbMsg.getString());
+                        context.getSource().sendSuccess(() -> Component.translatable(succKey, dimensionStr, aabbMsg), true);
+                        return SUCCESS;
+                    }
+
+                    context.getSource().sendFailure(Component.translatable(failKey, dimensionStr, aabbMsg));
+                    return FAILURE;
+                }));
+            };
+
+            final Function<DimensionGetter, ArgumentBuilder<CommandSourceStack, ?>> all = dimensionGetter -> {
+                return Commands.literal("all").executes(context -> {
+                    var dimension = dimensionGetter.get(context);
+                    var dimensionStr = dimension.identifier().toString();
+
+                    var changed = ObserverFreezeAreasOverlay.setAllRendered(dimension, rendered);
+                    if (changed > 0) {
+                        FeCA.LOGGER.info("Set rendered={} for all ({}) ObserverFreezeAreas at {}", rendered, changed, dimensionStr);
+                        context.getSource().sendSuccess(() -> Component.translatable(allSuccKey, dimensionStr, changed), true);
+                        return SUCCESS;
+                    }
+
+                    context.getSource().sendFailure(Component.translatable(allFailKey, dimensionStr));
+                    return FAILURE;
+                });
+            };
+
+            return Commands.literal(action)
+                    .then(all.apply(DimensionGetter.FROM_EXECUTOR))
+                    .then(Arguments.DIMENSION.require()
+                            .then(all.apply(DimensionGetter.FROM_ARGUMENT))
+                            .then(single.apply(DimensionGetter.FROM_ARGUMENT))
+                    )
+                    .then(single.apply(DimensionGetter.FROM_EXECUTOR));
         }
 
         // ============================== UTILS ==============================
