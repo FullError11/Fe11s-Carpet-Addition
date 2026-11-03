@@ -8,6 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.cauldron.CauldronInteraction;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
@@ -49,14 +50,23 @@ public class LargeBucket implements RuleImpl {
 
     private static final String BUCKET_CONTENT_KEY = "feca:bucket_content";
 
+    /// 读取大桶内容量（纯 NBT 层，便于单元测试）。
+    ///
+    /// @return 内容量; <b>没有该数据时为 1</b> (桶本身正盛着的那一份)
+    public static int getBucketContentCount(@NonNull CompoundTag data) {
+        return data.getInt(BUCKET_CONTENT_KEY).orElse(1);
+    }
+
     /// 读取大桶内容量。
     ///
     /// @return 内容量; **没有该数据时为 1** (桶本身正盛着的那一份)
     public static int getBucketContentCount(@NonNull ItemStack stack) {
-        return stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY)
-                .copyTag()
-                .getInt(BUCKET_CONTENT_KEY)
-                .orElse(1);
+        return getBucketContentCount(stack.getOrDefault(DataComponents.CUSTOM_DATA, CustomData.EMPTY).copyTag());
+    }
+
+    /// 写入大桶内容量（纯 NBT 层，便于单元测试）
+    public static void setBucketContentCount(@NonNull CompoundTag data, int count) {
+        data.putInt(BUCKET_CONTENT_KEY, count);
     }
 
     /// 增减内容量
@@ -69,10 +79,10 @@ public class LargeBucket implements RuleImpl {
 
         if (newValue <= 1) {
             // 删掉这些自定义数据，防止丢不进 InfinityInventory
-            CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.remove(BUCKET_CONTENT_KEY));
+            CustomData.update(DataComponents.CUSTOM_DATA, stack, data -> data.remove(BUCKET_CONTENT_KEY));
             stack.remove(DataComponents.LORE);
         } else {
-            CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putInt(BUCKET_CONTENT_KEY, newValue));
+            CustomData.update(DataComponents.CUSTOM_DATA, stack, data -> setBucketContentCount(data, newValue));
             stack.set(DataComponents.LORE, new ItemLore(List.of(
                     Component.literal("内容量: " + newValue).withStyle(style -> style.withItalic(false))
             )));
