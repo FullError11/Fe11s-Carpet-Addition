@@ -34,6 +34,19 @@ loom {
 	log4jConfigs.from "log4j-dev.xml"
 }
 
+// L2：Fabric GameTest。loom 自动创建测试源集（src/gametest）+ `runGameTest` 任务，
+// 测试在真实专用服务器世界里跑，覆盖需要 ItemStack / 世界 / 玩家交互的规则实现。
+fabricApi {
+	configureTests {
+		createSourceSet = true
+		modId = "feca-test"
+		enableGameTests = true
+		enableClientGameTests = false
+		eula = true
+		clearRunDirectory = true
+	}
+}
+
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
@@ -49,6 +62,29 @@ dependencies {
 	// Litematica / MaLiLib（仅客户端，软依赖）
 	clientCompileOnly "maven.modrinth:litematica:${project.litematica_version}"
 	clientCompileOnly "maven.modrinth:malilib:${project.malilib_version}"
+
+	// 测试：JUnit 5 (Jupiter)。测试代码分两层：
+	// - src/test/java  : 通用（服务端）逻辑与组件测试，直接使用 Minecraft 类，需先调用 feca.test.support.GameBootstrap
+	// - src/clientTest/java : 客户端专用代码（渲染/客户端网络），由 loom 的 splitEnvironmentSourceSets 生成
+	//
+	// fabric-loader-junit：在测试 JVM 里启动 Knot/FabricLoader，
+	// 这样 FeCA、CommandObserverFreezeAreas 等「构造期依赖 FabricLoader」的类也能在单元测试中初始化
+	testImplementation platform("org.junit:junit-bom:${project.junit_version}")
+	testImplementation "org.junit.jupiter:junit-jupiter"
+	testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+	testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+	// 注册表初始化会读取版本信息，固定工作目录避免工具链路径干扰
+	systemProperty "feca.test", "true"
+	// 测试工作目录放到 build/ 下（该目录必然存在），避免 Minecraft 的日志落进仓库根目录
+	workingDir = layout.buildDirectory.get().asFile
+	testLogging {
+		events "passed", "skipped", "failed"
+		exceptionFormat = "full"
+	}
 }
 
 processResources {

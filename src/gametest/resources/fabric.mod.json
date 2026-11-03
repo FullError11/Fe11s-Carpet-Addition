@@ -1,0 +1,26 @@
+{
+	"schemaVersion": 1,
+	"id": "feca-test",
+	"version": "1.0.0",
+	"name": "FeCA Game Tests",
+	"description": "FeCA 的 L2 世界行为测试（Fabric GameTest）。不随正式模组发布。",
+	"license": "LGPL-3.0",
+	"environment": "*",
+	"entrypoints": {
+		"fabric-gametest": [
+			"feca.test.gametest.SmokeGameTests",
+			"feca.test.gametest.CollectibleSpawnEggGameTests",
+			"feca.test.gametest.LargeBucketGameTests",
+			"feca.test.gametest.RipenableSugarcaneGameTests",
+			"feca.test.gametest.ObserverFreezeAreasGameTests",
+			"feca.test.gametest.ForceTurtleEggHatchingGameTests",
+			"feca.test.gametest.InfinityInventoryGameTests"
+		]
+	},
+	"depends": {
+		"feca": "*",
+		"fabricloader": ">=0.19.5",
+		"minecraft": "~26.2",
+		"fabric-api": "*"
+	}
+}
