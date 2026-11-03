@@ -256,7 +256,7 @@ public class CommandObserverFreezeAreas implements RuleImpl {
                         return new NameableAABB(
                                 aabbCodec.fromJson(json.get("area")),
                                 nameCodec.fromJson(json.get("name")),
-                                json.get("render").getAsJsonPrimitive().getAsBoolean()
+                                json.get("render").getAsBoolean()
                         );
                     }
                 })
