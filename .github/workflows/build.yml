@@ -19,12 +19,30 @@ jobs:
         with:
           java-version: '25'
           distribution: 'microsoft'
+      - name: setup gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          # 首次需要下载 Minecraft 依赖；分支上只读缓存，避免污染主分支缓存
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
-      - name: build
-        run: ./gradlew build
+      # build 依赖 check -> test + runGameTest：编译、L1 单元测试与 L2 GameTest 一次跑完
+      - name: build & test
+        run: ./gradlew build --stacktrace
       - name: capture build artifacts
         uses: actions/upload-artifact@v7
         with:
           name: Artifacts
           path: build/libs/
+      - name: capture test reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Test Reports
+          path: build/reports/tests/
+      - name: capture gametest logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: GameTest Logs
+          path: build/run/gameTest/logs/
