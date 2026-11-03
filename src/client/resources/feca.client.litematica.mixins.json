@@ -1,0 +1,14 @@
+{
+    "required": true,
+    "package": "feca.client.compat.litematica.mixin",
+    "compatibilityLevel": "JAVA_25",
+    "plugin": "feca.client.compat.litematica.mixin.LitematicaMixinPlugin",
+    "client": [
+        "InventoryUtilsMixin",
+        "MaterialListEntryMixin",
+        "MaterialListUtilsMixin"
+    ],
+    "injectors": {
+        "defaultRequire": 1
+    }
+}

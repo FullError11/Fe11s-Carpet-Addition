@@ -2,6 +2,8 @@ package feca.function;
 
 import feca.FeCA;
 import feca.function.utils.InfinityInventoryStorage;
+import feca.network.InfinityInventoryNetworking;
+import feca.registry.OnInitializeCallbackRegistry;
 import feca.rule.Rules;
 import feca.rule.options.CommandPermissionOptions;
 import feca.rule.utils.RuleImpl;
@@ -23,6 +25,7 @@ import org.jspecify.annotations.NonNull;
 public class InfinityInventory implements RuleImpl {
     static {
         ClassForceLoader.load(feca.command.InfinityInventory.class);
+        OnInitializeCallbackRegistry.register(InfinityInventoryNetworking::register);
     }
 
     public static boolean isEnabled() {
@@ -47,6 +50,12 @@ public class InfinityInventory implements RuleImpl {
     ///
     /// @return {@code true} 表示已经处理，调用方应取消原版行为
     public static boolean tryPickItem(@NonNull ServerPlayer player, @NonNull ItemStack itemStack) {
+        return tryPickItem(player, itemStack, true);
+    }
+
+    /// 同 {@link #tryPickItem(ServerPlayer, ItemStack)}，但可控制失败时是否提示玩家
+    public static boolean tryPickItem(
+            @NonNull ServerPlayer player, @NonNull ItemStack itemStack, boolean notifyOnFailure) {
         if (!isEnabled() || itemStack.isEmpty() || player.hasInfiniteMaterials()) return false;
 
         Inventory inventory = player.getInventory();
@@ -85,12 +94,12 @@ public class InfinityInventory implements RuleImpl {
             // 替换手上时，不可堆叠物品不存入，但空潜影盒是普通物品，可以存入
             if (isNonEmptyShulkerBox(displaced)
                     || (replacingHand && !displaced.isStackable() && !isEmptyShulkerBox(displaced))) {
-                returnWithoutSpace(player, storage, takeStack);
+                returnWithoutSpace(player, storage, takeStack, notifyOnFailure);
                 return true;
             }
 
             if (!storage.push(displaced)) {
-                returnWithoutSpace(player, storage, takeStack);
+                returnWithoutSpace(player, storage, takeStack, notifyOnFailure);
                 return true;
             }
         }
@@ -167,9 +176,12 @@ public class InfinityInventory implements RuleImpl {
 
     /// 背包无空间：提示并把取出的物品退回无限库存
     private static void returnWithoutSpace(
-            @NonNull ServerPlayer player, @NonNull InfinityInventoryStorage storage, @NonNull ItemStack takeStack) {
+            @NonNull ServerPlayer player, @NonNull InfinityInventoryStorage storage,
+            @NonNull ItemStack takeStack, boolean notify) {
         storage.push(takeStack);
-        player.sendSystemMessage(
-                Component.translatable("feca.msg.common.inventoryFull").withStyle(ChatFormatting.RED));
+        if (notify) {
+            player.sendSystemMessage(
+                    Component.translatable("feca.msg.common.inventoryFull").withStyle(ChatFormatting.RED));
+        }
     }
 }

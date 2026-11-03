@@ -13,10 +13,11 @@
 ## TODO
 
 - [x] 调整配置文件初始化时机，使不同存档使用不同配置文件  
-- [ ] InfinityInventory 支持原版中键快捷取出
-(考虑直接注入到更深层部分，以直接穿透到其它模组的取物逻辑(如 `投影`))  
+- [x] InfinityInventory 支持原版中键快捷取出  
+- [x] 支持投影(`litematica`)模组 的 轻松放置 与 材料列表  
 - [x] LargetBucket 使用 Lore 进行内容量提示  
 - [x] InfinityInventoryMenu 支持对 `潜影盒` 的自动补货(通过合成)  
-- [ ] InfinityInventoryMenu 的 `合成` 支持递归合成
-    增加配方缓存避免遍历配方开销
-- [x] 重构 InfinityInventoryMenu (我不该相信大肥鱼的T_T)
+- [ ] InfinityInventoryMenu 的 `合成` 支持递归合成  
+    增加配方缓存避免遍历配方开销  
+- [x] 重构 InfinityInventoryMenu (我不该相信大肥鱼的T_T)  
+- [ ] 完成 [issues/1](https://github.com/FullError11/Fe11s-Carpet-Addition/issues/1)  
