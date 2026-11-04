@@ -45,6 +45,9 @@
     "carpet.rule.infinityInventoryMenu.name": "无限库存菜单",
     "carpet.rule.infinityInventoryMenu.desc": "允许使用 /infinityInventory menu 打开无限库存菜单",
 
+    "carpet.rule.commandInfinityInventorySync.name": "无限库存 sync 子命令",
+    "carpet.rule.commandInfinityInventorySync.desc": "允许使用 /infinityInventory sync 手动请求服务端进行数据同步",
+
     "feca.msg.common.enterCommand": "输入命令到聊天框",
     "feca.msg.common.pageNumberOutOfRange": "页码 %d 不存在，请输入 %d ~ %d 间的数字",
     "feca.msg.common.inventoryFull": "背包内无空间",

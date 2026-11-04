@@ -70,3 +70,7 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 ### 无限库存菜单 (`infinityInventoryMenu`)
 
 允许使用 `/infinityInventory menu` 打开图形化的无限库存菜单。
+
+### 无限库存 sync 子命令 (`commandInfinityInventorySync`)
+
+允许使用 `/infinityInventory sync` 手动请求服务端进行数据同步。

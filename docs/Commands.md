@@ -51,8 +51,8 @@ FeCA 的命令全部由 carpet 规则 `command*` 控制权限：规则值为 `tr
 
 `menu` 打开图形化菜单，可在界面内浏览库存、取出与直接合成（需要同时开启规则 `infinityInventoryMenu`）。
 
-`sync` 手动向服务端申请同步库存显示：默认申请完整快照，`sync full` 同义；
-`sync partial` 申请增量补偿包（自上次完整快照以来的全部变化，数据量更小）。
+`sync` 手动向服务端申请同步库存显示（需要同时开启规则 `commandInfinityInventorySync`）：
+默认申请完整快照，`sync full` 同义；`sync partial` 申请增量补偿包（自上次完整快照以来的全部变化，数据量更小）。
 客户端发现增量包版本号跳号（断连/丢包）时会自动申请一次完整快照，通常无需手动执行。
 
 > 权限由规则 `infinityInventory` 控制；`menu` 另受规则 `infinityInventoryMenu` 控制。

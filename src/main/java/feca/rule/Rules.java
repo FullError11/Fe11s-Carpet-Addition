@@ -108,4 +108,7 @@ public final class Rules {
     @Rule(categories = {FECA})
     @RuleImplBy(InfinityInventoryMenu.class)
     public static boolean infinityInventoryMenu = false;
+
+    @Rule(categories = {FECA, COMMAND})
+    public static boolean commandInfinityInventorySync = false;
 }

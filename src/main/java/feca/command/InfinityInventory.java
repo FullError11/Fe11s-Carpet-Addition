@@ -240,8 +240,6 @@ public class InfinityInventory {
                     );
         }
         private static ArgumentBuilder<CommandSourceStack, ?> sync() {
-            // TODO: 增加独立规则限制手动 sync 并更新 Rules / Commands 文档
-
             // 申请完整快照
             final PlayerExecutor.IsPlayerExecutorEx syncFull = (ctx, player) -> {
                 if (InfinityInventoryNetworking.requestFullSync(player)) {
@@ -253,6 +251,7 @@ public class InfinityInventory {
             };
 
             return Commands.literal("sync")
+                    .requires(_ -> Rules.commandInfinityInventorySync)
                     .executes(PlayerExecutor.requireExecByPlayer(syncFull))
                     .then(Commands.literal("full")
                             .executes(PlayerExecutor.requireExecByPlayer(syncFull))
