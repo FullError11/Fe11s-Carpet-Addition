@@ -18,4 +18,4 @@
 
 ## TODO
 
-- [ ] InfinityInventoryMenu 的 `合成` 支持递归合成
+- [x] InfinityInventoryMenu 的 `合成` 支持递归合成

@@ -45,6 +45,9 @@
     "carpet.rule.infinityInventoryMenu.name": "无限库存菜单",
     "carpet.rule.infinityInventoryMenu.desc": "允许使用 /infinityInventory menu 打开无限库存菜单",
 
+    "carpet.rule.infinityInventoryCraftRecursionDepth.name": "无限库存递归合成深度",
+    "carpet.rule.infinityInventoryCraftRecursionDepth.desc": "合成按钮 / 潜影盒槽缺料时递归合成中间产物的最大次数；0 关闭递归，1 表示允许递归一层（无硬上限）",
+
     "carpet.rule.commandInfinityInventorySync.name": "无限库存 sync 子命令",
     "carpet.rule.commandInfinityInventorySync.desc": "允许使用 /infinityInventory sync 手动请求服务端进行数据同步",
 
@@ -119,6 +122,7 @@
     "feca.msg.gui.infinityInventory.title": "无限库存",
     "feca.msg.gui.infinityInventory.label.storage": "库存量: ",
     "feca.msg.gui.infinityInventory.label.craftable": "可合成: ",
+    "feca.msg.gui.infinityInventory.label.craftableApprox": "约可合成: ",
     "feca.msg.gui.infinityInventory.label.countPrefix": "即 ",
     "feca.msg.gui.infinityInventory.count.box": "%d盒",
     "feca.msg.gui.infinityInventory.count.stack": "%d组",

@@ -1,22 +1,29 @@
 package feca.function.utils;
 
 import com.mojang.datafixers.util.Pair;
+import feca.utils.CraftingRecipeCaches;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeManager;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
+import java.util.function.ToIntFunction;
 
 /// 无限库存（{@link InfinityInventoryStorage}）的合成计算与执行辅助类。
 ///
 /// 本类只负责「配方产物装配、库存扣除、剩余物派发」，不涉及 UI 刷新、音效、统计信息等副作用。
+/// 需要「原料不足时先合成中间产物」时使用 {@link #createRecursiveContext} 返回的
+/// {@link RecursiveContext}，它与本类的非递归方法共用同一套扣除口径。
 ///
 /// ## 术语
 /// - **单次合成**：把 {@link CraftingInput} 当作一份完整的配方输入执行一次
@@ -252,6 +259,244 @@ public final class InfinityInventoryCraftHelper {
         dispatchExcess(template, produced - delivered, excessPartProcessor);
 
         return Pair.of(template, delivered);
+    }
+
+    // =========================================================
+    // 递归合成
+    // =========================================================
+
+    /// 创建一次递归合成的上下文。
+    ///
+    /// 上下文保存递归栈（用于阻断环状配方）与本次估算的缓存，
+    /// 因此同一次界面刷新 / 同一次点击应复用同一个实例。
+    ///
+    /// @param storage       库存
+    /// @param recipeManager 配方来源，只能来自服务端（客户端的 `recipeAccess` 不可用）
+    /// @apiNote 只在服务端主线程使用；本类不做并发保护
+    public static @NonNull RecursiveContext createRecursiveContext(
+            @NonNull InfinityInventoryStorage storage, @NonNull RecipeManager recipeManager) {
+        return new RecursiveContext(storage, recipeManager);
+    }
+
+    /// 递归合成上下文：把「某个物品还能凑出多少」与「合成目标前先把中间产物补齐」封装在一起。
+    ///
+    /// ## 层数口径
+    /// - `depth` = 允许**递归合成中间产物**的次数：0 不递归，1 允许中间产物合一层，2 两层，以此类推
+    /// - 目标产物自身的合成不计入 `depth`（它总是由调用方直接执行一次）
+    /// - 次数用尽后按库存直算（与 {@link #canCraftTimes} 口径一致）
+    ///
+    /// 例：库存只有原木时，`木镐 ← 木棍 ← 木板 ← 原木` 需要 `2`
+    /// （木棍一层、木板一层；原木是库存原料，不算一层）
+    ///
+    /// ## 安全阀
+    /// - 环状配方：同一物品不会在一条递归路径上被重复展开（如 铁锭 ↔ 铁块）
+    /// - 组合爆炸：估算与执行各有节点 / 步数预算，超预算后按库存量退化
+    ///
+    /// ## 近似性
+    /// 可用量按 `库存 + 可递归合成量` 累计，不做多配方之间共享原料的扣除，
+    /// 因此结果是**上界估计**，界面文案按「约」展示。
+    public static final class RecursiveContext {
+        /// 一次估算最多展开的配方节点数，防止极端数据包下组合爆炸
+        private static final int MAX_ESTIMATE_NODES = 1024;
+        /// 一次递归合成最多执行的子合成步数
+        private static final int MAX_CRAFT_STEPS = 64;
+
+        private final InfinityInventoryStorage storage;
+        private final RecipeManager recipeManager;
+
+        /// 当前递归路径上的物品，用于阻断环状配方
+        private final Set<Item> visiting = new HashSet<>();
+        /// 「物品 + 剩余层数」 -> 可用量，避免同一物品被重复展开
+        private final Map<AvailabilityKey, Integer> memo = new HashMap<>();
+
+        private int remainingEstimateNodes = MAX_ESTIMATE_NODES;
+        private int remainingCraftSteps = MAX_CRAFT_STEPS;
+
+        private RecursiveContext(
+                @NonNull InfinityInventoryStorage storage, @NonNull RecipeManager recipeManager) {
+            this.storage = storage;
+            this.recipeManager = recipeManager;
+        }
+
+        /// 估算物品在递归展开后最多能凑出多少：库存 + 可递归合成量。
+        ///
+        /// @param item  目标物品
+        /// @param depth 允许为它继续向下合成的次数（含它自身这一层），{@code 0} 表示只算库存
+        /// @return 可用量；超预算或遇到环状配方时退化为库存量
+        public int availableCount(@NonNull Item item, int depth) {
+            int stock = storage.getCount(item);
+            if (depth <= 0) return stock;
+            // 环：这条路径上已经在展开这个物品，只算库存
+            if (!visiting.add(item)) return stock;
+
+            try {
+                var key = new AvailabilityKey(item, depth);
+                Integer cached = memo.get(key);
+                if (cached != null) return cached;
+
+                long best = 0;
+                var ingredientCounts = availableCountGetter(depth - 1);
+                for (var holder : CraftingRecipeCaches.getRecipe(item, recipeManager)) {
+                    if (remainingEstimateNodes-- <= 0) break;
+
+                    // 剪枝：该配方在当前库存与层数下连一次都凑不出，就不必再往下展开
+                    int times = CraftingRecipeCaches.Recipes.craftable(holder, ingredientCounts);
+                    if (times <= 0) continue;
+
+                    int perCraft = outputCount(holder, ingredientCounts);
+                    if (perCraft <= 0) continue;
+
+                    best = Math.max(best, (long) times * perCraft);
+                }
+
+                int result = (int) Math.min((long) stock + best, Integer.MAX_VALUE);
+                memo.put(key, result);
+                return result;
+            } finally {
+                visiting.remove(item);
+            }
+        }
+
+        /// 估算当前输入最多能合成多少次。
+        ///
+        /// @param input 配方输入（模板槽位），每个非空槽位每次合成消耗 1 个物品
+        /// @param depth 允许递归合成中间产物的次数，目标产物自身的合成不计入；{@code 0} 等价于只看库存
+        /// @return 可合成次数；任一原料凑不出一次时返回 {@code 0}
+        public int approxCraftableTimes(@NonNull CraftingInput input, int depth) {
+            Map<Item, Integer> perCraft = countSlotsPerItem(input);
+            if (perCraft.isEmpty()) return 0;
+
+            int result = Integer.MAX_VALUE;
+            for (var e : perCraft.entrySet()) {
+                int available = availableCount(e.getKey(), Math.max(0, depth));
+                result = Math.min(result, available / e.getValue());
+                if (result <= 0) return 0;
+            }
+            return result == Integer.MAX_VALUE ? 0 : result;
+        }
+
+        /// 递归合成：先把缺的原料递归补齐，再执行一次尽力合成。
+        ///
+        /// 中间产物合成后回存库存；库存拒收（如带有不支持的数据组件）时交给
+        /// {@code sideProductProcessor}，保证「已消耗原料换来的产物」不会凭空消失。
+        ///
+        /// @param holder               待执行的配方
+        /// @param input                配方输入（模板槽位）
+        /// @param count                期望产出的物品数量
+        /// @param depth                允许递归合成中间产物的次数（目标产物自身不计入）；{@code 0} 表示不递归
+        /// @param sideProductProcessor 副产物处理器（中间产物 / 配方剩余物 / 溢出产物）
+        /// @return 产物模板与实际交付数量；一次也无法合成时返回 `(EMPTY, 0)`
+        public @NonNull Pair<ItemStack, Integer> craftRecursively(
+                @NonNull RecipeHolder<CraftingRecipe> holder,
+                @NonNull CraftingInput input,
+                int count,
+                int depth,
+                @NonNull Consumer<ItemStack> sideProductProcessor) {
+            if (count <= 0 || depth <= 0) {
+                return tryCraftSafelyCount(storage, holder, input, count, sideProductProcessor, sideProductProcessor);
+            }
+
+            ItemStack perCraft = holder.value().assemble(input);
+            if (perCraft.isEmpty()) return Pair.of(ItemStack.EMPTY, 0);
+
+            // 库存即将变化，先丢掉旧的可用量缓存
+            memo.clear();
+
+            int times = ceilDiv(count, perCraft.getCount());
+            for (var e : countSlotsPerItem(input).entrySet()) {
+                long needed = Math.min((long) e.getValue() * times, Integer.MAX_VALUE);
+                ensureCount(e.getKey(), (int) needed, depth, sideProductProcessor);
+            }
+
+            return tryCraftSafelyCount(storage, holder, input, count, sideProductProcessor, sideProductProcessor);
+        }
+
+        /// 确保库存里至少能凑出 {@code needed} 个 {@code item}：缺的部分按配方递归合成。
+        ///
+        /// 尽力而为：凑不出的部分不报错，交给上层的 {@link #tryCraftSafelyCount} 按实际库存收尾。
+        ///
+        /// @param depth 允许为 {@code item} 自身继续向下合成的次数（含它自身这一层），
+        ///              {@code 0} 表示只能直接用库存
+        private void ensureCount(
+                @NonNull Item item, int needed, int depth, @NonNull Consumer<ItemStack> sideProductProcessor) {
+            if (needed <= 0 || depth <= 0) return;
+            if (storage.getCount(item) >= needed) return;
+            if (remainingCraftSteps <= 0) return;
+            // 环：这条路径上已经在合成这个物品，交给上层尽力而为
+            if (!visiting.add(item)) return;
+
+            try {
+                var ingredientCounts = availableCountGetter(depth - 1);
+
+                // 选「按当前可用量能合成最多次」的配方，避免选中深层根本凑不出的配方
+                RecipeHolder<CraftingRecipe> best = null;
+                int bestTimes = 0;
+                for (var holder : CraftingRecipeCaches.getRecipe(item, recipeManager)) {
+                    int times = CraftingRecipeCaches.Recipes.craftable(holder, ingredientCounts);
+                    if (times > bestTimes) {
+                        best = holder;
+                        bestTimes = times;
+                    }
+                }
+                if (best == null) return;
+
+                CraftingInput subInput = CraftingRecipeCaches.Recipes.inputFor(best, ingredientCounts);
+                if (subInput == null) return;
+
+                ItemStack perCraft = best.value().assemble(subInput);
+                if (perCraft.isEmpty()) return;
+
+                int craftTimes = Math.min(
+                        ceilDiv(needed - storage.getCount(item), perCraft.getCount()), bestTimes);
+                if (craftTimes <= 0) return;
+
+                // 先递归补齐子配方的原料
+                for (var e : countSlotsPerItem(subInput).entrySet()) {
+                    long required = Math.min((long) e.getValue() * craftTimes, Integer.MAX_VALUE);
+                    ensureCount(e.getKey(), (int) required, depth - 1, sideProductProcessor);
+                }
+
+                // 再执行子合成，并把产物回存库存（收不下时交给调用方，避免物品丢失）
+                long wanted = Math.min((long) perCraft.getCount() * craftTimes, Integer.MAX_VALUE);
+                remainingCraftSteps--;
+                var crafted = tryCraftSafelyCount(
+                        storage, best, subInput, (int) wanted, sideProductProcessor, sideProductProcessor);
+
+                int craftedCount = crafted.getSecond();
+                if (craftedCount <= 0) return;
+
+                ItemStack product = crafted.getFirst().copyWithCount(craftedCount);
+                if (!storage.push(product)) {
+                    sideProductProcessor.accept(product);
+                }
+            } finally {
+                visiting.remove(item);
+            }
+        }
+
+        /// 「物品 -> 可用量」取用函数（库存 + 可递归合成量），可直接喂给
+        /// {@link CraftingRecipeCaches.Recipes#best} /
+        /// {@link CraftingRecipeCaches.Recipes#craftable} /
+        /// {@link CraftingRecipeCaches.Recipes#inputFor}。
+        ///
+        /// @param depth 允许为每种原料继续向下合成的次数（含该原料自身这一层），{@code 0} 表示只算库存
+        public @NonNull ToIntFunction<ItemStack> availableCountGetter(int depth) {
+            return stack -> availableCount(stack.getItem(), depth);
+        }
+
+        /// 单次合成的产物数量；配方无法装配时返回 {@code 0}
+        private int outputCount(
+                @NonNull RecipeHolder<CraftingRecipe> holder,
+                @NonNull ToIntFunction<ItemStack> ingredientCounts) {
+            CraftingInput input = CraftingRecipeCaches.Recipes.inputFor(holder, ingredientCounts);
+            if (input == null) return 0;
+
+            ItemStack output = holder.value().assemble(input);
+            return output.isEmpty() ? 0 : output.getCount();
+        }
+
+        /// {@link #memo} 的缓存键
+        private record AvailabilityKey(@NonNull Item item, int depth) {}
     }
 
     // =========================================================

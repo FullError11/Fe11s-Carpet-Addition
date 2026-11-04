@@ -1,6 +1,7 @@
 package feca.rule;
 
 import carpet.api.settings.Rule;
+import carpet.api.settings.Validators;
 import feca.function.*;
 import feca.rule.options.ActiveMendingOptions;
 import feca.rule.options.CollectibleSpawnEggOptions;
@@ -108,6 +109,15 @@ public final class Rules {
     @Rule(categories = {FECA})
     @RuleImplBy(InfinityInventoryMenu.class)
     public static boolean infinityInventoryMenu = false;
+
+    @Rule(
+            categories = {FECA},
+            options = {"0", "4", "8"},
+            strict = false,
+            validators = Validators.NonNegativeNumber.class
+    )
+    @RuleImplBy(InfinityInventoryCraftRecursionDepth.class)
+    public static int infinityInventoryCraftRecursionDepth = 0;
 
     @Rule(categories = {FECA, COMMAND})
     @RuleImplBy(CommandInfinityInventorySync.class)

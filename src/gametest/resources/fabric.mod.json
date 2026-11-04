@@ -13,7 +13,8 @@
 			"feca.test.gametest.RipenableSugarcaneGameTests",
 			"feca.test.gametest.ObserverFreezeAreasGameTests",
 			"feca.test.gametest.ForceTurtleEggHatchingGameTests",
-			"feca.test.gametest.InfinityInventoryGameTests"
+			"feca.test.gametest.InfinityInventoryGameTests",
+			"feca.test.gametest.InfinityInventoryCraftRecursionGameTests"
 		]
 	},
 	"depends": {

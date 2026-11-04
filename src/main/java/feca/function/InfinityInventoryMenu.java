@@ -30,6 +30,7 @@ import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.ShulkerBoxBlock;
@@ -42,6 +43,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.IntFunction;
+import java.util.function.ToIntFunction;
 
 public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
 
@@ -159,6 +161,7 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
 
     /// 只在服务端发送聊天提示，避免客户端预测执行 `clicked` 时重复提示
     private void sendMenuMessage(@NonNull Component message) {
+        // noinspection resource
         if (player.level().isClientSide()) return;
         player.sendSystemMessage(message);
     }
@@ -226,6 +229,7 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
 
     /// 模板变化后重新检索配方并刷新 {@link #craftData}
     private void craftTemplateInputChange() {
+        @SuppressWarnings("resource")
         var pLevel = player.level();
         if (pLevel.isClientSide() || !(pLevel instanceof ServerLevel level)) return;
 
@@ -242,6 +246,39 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
             log.append("\noutput: ").append(craftData.output);
             FeCA.LOGGER.debug(log.toString());
         }
+    }
+
+    /// 处理合成副产物（中间产物 / 剩余物 / 溢出产物）：优先回存库存，失败时直接交给玩家
+    private void collectSideProduct(@NonNull ItemStack stack) {
+        if (stack.isEmpty()) return;
+        if (!storage.push(stack)) {
+            PlayerInventoryHelper.giveOrDrop(player, stack);
+        }
+    }
+
+    /// @return 本次估算 / 合成使用的递归上下文；递归关闭或客户端（没有配方来源）时返回 {@code null}
+    private InfinityInventoryCraftHelper.@Nullable RecursiveContext recursiveContext() {
+        var recipeManager = recipeManager();
+        if (recipeManager == null || recursionDepth() <= 0) return null;
+        return InfinityInventoryCraftHelper.createRecursiveContext(storage, recipeManager);
+    }
+
+    /// @return 规则配置的递归合成次数上限；{@code 0} 表示不递归（目标产物自身的合成不计入）
+    private int recursionDepth() {
+        return InfinityInventoryCraftRecursionDepth.depth();
+    }
+
+    /// @return 服务端的配方来源；客户端没有配方数据时返回 {@code null}
+    private @Nullable RecipeManager recipeManager() {
+        // noinspection resource
+        return player.level() instanceof ServerLevel level ? level.recipeAccess() : null;
+    }
+
+    /// 合成估算数量的标签键：开启递归时数量是「库存 + 可递归合成量」的近似上界
+    private static @NonNull String craftableLabelKey() {
+        return InfinityInventoryCraftRecursionDepth.isEnabled()
+                ? "feca.msg.gui.infinityInventory.label.craftableApprox"
+                : "feca.msg.gui.infinityInventory.label.craftable";
     }
 
     /// 当前合成模板的解析结果（输入、产物、命中的配方）
@@ -678,9 +715,12 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
                     ? craftButtonName(craftData.output().getHoverName())
                     : Component.translatable("feca.msg.gui.infinityInventory.placeholder.noCraft"));
 
+            // 开启递归合成时，数量是「库存 + 可递归合成量」的近似上界，用「约可合成」标注
+            var craftableLabel = craftableLabelKey();
+
             List<Component> lore = new ArrayList<>(5);
             lore.add(LoreUtils.line(
-                    LoreUtils.label(Component.translatable("feca.msg.gui.infinityInventory.label.craftable")),
+                    LoreUtils.label(Component.translatable(craftableLabel)),
                     LoreUtils.value(maxCraftable)));
             if (craftable) {
                 lore.add(LoreUtils.buildCountBreakdown(craftData.output().getItem(), maxCraftable));
@@ -745,9 +785,10 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
             return shulker;
         }
 
-        /// 调用 {@link InfinityInventoryCraftHelper} 执行一次尽力合成
+        /// 调用 {@link InfinityInventoryCraftHelper} 执行一次尽力合成；
+        /// 开启递归规则时先把缺的中间产物递归合成，再合成目标产物
         ///
-        /// 配方剩余物与整次合成的溢出产物都通过 {@link #collectSideProduct} 处理
+        /// 中间产物、配方剩余物与整次合成的溢出产物都通过 {@link #collectSideProduct} 处理
         ///
         /// @param count 期望产量
         /// @return 产物；未能合成时返回 {@link ItemStack#EMPTY}
@@ -755,9 +796,15 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
             var recipe = craftData.recipe();
             if (recipe == null) return ItemStack.EMPTY;
 
-            var crafted = InfinityInventoryCraftHelper.tryCraftSafelyCount(
-                    storage, recipe, craftData.input(), count,
-                    this::collectSideProduct, this::collectSideProduct);
+            var context = recursiveContext();
+            var crafted = context == null
+                    ? InfinityInventoryCraftHelper.tryCraftSafelyCount(
+                            storage, recipe, craftData.input(), count,
+                            InfinityInventoryMenu.this::collectSideProduct,
+                            InfinityInventoryMenu.this::collectSideProduct)
+                    : context.craftRecursively(
+                            recipe, craftData.input(), count, recursionDepth(),
+                            InfinityInventoryMenu.this::collectSideProduct);
 
             int craftedCount = crafted.getSecond();
             if (craftedCount <= 0) return ItemStack.EMPTY;
@@ -766,20 +813,16 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
             return crafted.getFirst().copyWithCount(craftedCount);
         }
 
-        /// 处理合成副产物（剩余物 / 溢出产物）：优先回存库存，失败时直接交给玩家
-        private void collectSideProduct(@NonNull ItemStack stack) {
-            if (stack.isEmpty()) return;
-            if (!storage.push(stack)) {
-                PlayerInventoryHelper.giveOrDrop(player, stack);
-            }
-        }
-
-        /// @return 当前输入与库存下可产出的最大数量；超出 {@code int} 时截断
+        /// @return 当前输入与库存下可产出的最大数量；
+        ///         开启递归时包含可由库存递归合成的中间产物，属近似上界。超出 {@code int} 时截断
         private int maxCraftableCount() {
-            var recipe = craftData.recipe();
-            if (recipe == null) return 0;
+            if (craftData.recipe() == null) return 0;
 
-            long times = InfinityInventoryCraftHelper.canCraftTimes(storage, craftData.input());
+            var context = recursiveContext();
+            long times = context == null
+                    ? InfinityInventoryCraftHelper.canCraftTimes(storage, craftData.input())
+                    : context.approxCraftableTimes(craftData.input(), recursionDepth());
+
             long count = times * craftData.output().getCount();
             return (int) Math.min(count, Integer.MAX_VALUE);
         }
@@ -893,10 +936,11 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
             int count = count();
             int shown = count > 0 ? count : craftableCount();
 
-            // 有库存时显示库存量，需要合成时显示按 best 配方估算的可合成数量
+            // 有库存时显示库存量；需要合成时显示按 best 配方估算的数量
+            // （开启递归时该数量按「库存 + 可递归合成量」估算，用「约可合成」标注）
             var label = Component.translatable(count > 0
                     ? "feca.msg.gui.infinityInventory.label.storage"
-                    : "feca.msg.gui.infinityInventory.label.craftable");
+                    : craftableLabelKey());
 
             return LoreUtils.applyLore(stack,
                     LoreUtils.line(LoreUtils.label(label), LoreUtils.value(shown)),
@@ -907,40 +951,64 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
                             Component.translatable("feca.msg.gui.infinityInventory.action.takeStack")));
         }
 
-        /// 库存没有潜影盒时，按 best 配方合成一个；没有配方或材料不足则跳过
+        /// 库存没有潜影盒时，按 best 配方合成一个；没有配方或材料不足则跳过。
+        ///
+        /// 开启递归合成时，配方挑选、输入构造与执行都走
+        /// {@link InfinityInventoryCraftHelper.RecursiveContext}：
+        /// 缺的中间产物（如 箱子 ← 木板 ← 原木）会先被递归合成再回存库存。
         private void craftShulkerBoxIfMissing() {
             if (count() > 0) return;
 
             var recipes = shulkerRecipes();
             if (recipes == null) return;
 
-            var best = recipes.best(this::countOf);
+            // 递归关闭（或客户端）时 context 为 null，口径退回「只看库存」
+            var context = recursiveContext();
+            var counts = availableCounts(context);
+
+            var best = recipes.best(counts);
             if (best.isEmpty()) return;
 
-            var input = CraftingRecipeCaches.Recipes.inputFor(best.get(), this::countOf);
+            var input = CraftingRecipeCaches.Recipes.inputFor(best.get(), counts);
             if (input == null) return;
 
-            var crafted = InfinityInventoryCraftHelper.tryCraftSafelyCount(
-                    storage, best.get(), input, 1,
-                    stack -> { if (!stack.isEmpty()) storage.push(stack); },
-                    stack -> { if (!stack.isEmpty()) storage.push(stack); });
+            var crafted = context == null
+                    ? InfinityInventoryCraftHelper.tryCraftSafelyCount(
+                            storage, best.get(), input, 1,
+                            InfinityInventoryMenu.this::collectSideProduct,
+                            InfinityInventoryMenu.this::collectSideProduct)
+                    : context.craftRecursively(
+                            best.get(), input, 1, recursionDepth(),
+                            InfinityInventoryMenu.this::collectSideProduct);
             if (crafted.getSecond() <= 0) return;
 
             storage.push(crafted.getFirst().copyWithCount(crafted.getSecond()));
         }
 
         /// 按 best 配方估算的可合成数量
+        ///
+        /// @apiNote 开启递归时是近似上界（只看单份配方的原料可用量，不扣多配方共享原料）
         private int craftableCount() {
             var recipes = shulkerRecipes();
             if (recipes == null) return 0;
 
-            return recipes.best(this::countOf)
-                    .map(recipe -> CraftingRecipeCaches.Recipes.craftable(recipe, this::countOf))
+            var counts = availableCounts(recursiveContext());
+            return recipes.best(counts)
+                    .map(recipe -> CraftingRecipeCaches.Recipes.craftable(recipe, counts))
                     .orElse(0);
+        }
+
+        /// 配方挑选 / 输入构造用的数量口径
+        ///
+        /// @param context 递归上下文；为 {@code null} 时只看库存
+        private @NonNull ToIntFunction<ItemStack> availableCounts(
+                InfinityInventoryCraftHelper.@Nullable RecursiveContext context) {
+            return context == null ? this::countOf : context.availableCountGetter(recursionDepth());
         }
 
         /// 服务端下缓存的潜影盒配方；客户端返回 {@code null}
         private CraftingRecipeCaches.@Nullable Recipes shulkerRecipes() {
+            // noinspection resource
             if (!(player.level() instanceof ServerLevel level)) return null;
             return CraftingRecipeCaches.getRecipe(Items.SHULKER_BOX, level.recipeAccess());
         }
