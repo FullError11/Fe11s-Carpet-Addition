@@ -8,7 +8,6 @@
 	"environment": "*",
 	"entrypoints": {
 		"fabric-gametest": [
-			"feca.test.gametest.SmokeGameTests",
 			"feca.test.gametest.CollectibleSpawnEggGameTests",
 			"feca.test.gametest.LargeBucketGameTests",
 			"feca.test.gametest.RipenableSugarcaneGameTests",

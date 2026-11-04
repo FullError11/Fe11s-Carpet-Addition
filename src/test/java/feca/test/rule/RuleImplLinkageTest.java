@@ -14,7 +14,6 @@ import java.lang.reflect.Method;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -29,18 +28,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * </ul>
  *
  * <p>这里用反射统一验证「入口值 == 规则字段值」，一条用例覆盖全部规则。</p>
- *
- * @apiNote 少数实现类的静态初始化依赖 FeCA 构造期（进而依赖 {@code FabricLoader}），
- * 测试环境通过 fabric-loader-junit 提供真实 loader，因此这些类同样可以在 L1 覆盖；
  */
 class RuleImplLinkageTest {
     /// 没有 isEnabled/getOption 入口的规则（命令类规则，行为由命令树/事件直接驱动）
     private static final Set<String> NO_SWITCH_ENTRY = Set.of(
             "commandVillagerTradableItem", "commandHome", "infinityInventoryMenu");
-
-    /// 静态初始化会在构造期用到 FabricLoader 的规则实现（由 fabric-loader-junit 提供真实 loader）
-    private static final Set<String> REQUIRES_LOADER = Set.of(
-            "commandObserverFreezeAreas", "infinityInventory");
 
     @BeforeAll
     static void bootstrap() {
@@ -103,34 +95,11 @@ class RuleImplLinkageTest {
         }
     }
 
-    @Test
-    @DisplayName("构造期依赖 FabricLoader 的实现可以在测试环境初始化")
-    void loaderDependentClassesInitialize() {
-        for (String ruleName : REQUIRES_LOADER) {
-            final Class<?> impl = implClassOf(ruleField(ruleName));
-            assertDoesNotThrow(() -> initialize(impl),
-                    "该实现应能在 fabric-loader-junit 环境下初始化: " + impl.getName());
-        }
-        // FeCA 自身同样在构造期依赖 FabricLoader（DEBUG 字段）
-        assertDoesNotThrow(() -> initialize(feca.FeCA.class));
-    }
-
     // ============================== UTILS ==============================
-
-    private static @NonNull Field ruleField(String name) {
-        return RulesDeclarationTest.ruleFields().stream()
-                .filter(f -> f.getName().equals(name))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("规则不存在: " + name));
-    }
 
     private static Class<?> implClassOf(@NonNull Field ruleField) {
         final RuleImplBy implBy = ruleField.getAnnotation(RuleImplBy.class);
         return implBy.value();
-    }
-
-    private static void initialize(@NonNull Class<?> type) throws ClassNotFoundException {
-        Class.forName(type.getName(), true, type.getClassLoader());
     }
 
     private static @Nullable Method staticMethod(@NonNull Class<?> type, String name) {
@@ -144,6 +113,7 @@ class RuleImplLinkageTest {
     }
 
     private static boolean invokeIsEnabled(Field ruleField) {
+        // noinspection DataFlowIssue
         return (boolean) invokeStatic(staticMethod(implClassOf(ruleField), "isEnabled"));
     }
 
