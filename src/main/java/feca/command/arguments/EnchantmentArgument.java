@@ -10,6 +10,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.enchantment.Enchantment;
 
+/// {@link Enchantment}({@link Holder.Reference}) 类型的参数，用于解析附魔ID
 @SuppressWarnings("unused")
 public class EnchantmentArgument extends AbstractArgument<Holder.Reference<Enchantment>> {
     public EnchantmentArgument(String name) {

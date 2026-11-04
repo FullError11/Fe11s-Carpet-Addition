@@ -22,9 +22,17 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * FeCA 的调试工具类
+ */
 @SuppressWarnings("unused")
 public class FeCADebug {
+    /**
+     * FeCA 调试变量集合
+     * @see Var
+     */
     public static class Vars extends HashMap<String, Vars.Var<?>> {
+        /// FeCA 调试变量绑定，支持与字符串互转换
         public static abstract class Var<T> {
             private String name;
             @NonNull private T value;
@@ -46,11 +54,8 @@ public class FeCADebug {
             public String name() { return name; }
         }
 
-        /// 变量名参数。
-        ///
-        /// @apiNote 刻意使用原版 {@code word} 参数而不是自定义 {@code ArgumentType}:
-        /// 自定义参数类型会进入<b>客户端同步注册表</b> ({@code minecraft:command_argument_type})，
-        /// 服务端注册后未安装 FeCA 的客户端会被 fabric-registry-sync 直接踢下线。
+        /// FeCA 调试变量参数
+        /// @see Var
         private static class VarArgument extends AbstractArgument.NonBuildContext<Var<?>> {
             private static final DynamicCommandExceptionType UNKNOWN_VARIABLE =
                     new DynamicCommandExceptionType(name -> Component.literal("变量不存在: " + name));
@@ -87,9 +92,7 @@ public class FeCADebug {
             }
         }
 
-        /**
-         * 注册一个变量。名称唯一，name 一旦设置不可更改。
-         */
+        /// 注册一个变量。名称唯一，name 一旦设置不可更改。
         public <R> Var<R> register(String name, Var<R> var) {
             if (this.containsKey(name)) {
                 throw new IllegalArgumentException("var " + name + " already exists");
@@ -100,6 +103,7 @@ public class FeCADebug {
         }
 
         /// 回调 {@link #register(String, Var)}
+        /// @see Vars#register(String, Var)
         @Override
         public Var<?> put(String name, Var<?> var) {
             register(name, var);
@@ -114,9 +118,8 @@ public class FeCADebug {
     public interface SubCommandRegistry {
         LiteralArgumentBuilder<CommandSourceStack> register(LiteralArgumentBuilder<CommandSourceStack> builder, CommandBuildContext buildContext, Commands.CommandSelection selection);
     }
-    /**
-     * 注册自定义子命令。必须在 {@link #register()} 的初始化回调执行前调用。
-     */
+
+    /// 注册自定义子命令。必须在 {@link #register()} 的初始化回调执行前调用。
     public static void registerSubCommand(String name, SubCommandRegistry registry) {
         if (CUSTOM_SUB_COMMANDS.putIfAbsent(name, registry) != null) {
             throw new IllegalArgumentException("sub-command already exists: " + name);
@@ -150,6 +153,7 @@ public class FeCADebug {
         });
     }
 
+    /// 打印 FeCA 调试变量 (类型/变量名/值)
     private static int printVar(CommandContext<CommandSourceStack> ctx, Vars.@NonNull VarArgument varArg) throws CommandSyntaxException {
         var var = varArg.get(ctx);
         ctx.getSource().sendSuccess(() -> Component.literal(String.format(
@@ -157,6 +161,7 @@ public class FeCADebug {
         return CommandResult.SUCCESS;
     }
 
+    /// 设置 FeCA 调试变量
     private static int setVar(CommandContext<CommandSourceStack> ctx, Vars.@NonNull VarArgument varArg) throws CommandSyntaxException {
         var var = varArg.get(ctx);
         var value = StringArgumentType.getString(ctx, "value");

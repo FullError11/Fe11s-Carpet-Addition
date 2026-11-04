@@ -6,6 +6,8 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 
+/// {@link String} 类型的参数，仅限于 {@code word}
+/// @see StringArgumentType#word()
 @SuppressWarnings("unused")
 public class WordArgument extends AbstractArgument.NonBuildContext<String> {
     public WordArgument(String name) {

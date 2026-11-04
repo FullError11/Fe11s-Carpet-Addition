@@ -8,6 +8,7 @@ import net.minecraft.commands.CommandSourceStack;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 
+/// {@link Integer} 类型的参数
 @SuppressWarnings("unused")
 public class IntegerArgument extends AbstractArgument.NonBuildContext<Integer> {
     private final int min;

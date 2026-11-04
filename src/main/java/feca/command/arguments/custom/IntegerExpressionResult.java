@@ -1,5 +1,10 @@
 package feca.command.arguments.custom;
 
+/**
+ * 整数表达式解析结果
+ *
+ * @see IntegerExpressionParser
+ */
 @SuppressWarnings("unused")
 public class IntegerExpressionResult {
     private final String rawString;
@@ -15,12 +20,12 @@ public class IntegerExpressionResult {
         return rawString;
     }
 
-    // 获取计算后的 long
+    /// 获取计算后的 long
     public long getLongValue() {
         return value;
     }
 
-    // 获取计算后的 int 结果（可能截断）
+    /// 获取计算后的 int 结果（可能截断）
     public int getIntValue() {
         return (int) value;
     }

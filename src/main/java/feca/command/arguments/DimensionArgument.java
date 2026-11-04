@@ -8,6 +8,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 
+/// {@link ServerLevel} 类型的参数，用于解析维度信息
 @SuppressWarnings("unused")
 public class DimensionArgument extends AbstractArgument.NonBuildContext<ServerLevel> {
     public DimensionArgument(String name) {
@@ -24,6 +25,7 @@ public class DimensionArgument extends AbstractArgument.NonBuildContext<ServerLe
         return net.minecraft.commands.arguments.DimensionArgument.getDimension(ctx, name);
     }
 
+    /// 获取维度的 {@link ResourceKey}
     public ResourceKey<Level> getAsDimension(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException {
         return get(ctx).dimension();
     }

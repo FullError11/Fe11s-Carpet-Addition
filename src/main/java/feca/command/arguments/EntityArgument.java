@@ -7,6 +7,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.world.entity.Entity;
 import org.jspecify.annotations.NonNull;
 
+/// {@link Entity} 类型的参数
 @SuppressWarnings("unused")
 public class EntityArgument extends AbstractArgument.NonBuildContext<Entity> {
     public EntityArgument(String name) {

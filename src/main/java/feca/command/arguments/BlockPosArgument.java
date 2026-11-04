@@ -6,6 +6,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
 
+/// {@link BlockPos} 类型的参数
 @SuppressWarnings("unused")
 public class BlockPosArgument extends AbstractArgument.NonBuildContext<BlockPos> {
     public BlockPosArgument(String name) {

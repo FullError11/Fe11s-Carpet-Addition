@@ -9,6 +9,7 @@ import net.minecraft.commands.arguments.item.ItemInput;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.NonNull;
 
+/// {@link ItemInput} 类型的参数，用于解析 {@link net.minecraft.world.item.Item}
 @SuppressWarnings("unused")
 public class ItemArgument extends AbstractArgument<ItemInput> {
     public ItemArgument(String name) {

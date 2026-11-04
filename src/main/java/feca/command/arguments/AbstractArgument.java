@@ -7,6 +7,11 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * 参数抽象基类，携带参数本身的 {@code name}
+ *
+ * @see Argument
+ */
 @SuppressWarnings("unused")
 public abstract class AbstractArgument<R> implements Argument<R> {
     public final String name;
@@ -22,6 +27,11 @@ public abstract class AbstractArgument<R> implements Argument<R> {
 
     abstract protected ArgumentType<?> argumentType(CommandBuildContext ctx);
 
+    /**
+     * 参数抽象基类，携带参数本身的 {@code name}，不依赖 {@link CommandBuildContext}
+     *
+     * @see feca.command.arguments.Argument.NonBuildContext
+     */
     public abstract static class NonBuildContext<R> extends AbstractArgument<R> implements Argument.NonBuildContext<R> {
         protected NonBuildContext(String name) {
             super(name);
