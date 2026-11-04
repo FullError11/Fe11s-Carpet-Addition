@@ -11,6 +11,7 @@ public final class InfinityInventoryClientNetworking {
     private InfinityInventoryClientNetworking() {}
 
     public static void register() {
+        // noinspection resource
         ClientPlayNetworking.registerGlobalReceiver(InfinityInventoryQueryResultPayload.TYPE,
                 (payload, context) -> context.client().execute(() -> LitematicaStorageCache.accept(payload)));
 

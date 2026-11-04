@@ -44,11 +44,13 @@ public final class InfinityInventoryNetworking {
         ServerPlayNetworking.registerGlobalReceiver(InfinityInventoryQueryPayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
             PacketSender sender = context.responseSender();
+            // noinspection resource
             context.server().execute(() -> handleQuery(player, sender, payload));
         });
 
         ServerPlayNetworking.registerGlobalReceiver(InfinityInventoryTakePayload.TYPE, (payload, context) -> {
             ServerPlayer player = context.player();
+            // noinspection resource
             context.server().execute(() -> handleTake(player, payload));
         });
 
