@@ -1,8 +1,13 @@
 package feca.test.component.function;
 
 import feca.function.utils.InfinityInventoryStorage;
+import feca.function.utils.InfinityInventoryStorage.ItemStorageData;
 import feca.test.support.GameBootstrap;
+import io.netty.buffer.Unpooled;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.NbtOps;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.ColorCollection;
@@ -106,6 +111,84 @@ class InfinityInventoryStorageTest {
         assertEquals(64, restored.getCount(Items.STONE));
         assertEquals(3, restored.getCount(Items.DIRT));
         assertEquals(2, restored.size());
+    }
+
+    @Test
+    @DisplayName("网络编解码往返（服务端主动同步的快照格式）")
+    void streamCodecRoundTrip() {
+        final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
+        storage.modifyCount(Items.STONE, 64);
+        storage.modifyCount(Items.DIRT, 3);
+
+        final RegistryAccess access = RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
+        final RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), access);
+        try {
+            InfinityInventoryStorage.STREAM_CODEC.encode(buf, storage);
+            final InfinityInventoryStorage restored = InfinityInventoryStorage.STREAM_CODEC.decode(buf);
+
+            assertEquals(64, restored.getCount(Items.STONE));
+            assertEquals(3, restored.getCount(Items.DIRT));
+            assertEquals(2, restored.size());
+        } finally {
+            buf.release();
+        }
+    }
+
+    @Test
+    @DisplayName("增量同步：drainChanges 只返回变化物品，清空后纳入移除项")
+    void drainChanges() {
+        final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
+        assertFalse(storage.hasPendingChanges());
+
+        storage.modifyCount(Items.STONE, 5);
+        storage.modifyCount(Items.DIRT, 2);
+        assertTrue(storage.hasPendingChanges());
+
+        var changes = storage.drainChanges();
+        assertEquals(2, changes.size());
+        assertEquals(5, changes.get(Items.STONE).getCount());
+        assertEquals(2, changes.get(Items.DIRT).getCount());
+        assertFalse(storage.hasPendingChanges(), "取出后待推送标记必须清空");
+        assertTrue(storage.drainChanges().isEmpty(), "没有新变化时增量包为空");
+
+        storage.clear();
+        changes = storage.drainChanges();
+        assertEquals(2, changes.size(), "清空库存时所有物品都要作为移除项下发");
+        assertEquals(0, changes.get(Items.STONE).getCount());
+        assertEquals(0, changes.get(Items.DIRT).getCount());
+    }
+
+    @Test
+    @DisplayName("完整快照整体替换内容，并丢弃被快照覆盖的待推送变化")
+    void reloadSnapshot() {
+        final InfinityInventoryStorage mirror = InfinityInventoryStorage.create();
+        mirror.modifyCount(Items.STONE, 64);
+
+        final InfinityInventoryStorage snapshot = InfinityInventoryStorage.create();
+        snapshot.modifyCount(Items.DIRT, 1);
+
+        mirror.reloadItemsOf(snapshot);
+
+        assertEquals(0, mirror.getCount(Items.STONE), "旧内容必须被快照整体替换");
+        assertEquals(1, mirror.getCount(Items.DIRT));
+        assertFalse(mirror.hasPendingChanges(), "完整快照已经覆盖旧变化，不应再产生增量包");
+    }
+
+    @Test
+    @DisplayName("增量同步：applyChanges 覆盖数量，数量 0 表示移除")
+    void applyChanges() {
+        final InfinityInventoryStorage mirror = InfinityInventoryStorage.create();
+        mirror.modifyCount(Items.STONE, 64);
+        mirror.modifyCount(Items.DIRT, 3);
+
+        final var changes = new java.util.LinkedHashMap<Item, ItemStorageData>();
+        changes.put(Items.STONE, new ItemStorageData(10));
+        changes.put(Items.DIRT, new ItemStorageData(0));
+        mirror.applyChanges(changes);
+
+        assertEquals(10, mirror.getCount(Items.STONE));
+        assertEquals(0, mirror.getCount(Items.DIRT), "数量 0 的条目必须被移除");
+        assertEquals(1, mirror.size());
     }
 
     @Test

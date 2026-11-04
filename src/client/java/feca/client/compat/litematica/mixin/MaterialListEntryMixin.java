@@ -23,13 +23,6 @@ public abstract class MaterialListEntryMixin {
 
         net.minecraft.world.item.Item item = stack.getItem();
         int extra = LitematicaStorageCache.count(item);
-
-        // 缓存未知/过期时入队查询，由客户端 tick 批量发送
-        if (extra <= 0 && !LitematicaStorageCache.isFresh(item)) {
-            LitematicaStorageCache.queueRequest(item);
-            return;
-        }
-
         if (extra <= 0) return;
 
         long total = (long) cir.getReturnValue() + extra;

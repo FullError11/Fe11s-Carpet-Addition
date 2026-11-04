@@ -5,8 +5,7 @@
     "plugin": "feca.client.compat.litematica.mixin.LitematicaMixinPlugin",
     "client": [
         "InventoryUtilsMixin",
-        "MaterialListEntryMixin",
-        "MaterialListUtilsMixin"
+        "MaterialListEntryMixin"
     ],
     "injectors": {
         "defaultRequire": 1

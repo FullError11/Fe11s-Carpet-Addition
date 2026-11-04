@@ -170,8 +170,12 @@ public class InfinityInventory implements RuleImpl {
     private static void finishPick(@NonNull ServerPlayer player, int target) {
         var inventory = player.getInventory();
         inventory.setSelectedSlot(target);
-        player.connection.send(new ClientboundSetHeldSlotPacket(target));
-        player.inventoryMenu.broadcastChanges();
+        // 假人 / 测试环境没有真实连接，跳过客户端同步
+        // noinspection ConstantValue
+        if (player.connection != null) {
+            player.connection.send(new ClientboundSetHeldSlotPacket(target));
+            player.inventoryMenu.broadcastChanges();
+        }
     }
 
     /// 背包无空间：提示并把取出的物品退回无限库存

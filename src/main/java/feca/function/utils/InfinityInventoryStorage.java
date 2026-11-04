@@ -5,6 +5,10 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import feca.utils.ColorCollectionUtils;
 import feca.utils.ShulkerBoxAccessor;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -31,16 +35,23 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         /// @return 修改后的库存余量
         public int modifyCount(int modify) { count += modify; return count; }
         public int getCount() { return count; }
+        public void setCount(int count) { this.count = count; }
 
         public static final Codec<ItemStorageData> NBT_CODEC = RecordCodecBuilder.create(instance ->
                 instance.group(
                         Codec.INT.fieldOf("count").forGetter(ItemStorageData::getCount)
                 ).apply(instance, ItemStorageData::new)
         );
+
+        public static final StreamCodec<RegistryFriendlyByteBuf, ItemStorageData> STREAM_CODEC =
+                StreamCodec.composite(ByteBufCodecs.VAR_INT, ItemStorageData::getCount, ItemStorageData::new);
     }
 
     private final LinkedHashMap<Item, ItemStorageData> items;
     private final HashMap<Item, ArrayList<ComplexItemPushProcessor>> complexItemPushProcessors = new HashMap<>();
+
+    /// 自上次同步后发生变化、等待增量推送的物品（数量为 0 表示已被移除）
+    private final LinkedHashSet<Item> pendingChanges = new LinkedHashSet<>();
 
     private InfinityInventoryStorage(LinkedHashMap<Item, ItemStorageData> items) {
         this.items = items;
@@ -73,6 +84,73 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
                     .apply(instance, InfinityInventoryStorage::ofWithDefaultProcessors);
     });
 
+    /// 物品 → 库存数据的网络编码，完整快照与增量更新共用
+    public static final StreamCodec<RegistryFriendlyByteBuf, LinkedHashMap<Item, ItemStorageData>> MAP_STREAM_CODEC = ByteBufCodecs.map(
+            LinkedHashMap::new,
+            ByteBufCodecs.registry(Registries.ITEM),
+            ItemStorageData.STREAM_CODEC
+    );
+
+    public static final StreamCodec<RegistryFriendlyByteBuf, InfinityInventoryStorage> STREAM_CODEC = StreamCodec.composite(
+            MAP_STREAM_CODEC, s -> s.items, InfinityInventoryStorage::ofWithDefaultProcessors
+    );
+
+    /// 用完整快照整体替换当前内容；快照已经覆盖此前所有变化
+    public void reloadItemsOf(@NonNull InfinityInventoryStorage other) {
+        items.clear();
+        items.putAll(other.items);
+        pendingChanges.clear();
+    }
+
+    /// 记录一批物品发生变化，等待增量推送
+    private void markChanged(@NonNull Iterable<Item> changed) {
+        for (Item item : changed) {
+            pendingChanges.add(item);
+        }
+    }
+
+    /// 记录单个物品发生变化，等待增量推送
+    private void markChanged(Item item) {
+        pendingChanges.add(item);
+    }
+
+    /// 是否有等待增量推送的变化
+    public boolean hasPendingChanges() {
+        return !pendingChanges.isEmpty();
+    }
+
+    /// 取出并清空待推送的变化：物品 → 当前数量（0 表示该物品已从库存移除）
+    public @NonNull LinkedHashMap<Item, ItemStorageData> drainChanges() {
+        var result = new LinkedHashMap<Item, ItemStorageData>(pendingChanges.size());
+        for (Item item : pendingChanges) {
+            result.put(item, new ItemStorageData(getCount(item)));
+        }
+        pendingChanges.clear();
+        return result;
+    }
+
+    /// 丢弃未推送的变化（例如刚发送过完整快照）
+    public void clearPendingChanges() {
+        pendingChanges.clear();
+    }
+
+    /// 发送失败时把已取出的增量放回待推送集合，避免丢失
+    public void restoreChanges(@NonNull Map<Item, ItemStorageData> changes) {
+        pendingChanges.addAll(changes.keySet());
+    }
+
+    /// 应用服务端下发的增量更新：数量为 0 表示移除该物品
+    public void applyChanges(@NonNull Map<Item, ItemStorageData> changes) {
+        for (var entry : changes.entrySet()) {
+            int count = entry.getValue().getCount();
+            if (count <= 0) {
+                items.remove(entry.getKey());
+            } else {
+                items.computeIfAbsent(entry.getKey(), _ -> new ItemStorageData()).setCount(count);
+            }
+        }
+    }
+
 
     /// @param stack 储存物品，在储存后将清空 {@code stack}
     /// @return true: 储存成功，此时  {@code stack} 被清空；
@@ -83,13 +161,16 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
             switch (processComplexItemPush(stack)) {
                 case PASS:      break;
                 case FAILED:    return false;
-                case SUCCESS:   return true;
+                case SUCCESS:
+                    markChanged(stack.getItem());
+                    return true;
             }
             return false;
         }
 
         items.computeIfAbsent(stack.getItem(), _ -> new ItemStorageData())
                 .modifyCount(stack.getCount());
+        markChanged(stack.getItem());
         stack.setCount(0);
         return true;
     }
@@ -107,6 +188,7 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         if (data.modifyCount(-popCount) <= 0) {
             items.remove(item, data);
         }
+        markChanged(item);
         return true;
     }
 
@@ -118,6 +200,7 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         var data = items.get(item);
         if (data == null) return 0;
         var count = data.getCount();
+        markChanged(item);
         if (count <= popCount) {
             data.modifyCount(-count);
             items.remove(item, data);
@@ -194,7 +277,9 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
             items.remove(item, data);
         }
 
-        return popCount - missCount;
+        int actual = popCount - missCount;
+        if (actual > 0) markChanged(item);
+        return actual;
     }
 
     public int getCount(Item item) {
@@ -219,7 +304,11 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
     }
 
     public int size() { return items.size(); }
-    public void clear() { items.clear(); }
+    public void clear() {
+        if (items.isEmpty()) return;
+        markChanged(items.keySet());
+        items.clear();
+    }
 
     /// @return 修改后的库存总数
     @SuppressWarnings("UnusedReturnValue")
@@ -229,6 +318,7 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         if (result <= 0) {
             items.remove(item, data);
         }
+        markChanged(item);
         return result;
     }
 

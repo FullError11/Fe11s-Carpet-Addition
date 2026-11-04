@@ -19,6 +19,7 @@ import feca.command.utils.CommandResult;
 import feca.command.utils.PlayerExecutor;
 import feca.function.InfinityInventoryMenu;
 import feca.function.utils.InfinityInventoryStorage;
+import feca.network.InfinityInventoryNetworking;
 import feca.utils.ContainerHelper;
 import feca.registry.OnInitializeCallbackRegistry;
 import feca.registry.RuleChangeCallbackRegistry;
@@ -52,6 +53,7 @@ public class InfinityInventory {
                         .then(SubCommands.store(buildContext))
                         .then(SubCommands.take(buildContext))
                         .then(SubCommands.count(buildContext))
+                        .then(SubCommands.sync())
                         .then(Commands.literal("menu")
                                 .requires(_ -> Rules.infinityInventoryMenu)
                                 .executes(PlayerExecutor.requireExecByPlayer((_, player) -> {
@@ -234,6 +236,35 @@ public class InfinityInventory {
                                 }
 
                                 return CommandResult.SUCCESS;
+                            }))
+                    );
+        }
+        private static ArgumentBuilder<CommandSourceStack, ?> sync() {
+            // TODO: 增加独立规则限制手动 sync 并更新 Rules / Commands 文档
+
+            // 申请完整快照
+            final PlayerExecutor.IsPlayerExecutorEx syncFull = (ctx, player) -> {
+                if (InfinityInventoryNetworking.requestFullSync(player)) {
+                    ctx.getSource().sendSystemMessage(Component.translatable("feca.msg.cmd.infinityInventory.sync.full"));
+                    return CommandResult.SUCCESS;
+                }
+                ctx.getSource().sendSystemMessage(Component.translatable("feca.msg.cmd.infinityInventory.sync.fail"));
+                return CommandResult.FAILURE;
+            };
+
+            return Commands.literal("sync")
+                    .executes(PlayerExecutor.requireExecByPlayer(syncFull))
+                    .then(Commands.literal("full")
+                            .executes(PlayerExecutor.requireExecByPlayer(syncFull))
+                    )
+                    .then(Commands.literal("partial")  // 申请自上次全量以来的补偿包
+                            .executes(PlayerExecutor.requireExecByPlayer((ctx, player) -> {
+                                if (InfinityInventoryNetworking.requestPartialSync(player)) {
+                                    ctx.getSource().sendSystemMessage(Component.translatable("feca.msg.cmd.infinityInventory.sync.partial"));
+                                    return CommandResult.SUCCESS;
+                                }
+                                ctx.getSource().sendSystemMessage(Component.translatable("feca.msg.cmd.infinityInventory.sync.fail"));
+                                return CommandResult.FAILURE;
                             }))
                     );
         }
