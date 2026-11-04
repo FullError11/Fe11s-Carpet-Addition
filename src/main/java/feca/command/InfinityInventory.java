@@ -17,6 +17,7 @@ import feca.command.arguments.IntegerExpressionArgument;
 import feca.command.arguments.ItemArgument;
 import feca.command.utils.CommandResult;
 import feca.command.utils.PlayerExecutor;
+import feca.function.CommandInfinityInventorySync;
 import feca.function.InfinityInventoryMenu;
 import feca.function.utils.InfinityInventoryStorage;
 import feca.network.InfinityInventoryNetworking;
@@ -251,7 +252,7 @@ public class InfinityInventory {
             };
 
             return Commands.literal("sync")
-                    .requires(_ -> Rules.commandInfinityInventorySync)
+                    .requires(_ -> CommandInfinityInventorySync.isEnabled())
                     .executes(PlayerExecutor.requireExecByPlayer(syncFull))
                     .then(Commands.literal("full")
                             .executes(PlayerExecutor.requireExecByPlayer(syncFull))
