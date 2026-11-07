@@ -30,7 +30,7 @@ loom {
 		}
 	}
 
-	accessWidenerPath = file("src/main/resources/feca.accesswidener")
+	accessWidenerPath = file("src/main/resources/feca.classtweaker")
 	log4jConfigs.from "log4j-dev.xml"
 }
 
