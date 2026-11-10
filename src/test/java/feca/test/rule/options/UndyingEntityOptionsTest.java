@@ -1,6 +1,6 @@
 package feca.test.rule.options;
 
-import feca.rule.options.UndyingFakePlayerOptions;
+import feca.rule.options.UndyingEntityOptions;
 import feca.test.support.GameBootstrap;
 import net.minecraft.core.Holder;
 import net.minecraft.world.damagesource.DamageType;
@@ -17,11 +17,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * 组件测试: {@link UndyingFakePlayerOptions}（规则 {@code undyingFakePlayer} 的伤害白名单选项）。
+ * 组件测试: {@link UndyingEntityOptions}（规则 {@code undyingFakePlayer} 的伤害白名单选项）。
  *
  * <p>默认值（{@code FALSE}）由 {@code RulesDeclarationTest} 统一锁定。</p>
  */
-class UndyingFakePlayerOptionsTest {
+class UndyingEntityOptionsTest {
     @BeforeAll
     static void bootstrap() {
         // DamageType / DamageEffects 的静态初始化需要内置注册表
@@ -38,22 +38,22 @@ class UndyingFakePlayerOptionsTest {
     @DisplayName("三种取值完整")
     void options() {
         assertEquals(Arrays.asList(
-                        UndyingFakePlayerOptions.FALSE,
-                        UndyingFakePlayerOptions.ONLY_VOID,
-                        UndyingFakePlayerOptions.PLAYER),
-                Arrays.asList(UndyingFakePlayerOptions.values()));
+                        UndyingEntityOptions.FALSE,
+                        UndyingEntityOptions.ONLY_VOID,
+                        UndyingEntityOptions.PLAYER),
+                Arrays.asList(UndyingEntityOptions.values()));
     }
 
     @Test
     @DisplayName("FALSE：任何伤害都不忽略")
     void falseNeverMissesDamage() {
-        assertFalse(UndyingFakePlayerOptions.FALSE.shouldMissDamage(unmatchedDamage()));
+        assertFalse(UndyingEntityOptions.FALSE.shouldMissDamage(unmatchedDamage()));
     }
 
     @Test
     @DisplayName("ONLY_VOID / PLAYER：白名单之外的伤害一律忽略")
     void nonWhitelistedDamageIsMissed() {
-        assertTrue(UndyingFakePlayerOptions.ONLY_VOID.shouldMissDamage(unmatchedDamage()));
-        assertTrue(UndyingFakePlayerOptions.PLAYER.shouldMissDamage(unmatchedDamage()));
+        assertTrue(UndyingEntityOptions.ONLY_VOID.shouldMissDamage(unmatchedDamage()));
+        assertTrue(UndyingEntityOptions.PLAYER.shouldMissDamage(unmatchedDamage()));
     }
 }

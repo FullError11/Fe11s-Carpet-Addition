@@ -6,7 +6,7 @@ import feca.function.*;
 import feca.rule.options.ActiveMendingOptions;
 import feca.rule.options.CollectibleSpawnEggOptions;
 import feca.rule.options.CommandPermissionOptions;
-import feca.rule.options.UndyingFakePlayerOptions;
+import feca.rule.options.UndyingEntityOptions;
 import feca.rule.utils.RuleImpl;
 import feca.rule.utils.RuleImplBy;
 import feca.utils.ClassForceLoader;
@@ -68,7 +68,12 @@ public final class Rules {
 
     @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(UndyingFakePlayer.class)
-    public static UndyingFakePlayerOptions undyingFakePlayer = UndyingFakePlayerOptions.FALSE;
+    public static UndyingEntityOptions undyingFakePlayer = UndyingEntityOptions.FALSE;
+
+    // TODO: 补充文档
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(UndyingSnowGolem.class)
+    public static UndyingEntityOptions undyingSnowGolem = UndyingEntityOptions.FALSE;
 
     @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(ActiveMending.class)

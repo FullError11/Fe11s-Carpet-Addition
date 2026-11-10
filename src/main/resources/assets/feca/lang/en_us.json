@@ -12,6 +12,9 @@
     "carpet.rule.undyingFakePlayer.name": "不死假人",
     "carpet.rule.undyingFakePlayer.desc": "使Carpet假人不会被设置外的方式造成伤害，同时免疫负面效果",
 
+    "carpet.rule.undyingSnowGolem.name": "不死雪傀儡",
+    "carpet.rule.undyingSnowGolem.desc": "使雪傀儡不会被设置外的方式造成伤害，同时免疫负面效果",
+
     "carpet.rule.activeMending.name": "主动经验修补",
     "carpet.rule.activeMending.desc": "当玩家有经验，且设置的槽位的带有经验修补附魔的物品耐久不满时，将会自动消耗经验进行修补",
 

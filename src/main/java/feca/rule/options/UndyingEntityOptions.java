@@ -5,7 +5,7 @@ import net.minecraft.world.damagesource.DamageType;
 import net.minecraft.world.damagesource.DamageTypes;
 import org.jspecify.annotations.NonNull;
 
-public enum UndyingFakePlayerOptions {
+public enum UndyingEntityOptions {
     FALSE,      // 禁用
     ONLY_VOID,  // 仅受到虚空伤害
     PLAYER;     // 仅收到虚空和玩家伤害

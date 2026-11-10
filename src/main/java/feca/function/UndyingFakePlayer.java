@@ -3,15 +3,15 @@ package feca.function;
 import carpet.patches.EntityPlayerMPFake;
 import feca.registry.OnInitializeCallbackRegistry;
 import feca.rule.Rules;
-import feca.rule.options.UndyingFakePlayerOptions;
+import feca.rule.options.UndyingEntityOptions;
 import feca.rule.utils.RuleImpl;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 
 public class UndyingFakePlayer implements RuleImpl {
     public static boolean isEnabled() {
-        return getOption() != UndyingFakePlayerOptions.FALSE;
+        return getOption() != UndyingEntityOptions.FALSE;
     }
-    public static UndyingFakePlayerOptions getOption() {
+    public static UndyingEntityOptions getOption() {
         return Rules.undyingFakePlayer;
     }
 
