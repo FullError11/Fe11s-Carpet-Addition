@@ -2,8 +2,11 @@ package feca.function.utils;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import feca.FeCA;
 import feca.utils.ColorCollectionUtils;
 import feca.utils.ShulkerBoxAccessor;
+import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
@@ -17,15 +20,127 @@ import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 
 import java.util.*;
-import java.util.function.Function;
 
+/// 无限库存：按 {@link ItemTemplate}（物品 + 数据组件补丁）计数的物品储存。
+///
+/// ## 键
+/// 键是 {@link ItemTemplate}：物品与数据组件补丁都相同（数量无关）才算同一条目。
+/// 没有组件的条目称为**无组件条目**，其余称为**变体条目**。
+///
+/// ## 两级接口
+/// - **物品级**（参数为 {@link Item}）：只作用于无组件条目，供命令与尚未改造的菜单使用；
+///   变体条目对物品级接口不可见，用 {@link #getVariantCount(Item)} / {@link #getVariants(Item)}
+///   查询它们，用模板级接口读写
+/// - **模板级**（参数为 {@link ItemTemplate} / {@link ItemStack}）：可以访问全部条目
+///
+/// ## 可入库性
+/// 带组件的物品只有在 {@link ItemStoragePolicy} 的白名单规则下才允许入库；
+/// 其余带组件的物品（容器内容、命名、Lore 等取值无限的组件）会被显式拒绝，
+/// 拒绝原因见 {@link #rejectionReason(ItemStack)}。
+///
+/// ## 持久化
+/// 当前格式：`{format: 2, items: [{item: <物品 ID>, components: {...}?, count: <数量>}, ...]}`（{@link #NBT_CODEC}）。
+/// 旧格式（v1：`{items: {<物品 ID>: {count}}}`）的读取与迁移在 {@link InfinityInventoryLegacyMigration}（临时类）。
 @SuppressWarnings("unused")
-public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, InfinityInventoryStorage.ItemStorageData>> {
+public class InfinityInventoryStorage
+        implements Iterable<Map.Entry<InfinityInventoryStorage.ItemTemplate, InfinityInventoryStorage.ItemStorageData>> {
     @Override
-    public @NonNull Iterator<Map.Entry<Item, ItemStorageData>> iterator() {
+    public @NonNull Iterator<Map.Entry<ItemTemplate, ItemStorageData>> iterator() {
         return items.entrySet().iterator();
     }
 
+    /// 物品模板：`物品 + 数据组件补丁`，与数量无关，是库存条目的键。
+    ///
+    /// 不持有 {@link ItemStack}：无组件模板不需要构造物品堆，因此只有注册表的环境
+    /// （L1 单元测试，物品组件尚未绑定）也能安全创建。
+    public static final class ItemTemplate {
+        private final Item item;
+        /// 不可变，可安全共享
+        private final DataComponentPatch components;
+
+        private ItemTemplate(@NonNull Item item, @NonNull DataComponentPatch components) {
+            this.item = item;
+            this.components = components;
+        }
+
+        @Contract("_ -> new")
+        public static @NonNull ItemTemplate of(@NonNull ItemStack stack) {
+            return new ItemTemplate(stack.getItem(), stack.getComponentsPatch());
+        }
+
+        @Contract("_ -> new")
+        public static @NonNull ItemTemplate of(@NonNull Item item) {
+            return new ItemTemplate(item, DataComponentPatch.EMPTY);
+        }
+
+        @Contract("_, _ -> new")
+        public static @NonNull ItemTemplate of(@NonNull Item item, @NonNull DataComponentPatch components) {
+            return new ItemTemplate(item, components);
+        }
+
+        public @NonNull Item item() { return item; }
+
+        /// @apiNote 组件补丁本身不可变，这里直接返回内部引用
+        public @NonNull DataComponentPatch componentsPatch() { return components; }
+
+        /// 无数据组件（「白板」物品）
+        public boolean isPlain() { return components.isEmpty(); }
+
+        /// 按模板创建新物品堆，数量为 1
+        @Contract(" -> new")
+        public @NonNull ItemStack newStack() { return newStack(1); }
+
+        /// 按模板创建新物品堆（带组件）
+        ///
+        /// @throws IllegalArgumentException count < 1
+        @Contract("_ -> new")
+        public @NonNull ItemStack newStack(int count) {
+            if (count < 1) throw new IllegalArgumentException("count < 1: " + count);
+            var stack = new ItemStack(item, count);
+            if (!components.isEmpty()) stack.applyComponents(components);
+            return stack;
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) return true;
+            if (!(obj instanceof ItemTemplate other)) return false;
+            // 只比较 物品 + 组件(NBT), 忽略数量
+            return item == other.item && components.equals(other.components);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * item.hashCode() + components.hashCode();
+        }
+
+        @Override
+        public String toString() {
+            return components.isEmpty() ? String.valueOf(item) : item + " + " + components;
+        }
+
+        /// 持久化编码：`{item: <物品 ID>, components: {...}?}`
+        public static final Codec<ItemTemplate> NBT_CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                BuiltInRegistries.ITEM.byNameCodec().fieldOf("item").forGetter(ItemTemplate::item),
+                DataComponentPatch.CODEC.optionalFieldOf("components", DataComponentPatch.EMPTY)
+                        .forGetter(ItemTemplate::componentsPatch)
+        ).apply(instance, ItemTemplate::of));
+
+        /// 网络编码：`物品注册表 ID + 组件补丁`
+        public static final StreamCodec<RegistryFriendlyByteBuf, ItemTemplate> STREAM_CODEC =
+                StreamCodec.composite(
+                        ByteBufCodecs.registry(Registries.ITEM),
+                        ItemTemplate::item,
+                        DataComponentPatch.STREAM_CODEC,
+                        ItemTemplate::componentsPatch,
+                        ItemTemplate::of
+                );
+
+        /// 空气模板（无组件），用作「没有该条目」的占位
+        public static final ItemTemplate EMPTY = new ItemTemplate(Items.AIR, DataComponentPatch.EMPTY);
+    }
+
+    /// 单个条目的库存数据
     public static final class ItemStorageData {
         private int count;
 
@@ -47,21 +162,74 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
                 StreamCodec.composite(ByteBufCodecs.VAR_INT, ItemStorageData::getCount, ItemStorageData::new);
     }
 
-    private final LinkedHashMap<Item, ItemStorageData> items;
+    /// 库存条目表：{@link ItemTemplate} → {@link ItemStorageData}，保持插入顺序。
+    ///
+    /// 持久化、网络同步与增量推送共用同一个容器类型，避免各处各自声明 Map。
+    public static final class ItemStorageMap extends LinkedHashMap<ItemTemplate, ItemStorageData> {
+
+        public ItemStorageMap() {}
+
+        /// 供 {@link ByteBufCodecs#map} 的工厂方法使用
+        public ItemStorageMap(int initialCapacity) { super(initialCapacity); }
+
+        /// 持久化编码：条目列表（保留顺序，同一模板重复出现时数量累加）
+        ///
+        /// 单条数据损坏时跳过并告警，避免一条坏数据让整份库存加载失败
+        public static final Codec<ItemStorageMap> NBT_CODEC = StoredEntry.CODEC.listOf()
+                .promotePartial(error -> FeCA.LOGGER.warn("跳过无法解析的库存条目: {}", error))
+                .xmap(ItemStorageMap::fromEntries, ItemStorageMap::toEntries);
+
+        /// 网络编码：完整快照与增量更新共用
+        public static final StreamCodec<RegistryFriendlyByteBuf, ItemStorageMap> STREAM_CODEC =
+                ByteBufCodecs.map(
+                        ItemStorageMap::new,
+                        ItemTemplate.STREAM_CODEC,
+                        ItemStorageData.STREAM_CODEC
+                );
+
+        private static @NonNull ItemStorageMap fromEntries(@NonNull List<StoredEntry> entries) {
+            var result = new ItemStorageMap(entries.size());
+            for (var entry : entries) {
+                // 防御损坏数据：数量非正或空气条目直接丢弃
+                if (entry.count() <= 0 || entry.template().item() == Items.AIR) continue;
+                result.computeIfAbsent(entry.template(), _ -> new ItemStorageData())
+                        .modifyCount(entry.count());
+            }
+            return result;
+        }
+
+        private static @NonNull List<StoredEntry> toEntries(@NonNull ItemStorageMap map) {
+            List<StoredEntry> result = new ArrayList<>(map.size());
+            for (var entry : map.entrySet()) {
+                result.add(new StoredEntry(entry.getKey(), entry.getValue().getCount()));
+            }
+            return result;
+        }
+    }
+
+    /// 持久化条目：物品模板 + 数量
+    private record StoredEntry(@NonNull ItemTemplate template, int count) {
+        private static final Codec<StoredEntry> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                ItemTemplate.NBT_CODEC.fieldOf("item").forGetter(StoredEntry::template),
+                Codec.INT.fieldOf("count").forGetter(StoredEntry::count)
+        ).apply(instance, StoredEntry::new));
+    }
+
+    private final ItemStorageMap items;
     private final HashMap<Item, ArrayList<ComplexItemPushProcessor>> complexItemPushProcessors = new HashMap<>();
 
-    /// 自上次同步后发生变化、等待增量推送的物品（数量为 0 表示已被移除）
-    private final LinkedHashSet<Item> pendingChanges = new LinkedHashSet<>();
+    /// 自上次同步后发生变化、等待增量推送的条目（数量为 0 表示已被移除）
+    private final LinkedHashSet<ItemTemplate> pendingChanges = new LinkedHashSet<>();
 
-    private InfinityInventoryStorage(LinkedHashMap<Item, ItemStorageData> items) {
+    private InfinityInventoryStorage(ItemStorageMap items) {
         this.items = items;
     }
-    private static @NonNull InfinityInventoryStorage ofWithDefaultProcessors(LinkedHashMap<Item, ItemStorageData> items) {
+    private static @NonNull InfinityInventoryStorage ofWithDefaultProcessors(@NonNull ItemStorageMap items) {
         var result = new InfinityInventoryStorage(items);
         registerDefaultComplexItemProcessor(result);
         return result;
     }
-    protected InfinityInventoryStorage() { this(new LinkedHashMap<>()); }
+    protected InfinityInventoryStorage() { this(new ItemStorageMap()); }
     public static @NonNull InfinityInventoryStorage create() {
         return new InfinityInventoryStorage();
     }
@@ -75,25 +243,34 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         return result;
     }
 
-    public static final Codec<InfinityInventoryStorage> NBT_CODEC = RecordCodecBuilder.create(instance -> {
-            return instance.group(
-                            Codec.unboundedMap(BuiltInRegistries.ITEM.byNameCodec(), ItemStorageData.NBT_CODEC)
-                                    .xmap(LinkedHashMap::new, Function.identity())
-                                    .fieldOf("items").forGetter(s -> s.items)
-                    )
-                    .apply(instance, InfinityInventoryStorage::ofWithDefaultProcessors);
-    });
+    // =========================================================
+    // 持久化
+    // =========================================================
 
-    /// 物品 → 库存数据的网络编码，完整快照与增量更新共用
-    public static final StreamCodec<RegistryFriendlyByteBuf, LinkedHashMap<Item, ItemStorageData>> MAP_STREAM_CODEC = ByteBufCodecs.map(
-            LinkedHashMap::new,
-            ByteBufCodecs.registry(Registries.ITEM),
-            ItemStorageData.STREAM_CODEC
+    /// 当前持久化格式版本
+    private static final int FORMAT_VERSION = 2;
+
+    /// 持久化编码：`{format: 2, items: [{item, components?, count}, ...]}`
+    ///
+    /// 旧格式（v1）的读取与迁移在 {@link InfinityInventoryLegacyMigration} 里（临时类），
+    /// 这里只负责当前格式。
+    public static final Codec<InfinityInventoryStorage> NBT_CODEC = RecordCodecBuilder.create(instance ->
+            instance.group(
+                    Codec.INT.fieldOf("format").forGetter(_ -> FORMAT_VERSION),
+                    ItemStorageMap.NBT_CODEC.fieldOf("items").forGetter(storage -> storage.items)
+            ).apply(instance, (format, items) -> ofWithDefaultProcessors(items))
     );
 
-    public static final StreamCodec<RegistryFriendlyByteBuf, InfinityInventoryStorage> STREAM_CODEC = StreamCodec.composite(
-            MAP_STREAM_CODEC, s -> s.items, InfinityInventoryStorage::ofWithDefaultProcessors
-    );
+    /// 完整快照的网络编码
+    public static final StreamCodec<RegistryFriendlyByteBuf, InfinityInventoryStorage> STREAM_CODEC =
+            StreamCodec.composite(
+                    ItemStorageMap.STREAM_CODEC, storage -> storage.items,
+                    InfinityInventoryStorage::ofWithDefaultProcessors
+            );
+
+    // =========================================================
+    // 同步（快照 / 增量）
+    // =========================================================
 
     /// 用完整快照整体替换当前内容；快照已经覆盖此前所有变化
     public void reloadItemsOf(@NonNull InfinityInventoryStorage other) {
@@ -102,16 +279,16 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         pendingChanges.clear();
     }
 
-    /// 记录一批物品发生变化，等待增量推送
-    private void markChanged(@NonNull Iterable<Item> changed) {
-        for (Item item : changed) {
-            pendingChanges.add(item);
+    /// 记录一批条目发生变化，等待增量推送
+    private void markChanged(@NonNull Iterable<ItemTemplate> changed) {
+        for (var template : changed) {
+            pendingChanges.add(template);
         }
     }
 
-    /// 记录单个物品发生变化，等待增量推送
-    private void markChanged(Item item) {
-        pendingChanges.add(item);
+    /// 记录单个条目发生变化，等待增量推送
+    private void markChanged(@NonNull ItemTemplate template) {
+        pendingChanges.add(template);
     }
 
     /// 是否有等待增量推送的变化
@@ -119,11 +296,11 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         return !pendingChanges.isEmpty();
     }
 
-    /// 取出并清空待推送的变化：物品 → 当前数量（0 表示该物品已从库存移除）
-    public @NonNull LinkedHashMap<Item, ItemStorageData> drainChanges() {
-        var result = new LinkedHashMap<Item, ItemStorageData>(pendingChanges.size());
-        for (Item item : pendingChanges) {
-            result.put(item, new ItemStorageData(getCount(item)));
+    /// 取出并清空待推送的变化：条目 → 当前数量（0 表示该条目已从库存移除）
+    public @NonNull ItemStorageMap drainChanges() {
+        var result = new ItemStorageMap(pendingChanges.size());
+        for (var template : pendingChanges) {
+            result.put(template, new ItemStorageData(getCount(template)));
         }
         pendingChanges.clear();
         return result;
@@ -135,12 +312,12 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
     }
 
     /// 发送失败时把已取出的增量放回待推送集合，避免丢失
-    public void restoreChanges(@NonNull Map<Item, ItemStorageData> changes) {
+    public void restoreChanges(@NonNull Map<ItemTemplate, ItemStorageData> changes) {
         pendingChanges.addAll(changes.keySet());
     }
 
-    /// 应用服务端下发的增量更新：数量为 0 表示移除该物品
-    public void applyChanges(@NonNull Map<Item, ItemStorageData> changes) {
+    /// 应用服务端下发的增量更新：数量为 0 表示移除该条目
+    public void applyChanges(@NonNull Map<ItemTemplate, ItemStorageData> changes) {
         for (var entry : changes.entrySet()) {
             int count = entry.getValue().getCount();
             if (count <= 0) {
@@ -151,96 +328,129 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         }
     }
 
+    // =========================================================
+    // 存入
+    // =========================================================
 
+    /// 存入物品堆，在储存后将清空 {@code stack}。
+    ///
+    /// 处理顺序：
+    /// 1. 无组件物品：直接存入无组件条目
+    /// 2. 带组件物品且通过 {@link ItemStoragePolicy} 白名单：按模板存入
+    /// 3. 其余带组件物品：交给已注册的 {@link ComplexItemPushProcessor}（潜影盒拆包），
+    ///    全部不接管时显式拒绝
+    ///
     /// @param stack 储存物品，在储存后将清空 {@code stack}
     /// @return true: 储存成功，此时  {@code stack} 被清空；
     ///         false: 存在任意失败，此时  {@code stack} 不被清空 (可能为半完成状态，需要手动检查)
     public boolean push(@NonNull ItemStack stack) {
-        if (stack.isEmpty()) return false;
-        if (!isNormal(stack)) {
-            switch (processComplexItemPush(stack)) {
-                case PASS:      break;
-                case FAILED:    return false;
-                case SUCCESS:
-                    markChanged(stack.getItem());
-                    return true;
-            }
-            return false;
+        if (stack.isEmpty() || stack.is(Items.AIR)) return false;
+
+        if (isNormal(stack)) {
+            addTemplate(ItemTemplate.of(stack.getItem()), stack.getCount());
+            markChanged(ItemTemplate.of(stack.getItem()));
+            stack.setCount(0);
+            return true;
         }
 
-        items.computeIfAbsent(stack.getItem(), _ -> new ItemStorageData())
-                .modifyCount(stack.getCount());
-        markChanged(stack.getItem());
-        stack.setCount(0);
-        return true;
+        var template = ItemTemplate.of(stack);
+        if (isStorable(stack)) {
+            addTemplate(template, stack.getCount());
+            markChanged(template);
+            stack.setCount(0);
+            return true;
+        }
+
+        switch (processComplexItemPush(stack)) {
+            case PASS:      break;
+            case FAILED:    return false;
+            case SUCCESS:
+                // 拆包出的内容与盒子本身都由处理器内部 push 完成，变化已在那边登记
+                return true;
+        }
+        return false;
     }
 
+    private void addTemplate(@NonNull ItemTemplate template, int count) {
+        if (template.item() == Items.AIR || count <= 0) return;
+        items.computeIfAbsent(template, _ -> new ItemStorageData()).modifyCount(count);
+    }
 
-    /// pop 物品，只有完全成功与完全失败
-    /// @return true: 成功 pop 出 {@code popCount} 个；
-    ///         false: 库存剩余不足 {@code popCount} 个
-    /// @apiNote 应手动处理 {@link ItemStack} 创建 (根据 {@code popCount})
-    public boolean pop(Item item, int popCount) {
-        var data = items.get(item);
+    // =========================================================
+    // 按模板存取（可访问带组件的变体条目）
+    // =========================================================
+
+    /// @return 该模板条目的数量
+    public int getCount(@NonNull ItemTemplate template) {
+        var data = items.get(template);
+        return data == null ? 0 : data.getCount();
+    }
+
+    /// @return 与 {@code stack} 物品、组件完全相同（数量无关）的条目数量
+    public int getCount(@NonNull ItemStack stack) {
+        return getCount(ItemTemplate.of(stack));
+    }
+
+    /// pop 指定模板的条目，只有完全成功与完全失败。
+    ///
+    /// @return true: 成功 pop 出 {@code popCount} 个；false: 库存剩余不足 {@code popCount} 个
+    /// @apiNote 应手动处理 {@link ItemStack} 创建（用 {@link ItemTemplate#newStack(int)}）
+    public boolean pop(@NonNull ItemTemplate template, int popCount) {
+        if (popCount <= 0) return false;
+
+        var data = items.get(template);
         if (data == null || data.getCount() < popCount) {
             return false;
         }
         if (data.modifyCount(-popCount) <= 0) {
-            items.remove(item, data);
+            items.remove(template, data);
         }
-        markChanged(item);
+        markChanged(template);
         return true;
     }
 
-    /// 尽力 pop 物品，如果 popCount 大于剩余数量，则只扣除剩余数量，
-    /// 否则扣除 {@code popCount} 个
+    /// 尽力 pop 指定模板的条目：{@code popCount} 超过余量时只扣除余量。
+    ///
     /// @return 实际扣除数量
-    /// @apiNote 应手动处理 {@link ItemStack} 创建 (根据返回值)
-    public int tryPop(Item item, int popCount) {
-        var data = items.get(item);
+    /// @apiNote 应手动处理 {@link ItemStack} 创建（用 {@link ItemTemplate#newStack(int)}）
+    public int tryPop(@NonNull ItemTemplate template, int popCount) {
+        if (popCount <= 0) return 0;
+
+        var data = items.get(template);
         if (data == null) return 0;
+
         var count = data.getCount();
-        markChanged(item);
+        markChanged(template);
         if (count <= popCount) {
             data.modifyCount(-count);
-            items.remove(item, data);
+            items.remove(template, data);
             return count;
-        } else {
-            data.modifyCount(-popCount);
-            return popCount;
         }
+        data.modifyCount(-popCount);
+        return popCount;
     }
 
-    /// @return true: 成功；false：失败，库存不足或 {@code container} 空间不足
-    public boolean popTo(@NonNull Item item, int popCount, @NonNull List<ItemStack> container) {
-        if (popCount <= 0) return false;
-        var data = items.get(item);
-        if (data == null || data.getCount() <= popCount) {
-            return false;
-        }
-
-        return tryPopTo(item, popCount, container) == popCount;
-    }
-
-
-    public int tryPopTo(@NonNull Item item, int popCount, @NonNull List<ItemStack> container) {
+    /// 把指定模板的条目尽力放入 {@code container}。
+    ///
+    /// @return 实际放入数量
+    public int tryPopTo(@NonNull ItemTemplate template, int popCount, @NonNull List<ItemStack> container) {
         if (popCount <= 0) return 0;
 
         int missCount = popCount;
 
-        var data = items.get(item);
+        var data = items.get(template);
         if (data == null || data.getCount() <= 0) {
             return 0;
         }
 
-        // 正向，优先合并到已有同类、普通、未满的槽位
+        // 正向，优先合并到已有同类、同组件、未满的槽位
         for (int i = 0; i < container.size() && missCount > 0; i++) {
             int remain = data.getCount();
             if (remain <= 0) break;
 
             var slot = container.get(i);
             if (slot.isEmpty()) continue;
-            if (!slot.is(item) || !isNormal(slot)) continue;
+            if (!template.equals(ItemTemplate.of(slot))) continue;
 
             int slotCount = slot.count();
             int maxStack = slot.getMaxStackSize();
@@ -262,7 +472,7 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
             var slot = container.get(i);
             if (!slot.isEmpty()) continue;
 
-            var stack = item.getDefaultInstance();
+            var stack = template.newStack(1);
             int maxStack = stack.getMaxStackSize();
             int modifyCount = Math.min(Math.min(maxStack, missCount), remain);
             if (modifyCount <= 0) continue;
@@ -274,20 +484,82 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         }
 
         if (data.getCount() <= 0) {
-            items.remove(item, data);
+            items.remove(template, data);
         }
 
         int actual = popCount - missCount;
-        if (actual > 0) markChanged(item);
+        if (actual > 0) markChanged(template);
         return actual;
     }
 
-    public int getCount(Item item) {
-        var data = items.get(item);
-        return data == null ? 0 : data.getCount();
+    /// @return 该物品在库存中的**变体条目**数量（不含无组件条目）
+    ///
+    /// 物品级接口看不到带组件的变体，用本方法判断是否存在额外变体。
+    public int getVariantCount(@NonNull Item item) {
+        int result = 0;
+        for (var template : items.keySet()) {
+            if (template.item() == item && !template.isPlain()) result++;
+        }
+        return result;
     }
 
-    /// @return 第一个库存量大于 0 的 {@code item}；若不存在则返回 {@link Items#AIR}
+    /// @return 该物品在库存中的全部变体模板（按插入顺序，不含无组件条目）
+    public @NonNull List<ItemTemplate> getVariants(@NonNull Item item) {
+        List<ItemTemplate> result = new ArrayList<>();
+        for (var template : items.keySet()) {
+            if (template.item() == item && !template.isPlain()) result.add(template);
+        }
+        return result;
+    }
+
+    /// @return 全部条目数量（含带组件的变体条目）
+    public int variantSize() { return items.size(); }
+
+    // =========================================================
+    // 按物品存取（只作用于无组件条目）
+    // =========================================================
+
+    /// @return 无组件条目的数量；带组件的变体不计入（见 {@link #getCount(ItemTemplate)}）
+    public int getCount(Item item) {
+        return getCount(ItemTemplate.of(item));
+    }
+
+    /// pop 无组件条目，只有完全成功与完全失败
+    ///
+    /// @return true: 成功 pop 出 {@code popCount} 个；
+    ///         false: 库存剩余不足 {@code popCount} 个
+    /// @apiNote 应手动处理 {@link ItemStack} 创建 (根据 {@code popCount})
+    public boolean pop(Item item, int popCount) {
+        return pop(ItemTemplate.of(item), popCount);
+    }
+
+    /// 尽力 pop 无组件条目，如果 popCount 大于剩余数量，则只扣除剩余数量，
+    /// 否则扣除 {@code popCount} 个
+    ///
+    /// @return 实际扣除数量
+    /// @apiNote 应手动处理 {@link ItemStack} 创建 (根据返回值)
+    public int tryPop(Item item, int popCount) {
+        return tryPop(ItemTemplate.of(item), popCount);
+    }
+
+    /// @return true: 成功；false：失败，库存不足或 {@code container} 空间不足
+    /// @apiNote 只作用于无组件条目
+    public boolean popTo(@NonNull Item item, int popCount, @NonNull List<ItemStack> container) {
+        if (popCount <= 0) return false;
+        var data = items.get(ItemTemplate.of(item));
+        if (data == null || data.getCount() <= popCount) {
+            return false;
+        }
+        return tryPopTo(item, popCount, container) == popCount;
+    }
+
+    /// @return 实际放入 {@code container} 的数量
+    /// @apiNote 只作用于无组件条目
+    public int tryPopTo(@NonNull Item item, int popCount, @NonNull List<ItemStack> container) {
+        return tryPopTo(ItemTemplate.of(item), popCount, container);
+    }
+
+    /// @return 第一个无组件条目数量大于 0 的 {@code item}；若不存在则返回 {@link Items#AIR}
     public Item getFirstNotEmpty(ColorCollection<Item> colorItems) {
         for (var color : ColorCollectionUtils.iterable(colorItems)) {
             var count = getCount(color);
@@ -296,41 +568,71 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         return Items.AIR;
     }
 
+    /// @return {@code colorItems} 中全部无组件条目的数量之和
     public int getTotalCount(ColorCollection<Item> colorItems) {
         int result = 0;
-        for (var color :  ColorCollectionUtils.iterable(colorItems))
+        for (var color : ColorCollectionUtils.iterable(colorItems))
             result += getCount(color);
         return result;
     }
 
-    public int size() { return items.size(); }
+    /// @return 无组件条目数量（分页口径，与 {@link #subView(int, int)} 一致）；
+    ///         含变体条目的总数见 {@link #variantSize()}
+    public int size() {
+        int result = 0;
+        for (var template : items.keySet()) {
+            if (template.isPlain()) result++;
+        }
+        return result;
+    }
+
+    /// 清空全部条目（含变体条目），并把被移除的条目登记为待推送变化
     public void clear() {
         if (items.isEmpty()) return;
         markChanged(items.keySet());
         items.clear();
     }
 
+    /// 修改无组件条目的数量
+    ///
     /// @return 修改后的库存总数
     @SuppressWarnings("UnusedReturnValue")
     public int modifyCount(Item item, int modify) {
-        var data = items.computeIfAbsent(item, _ -> new ItemStorageData());
+        return modifyCount(ItemTemplate.of(item), modify);
+    }
+
+    /// 修改指定模板条目的数量
+    ///
+    /// @return 修改后的库存总数
+    public int modifyCount(@NonNull ItemTemplate template, int modify) {
+        if (template.item() == Items.AIR) return 0;
+
+        var data = items.computeIfAbsent(template, _ -> new ItemStorageData());
         var result = data.modifyCount(modify);
         if (result <= 0) {
-            items.remove(item, data);
+            items.remove(template, data);
         }
-        markChanged(item);
+        markChanged(template);
         return result;
     }
 
-    public static final class View {
-        private final Map.Entry<Item, ItemStorageData> entry;
+    // =========================================================
+    // 分页视图
+    // =========================================================
 
-        View(Map.@NonNull Entry<Item, ItemStorageData> entry) {
+    public static final class View {
+        private final Map.Entry<ItemTemplate, ItemStorageData> entry;
+
+        View(Map.@NonNull Entry<ItemTemplate, ItemStorageData> entry) {
             this.entry = entry;
         }
 
-        public Item item() { return entry.getKey(); }
+        public Item item() { return entry.getKey().item(); }
+        public @NonNull ItemTemplate template() { return entry.getKey(); }
         public int count() { return entry.getValue().getCount(); }
+
+        /// @return 按该条目创建带组件的物品堆
+        public @NonNull ItemStack newStack(int count) { return entry.getKey().newStack(count); }
 
         @Override
         public boolean equals(Object o) {
@@ -342,45 +644,70 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
         @Override public int hashCode() { return entry.hashCode(); }
         @Override public String toString() { return entry.toString(); }
 
-        public static final View NONE = new View(new Map.Entry<>() {
-            @Override public Item getKey() { return Items.AIR; }
-            @Override public ItemStorageData getValue() { return new ItemStorageData(0); }
-            @Override
-            public ItemStorageData setValue(ItemStorageData value) {
-                throw new UnsupportedOperationException();
-            }
-        });
+        public static final View NONE = new View(new AbstractMap.SimpleImmutableEntry<>(
+                ItemTemplate.EMPTY, new ItemStorageData(0)));
     }
 
     /**
+     * 物品级分页视图：只包含无组件条目，下标与 {@link #size()} 口径一致
+     *
      * @throws IndexOutOfBoundsException first < 0
      * @throws IllegalArgumentException  count < 0
      */
     public List<View> subView(int first, int count) {
+        return buildViews(first, count, true);
+    }
+
+    /**
+     * 全部条目的分页视图（含带组件的变体条目），供直接展示 NBT 条目的界面使用
+     *
+     * @throws IndexOutOfBoundsException first < 0
+     * @throws IllegalArgumentException  count < 0
+     */
+    public List<View> subVariantView(int first, int count) {
+        return buildViews(first, count, false);
+    }
+
+    private @NonNull List<View> buildViews(int first, int count, boolean plainOnly) {
         if (first < 0) throw new IndexOutOfBoundsException("first < 0: " + first);
         if (count < 0) throw new IllegalArgumentException("count < 0: " + count);
 
         List<View> result = new ArrayList<>(Math.min(count, items.size()));
         if (count == 0) return result;
 
-        var it = items.entrySet().iterator();
-
-        // 跳过前 first 个
-        for (int i = 0; i < first && it.hasNext(); i++) {
-            it.next();
-        }
-        // 取 count 个
-        for (int i = 0; i < count && it.hasNext(); i++) {
-            result.add(new View(it.next()));
+        int skipped = 0;
+        for (var entry : items.entrySet()) {
+            if (result.size() >= count) break;
+            if (plainOnly && !entry.getKey().isPlain()) continue;
+            if (skipped++ < first) continue;
+            result.add(new View(entry));
         }
         return result;
     }
 
+    // =========================================================
+    // 可入库性
+    // =========================================================
 
+    /// @return true: 物品没有任何数据组件（「白板」物品）
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public static boolean isNormal(@NonNull ItemStack stack) {
-        return ItemStack.isSameItemSameComponents(stack, stack.getItem().getDefaultInstance());
+        return stack.getComponentsPatch().isEmpty();
     }
+
+    /// @return true: 该物品可以存入库存（无组件，或组件全部通过 {@link ItemStoragePolicy} 白名单）
+    public static boolean isStorable(@NonNull ItemStack stack) {
+        return ItemStoragePolicy.isStorable(stack);
+    }
+
+    /// @return 拒绝原因；可以入库时返回 {@link Optional#empty()}
+    public static @NonNull Optional<ItemStoragePolicy.Rejection> rejectionReason(@NonNull ItemStack stack) {
+        return ItemStoragePolicy.check(stack);
+    }
+
+    // =========================================================
+    // 特殊物品处理（潜影盒等）
+    // =========================================================
 
     public interface ComplexItemPushProcessor {
         enum Result {
@@ -419,10 +746,19 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
             var box = ShulkerBoxAccessor.open(stack);
 
             // 空盒：
-            // 进入 ComplexItemPushProcessor 一般是带有 命名 等附加数据
-            // 该处理器只进行拆包，跳过这类情况
+            // 进入 ComplexItemPushProcessor 一般是带有 命名 等附加数据，
+            // 该处理器只进行拆包，跳过这类情况（能否入库由白名单决定）
             if (box.isEmptyShulkerBox()) {
                 return ComplexItemPushProcessor.Result.PASS;
+            }
+
+            // 拆包后盒子本身也必须可入库（例如带命名的盒子会被白名单拒绝），
+            // 否则会出现「内容已入库、盒子丢失」的半完成状态，此时整体失败。
+            // 潜影盒的 CONTAINER 是默认组件，拆包后内容清空即回到默认值，因此直接忽略它再判定。
+            var remainingComponents = stack.getComponentsPatch()
+                    .forget(type -> type == DataComponents.CONTAINER);
+            if (ItemStoragePolicy.check(remainingComponents).isPresent()) {
+                return ComplexItemPushProcessor.Result.FAILED;
             }
 
             // 把盒子内的物品分别存入，并保存盒子数据
@@ -438,7 +774,7 @@ public class InfinityInventoryStorage implements Iterable<Map.Entry<Item, Infini
             box.save();
 
             // 1）若此时盒子已经为 normal：可以直接作为 normal 物品存入
-            // 2）若此时盒子仍然非 normal：说明存在 命名 等其它附加数据，
+            // 2）若此时盒子仍然非 normal：说明存在白名单允许的组件，
             //   但此时已处理部分数据，为防止半完成状态，重发盒子的 push 事件
             // *）无论如何，都可以 push 这个盒子
             storage.push(stack);

@@ -1,10 +1,10 @@
 package feca.network;
 
 import feca.function.utils.InfinityInventoryStorage.ItemStorageData;
-import net.minecraft.world.item.Item;
+import feca.function.utils.InfinityInventoryStorage.ItemStorageMap;
+import feca.function.utils.InfinityInventoryStorage.ItemTemplate;
 import org.jspecify.annotations.NonNull;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /// 单个玩家的同步状态：版本号、完整快照基线、自上次全量以来的变化与限流时间戳。
@@ -21,7 +21,8 @@ public final class PlayerSyncState {
     private long lastTakeAt;
     private long lastSyncRequestAt;
 
-    private final LinkedHashMap<Item, ItemStorageData> changesSinceFull = new LinkedHashMap<>();
+    /// 自上次完整快照以来的变化：条目模板 → 当前数量
+    private final ItemStorageMap changesSinceFull = new ItemStorageMap();
 
     /// 是否需要发送完整快照：从未发送过，或规则开关状态与上次全量时不同
     public boolean needsFull(boolean enabled) {
@@ -46,16 +47,18 @@ public final class PlayerSyncState {
         this.revision = revision;
     }
 
-    /// 合并自上次完整快照以来的变化（物品 → 当前数量）
-    public void mergeChanges(@NonNull Map<Item, ItemStorageData> changes) {
+    /// 合并自上次完整快照以来的变化（条目模板 → 当前数量）
+    public void mergeChanges(@NonNull Map<ItemTemplate, ItemStorageData> changes) {
         for (var entry : changes.entrySet()) {
             changesSinceFull.put(entry.getKey(), new ItemStorageData(entry.getValue().getCount()));
         }
     }
 
     /// 自上次完整快照以来的全部变化（副本，供补偿包发送）
-    public @NonNull LinkedHashMap<Item, ItemStorageData> copyChangesSinceFull() {
-        return new LinkedHashMap<>(changesSinceFull);
+    public @NonNull ItemStorageMap copyChangesSinceFull() {
+        var copy = new ItemStorageMap(changesSinceFull.size());
+        copy.putAll(changesSinceFull);
+        return copy;
     }
 
     /// 取物限流

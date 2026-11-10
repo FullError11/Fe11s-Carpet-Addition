@@ -2,27 +2,42 @@ package feca.test.component.function;
 
 import feca.function.utils.InfinityInventoryStorage;
 import feca.function.utils.InfinityInventoryStorage.ItemStorageData;
+import feca.function.utils.InfinityInventoryStorage.ItemStorageMap;
+import feca.function.utils.InfinityInventoryStorage.ItemTemplate;
+import feca.function.utils.ItemStoragePolicy;
 import feca.test.support.GameBootstrap;
 import io.netty.buffer.Unpooled;
+import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.alchemy.Potion;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.alchemy.Potions;
+import net.minecraft.world.item.component.Fireworks;
 import net.minecraft.world.level.block.ColorCollection;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * 组件测试: {@link InfinityInventoryStorage}（规则 {@code infinityInventory} 的库存组件）。
  *
- * <p>只覆盖不涉及 {@code ItemStack} 的部分：按物品计数、pop 语义、NBT 持久化。
+ * <p>只覆盖不涉及 {@code ItemStack} 的部分：按模板计数、物品级接口的隔离语义、
+ * pop 语义、持久化格式（含旧格式迁移）与组件白名单策略。
  * {@code push(ItemStack)}、潜影盒拆包等需要物品组件绑定，属于 L2。</p>
  */
 class InfinityInventoryStorageTest {
@@ -99,13 +114,18 @@ class InfinityInventoryStorageTest {
     }
 
     @Test
-    @DisplayName("NBT 编解码往返（库存持久化格式）")
+    @DisplayName("NBT 编解码往返（库存持久化格式 v2）")
     void nbtCodecRoundTrip() {
         final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
         storage.modifyCount(Items.STONE, 64);
         storage.modifyCount(Items.DIRT, 3);
 
         final var tag = InfinityInventoryStorage.NBT_CODEC.encodeStart(NbtOps.INSTANCE, storage).getOrThrow();
+
+        final CompoundTag compound = (CompoundTag) tag;
+        assertEquals(2, compound.getIntOr("format", -1), "应当写出 v2 格式");
+        assertInstanceOf(ListTag.class, compound.get("items"), "v2 的 items 是条目列表");
+
         final InfinityInventoryStorage restored = InfinityInventoryStorage.NBT_CODEC.parse(NbtOps.INSTANCE, tag).getOrThrow();
 
         assertEquals(64, restored.getCount(Items.STONE));
@@ -121,7 +141,8 @@ class InfinityInventoryStorageTest {
         storage.modifyCount(Items.DIRT, 3);
 
         final RegistryAccess access = RegistryAccess.fromRegistryOfRegistries(BuiltInRegistries.REGISTRY);
-        final RegistryFriendlyByteBuf buf = new RegistryFriendlyByteBuf(Unpooled.buffer(), access);
+        final RegistryFriendlyByteBuf buf =
+                new RegistryFriendlyByteBuf(Unpooled.buffer(), access);
         try {
             InfinityInventoryStorage.STREAM_CODEC.encode(buf, storage);
             final InfinityInventoryStorage restored = InfinityInventoryStorage.STREAM_CODEC.decode(buf);
@@ -135,7 +156,7 @@ class InfinityInventoryStorageTest {
     }
 
     @Test
-    @DisplayName("增量同步：drainChanges 只返回变化物品，清空后纳入移除项")
+    @DisplayName("增量同步：drainChanges 只返回变化条目，清空后纳入移除项")
     void drainChanges() {
         final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
         assertFalse(storage.hasPendingChanges());
@@ -146,16 +167,16 @@ class InfinityInventoryStorageTest {
 
         var changes = storage.drainChanges();
         assertEquals(2, changes.size());
-        assertEquals(5, changes.get(Items.STONE).getCount());
-        assertEquals(2, changes.get(Items.DIRT).getCount());
+        assertEquals(5, changes.get(ItemTemplate.of(Items.STONE)).getCount());
+        assertEquals(2, changes.get(ItemTemplate.of(Items.DIRT)).getCount());
         assertFalse(storage.hasPendingChanges(), "取出后待推送标记必须清空");
         assertTrue(storage.drainChanges().isEmpty(), "没有新变化时增量包为空");
 
         storage.clear();
         changes = storage.drainChanges();
-        assertEquals(2, changes.size(), "清空库存时所有物品都要作为移除项下发");
-        assertEquals(0, changes.get(Items.STONE).getCount());
-        assertEquals(0, changes.get(Items.DIRT).getCount());
+        assertEquals(2, changes.size(), "清空库存时所有条目都要作为移除项下发");
+        assertEquals(0, changes.get(ItemTemplate.of(Items.STONE)).getCount());
+        assertEquals(0, changes.get(ItemTemplate.of(Items.DIRT)).getCount());
     }
 
     @Test
@@ -181,14 +202,77 @@ class InfinityInventoryStorageTest {
         mirror.modifyCount(Items.STONE, 64);
         mirror.modifyCount(Items.DIRT, 3);
 
-        final var changes = new java.util.LinkedHashMap<Item, ItemStorageData>();
-        changes.put(Items.STONE, new ItemStorageData(10));
-        changes.put(Items.DIRT, new ItemStorageData(0));
+        final ItemStorageMap changes = new ItemStorageMap();
+        changes.put(ItemTemplate.of(Items.STONE), new ItemStorageData(10));
+        changes.put(ItemTemplate.of(Items.DIRT), new ItemStorageData(0));
         mirror.applyChanges(changes);
 
         assertEquals(10, mirror.getCount(Items.STONE));
         assertEquals(0, mirror.getCount(Items.DIRT), "数量 0 的条目必须被移除");
         assertEquals(1, mirror.size());
+    }
+
+    @Test
+    @DisplayName("物品级接口只作用于无组件条目，变体条目单独计数")
+    void itemLevelApiIgnoresVariants() {
+        final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
+
+        final ItemTemplate plain = ItemTemplate.of(Items.FIREWORK_ROCKET);
+        final ItemTemplate variant = ItemTemplate.of(
+                Items.FIREWORK_ROCKET, fireworkPatch(2));
+
+        storage.modifyCount(plain, 3);
+        storage.modifyCount(variant, 5);
+
+        assertEquals(3, storage.getCount(Items.FIREWORK_ROCKET), "物品级接口只看到无组件条目");
+        assertEquals(5, storage.getCount(variant), "模板级接口可以读到变体条目");
+        assertEquals(1, storage.getVariantCount(Items.FIREWORK_ROCKET));
+        assertEquals(1, storage.getVariants(Items.FIREWORK_ROCKET).size());
+        assertEquals(1, storage.size(), "分页口径只含无组件条目");
+        assertEquals(2, storage.variantSize(), "条目总数包含变体");
+
+        assertFalse(storage.pop(Items.FIREWORK_ROCKET, 4), "物品级 pop 不能动用变体条目");
+        assertEquals(5, storage.getCount(variant), "失败的 pop 不能扣减变体条目");
+
+        assertTrue(storage.pop(variant, 5));
+        assertEquals(0, storage.getCount(variant));
+        assertEquals(3, storage.getCount(Items.FIREWORK_ROCKET));
+    }
+
+    @Test
+    @DisplayName("组件白名单：有限且有意义的值放行，无限可能性的组件显式拒绝")
+    void componentWhitelist() {
+        // 命名 / 容器内容 / 自定义数据：不在白名单内
+        assertRejected(DataComponentPatch.builder()
+                .set(DataComponents.CUSTOM_NAME, Component.literal("test"))
+                .build());
+        // 只有时长的烟花火箭：放行
+        assertAllowed(fireworkPatch(2));
+        // 低于最高等级的药水：拒绝；最高等级的药水：放行
+        assertRejected(potionPatch(Potions.STRENGTH));
+        assertAllowed(potionPatch(Potions.STRONG_STRENGTH));
+        // 只有一种强度的药水本身就是最高等级
+        assertAllowed(potionPatch(Potions.FIRE_RESISTANCE));
+    }
+
+    private static void assertRejected(DataComponentPatch patch) {
+        assertTrue(ItemStoragePolicy.check(patch).isPresent(), "该组件应被拒绝: " + patch);
+    }
+
+    private static void assertAllowed(DataComponentPatch patch) {
+        assertTrue(ItemStoragePolicy.check(patch).isEmpty(), "该组件应被允许: " + patch);
+    }
+
+    private static @NonNull DataComponentPatch fireworkPatch(@SuppressWarnings("SameParameterValue") int flightDuration) {
+        return DataComponentPatch.builder()
+                .set(DataComponents.FIREWORKS, new Fireworks(flightDuration, List.of()))
+                .build();
+    }
+
+    private static @NonNull DataComponentPatch potionPatch(Holder<Potion> potion) {
+        return DataComponentPatch.builder()
+                .set(DataComponents.POTION_CONTENTS, new PotionContents(potion))
+                .build();
     }
 
     @Test

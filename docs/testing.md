@@ -56,12 +56,13 @@ static void bootstrap() {
     `InfinityInventoryCraftRecursionDepthTest`（递归次数跟随规则原值、0 与负数都视为关闭递归）。
   - `FecaConstructionTest`：mod id / DEBUG 跟随 loader / `FeCA.CONFIG` / carpet 翻译入口。
   - 选项组件：`CommandPermissionOptions`（持久化字符串）、`ActiveMendingOptions`（槽位）、两模式枚举（含 `shouldMissDamage` 白名单语义）。
-  - 表达式与数据：`IntegerExpressionParserTest`、`LargeBucketContentTest`（内容量 NBT）、`InfinityInventoryStorageTest`（计数/pop/NBT 往返/颜色集合统计）、
+  - 表达式与数据：`IntegerExpressionParserTest`、`LargeBucketContentTest`（内容量 NBT）、`InfinityInventoryStorageTest`（按模板计数 / pop / 物品级隔离 / 持久化 v2 往返 / 组件白名单 / 颜色集合统计）、
     `ObserverFreezeAreasPersistenceTest`（区域 JSON 结构 + 保存/加载往返 + 旧配置兼容）。
   - `NameableAABBMapTest` 与 `utils/`（`DimensionMap`、版本号条目、`ChatPaginator`、`ConfigManager`、`ConfigCodecs`、`PhysUtils`、`CompareUtils`、`ColorCollectionUtils`、`GameTime`、`EndServerTickTaskQueue`、`Lazy`）。
 - L2（`FeCAGameTests`，11 个用例）：框架冒烟、规则 2（精准采集击杀掉刷怪蛋 + 关闭时不掉）、
   规则 3（`ItemStack` 上的内容量往返、真实放水一次内容量 2→1 且规则关闭时不接管）、规则 6（可催熟 + 最大高度限制 + 关闭时不可催熟）、
-  规则 7（区域内冻结 / 区域外不冻结 / 规则关闭不生效）、规则 12（金胡萝卜孵化海龟蛋并消耗 1 个）、规则 13（`ItemStack` 存入/清空/取出）、
+  规则 7（区域内冻结 / 区域外不冻结 / 规则关闭不生效）、规则 12（金胡萝卜孵化海龟蛋并消耗 1 个）、
+规则 13（`ItemStack` 存入/清空/取出、带组件变体单独计数、白名单拒绝命名物品、持久化保留组件）、
   规则 15 `infinityInventoryCraftRecursionDepth`（规则由 carpet 原生 int 承载：默认 0、strict=false、可由规则接口写入 64 /
   递归估算吃到中间产物 / 递归次数截断 / 环状配方不死循环 / 递归执行先补中间产物 / 递归次数 0 等于关闭）
   以及潜影盒槽的递归（箱子 ← 木板 ← 原木 能合出潜影盒、关闭递归后合不出）。

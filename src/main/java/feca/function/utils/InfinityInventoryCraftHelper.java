@@ -32,7 +32,8 @@ import java.util.function.ToIntFunction;
 ///
 /// ## 约定
 /// - 每个非空槽位每次合成消耗 1 个物品；同一物品占用多个槽位时按槽位数累加
-/// - 库存按 {@link Item} 计数、不区分数据组件（与 {@link InfinityInventoryStorage} 的模型一致）
+/// - 库存按 {@link Item} 计数，属于 {@link InfinityInventoryStorage} 的物品级接口：
+///   只使用无组件条目，带数据组件的变体条目不参与合成
 /// - 「安全」系列方法先整体校验再扣除，校验失败时不改动库存，不会留下半消耗状态
 /// - 配方剩余物（如桶）与溢出产物都通过调用方提供的处理器交还，本类不直接访问背包或 UI
 ///

@@ -1,6 +1,7 @@
 package feca.test.component.network;
 
 import feca.function.utils.InfinityInventoryStorage.ItemStorageData;
+import feca.function.utils.InfinityInventoryStorage.ItemTemplate;
 import feca.network.PlayerSyncState;
 import feca.test.support.GameBootstrap;
 import net.minecraft.world.item.Items;
@@ -69,12 +70,14 @@ class PlayerSyncStateTest {
         final PlayerSyncState state = new PlayerSyncState();
         state.markFull(5, true);
 
-        state.mergeChanges(Map.of(Items.STONE, new ItemStorageData(16)));
-        state.mergeChanges(Map.of(Items.STONE, new ItemStorageData(8), Items.DIRT, new ItemStorageData(0)));
+        state.mergeChanges(Map.of(ItemTemplate.of(Items.STONE), new ItemStorageData(16)));
+        state.mergeChanges(Map.of(
+                ItemTemplate.of(Items.STONE), new ItemStorageData(8),
+                ItemTemplate.of(Items.DIRT), new ItemStorageData(0)));
 
         var changes = state.copyChangesSinceFull();
-        assertEquals(8, changes.get(Items.STONE).getCount(), "同一物品以最后一次数量为准");
-        assertEquals(0, changes.get(Items.DIRT).getCount(), "数量 0 同样要进入补偿包");
+        assertEquals(8, changes.get(ItemTemplate.of(Items.STONE)).getCount(), "同一物品以最后一次数量为准");
+        assertEquals(0, changes.get(ItemTemplate.of(Items.DIRT)).getCount(), "数量 0 同样要进入补偿包");
 
         state.markFull(6, true);
         assertTrue(state.copyChangesSinceFull().isEmpty(), "新的完整快照会清空旧基线");

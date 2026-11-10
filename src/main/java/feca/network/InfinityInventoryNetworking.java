@@ -2,7 +2,7 @@ package feca.network;
 
 import feca.function.InfinityInventory;
 import feca.function.utils.InfinityInventoryStorage;
-import feca.function.utils.InfinityInventoryStorage.ItemStorageData;
+import feca.function.utils.InfinityInventoryStorage.ItemStorageMap;
 import feca.network.payload.InfinityInventoryStorageDeltaPayload;
 import feca.network.payload.InfinityInventoryStoragePayload;
 import feca.network.payload.InfinityInventorySyncRequestPayload;
@@ -19,7 +19,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.jspecify.annotations.NonNull;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -123,7 +122,7 @@ public final class InfinityInventoryNetworking {
             ServerPlayer player, PlayerSyncState state, InfinityInventoryStorage storage) {
         if (!ServerPlayNetworking.canSend(player, InfinityInventoryStorageDeltaPayload.TYPE)) return false;
 
-        LinkedHashMap<Item, ItemStorageData> changes = storage.drainChanges();
+        ItemStorageMap changes = storage.drainChanges();
         int revision = state.nextRevision();
         if (!InfinityInventoryStorageDeltaPayload.send(player, revision, false, changes)) {
             // 发送失败：放回待推送集合，下个 tick 重试
@@ -157,14 +156,14 @@ public final class InfinityInventoryNetworking {
         if (!ServerPlayNetworking.canSend(player, InfinityInventoryStorageDeltaPayload.TYPE)) return false;
 
         // 尚未发送的增量也属于「自上次全量以来的变化」
-        LinkedHashMap<Item, ItemStorageData> pending = null;
+        ItemStorageMap pending = null;
         if (storage.hasPendingChanges()) {
             pending = storage.drainChanges();
             state.mergeChanges(pending);
         }
 
         int revision = state.nextRevision();
-        LinkedHashMap<Item, ItemStorageData> changes = state.copyChangesSinceFull();
+        ItemStorageMap changes = state.copyChangesSinceFull();
         if (!InfinityInventoryStorageDeltaPayload.send(player, revision, true, changes)) {
             // 发送失败：这些变化仍保留在补偿基线中，同时放回待推送集合等待普通增量
             if (pending != null) storage.restoreChanges(pending);

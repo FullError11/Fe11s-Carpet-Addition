@@ -145,5 +145,15 @@
     "feca.msg.gui.infinityInventory.err.inventoryFull": "背包空间不足",
     "feca.msg.gui.infinityInventory.err.noShulker": "库存内缺少潜影盒",
     "feca.msg.gui.infinityInventory.err.unsupportedData": "该物品含有不支持的数据，无法存入库存",
+
+    "feca.msg.storage.rejected": "无法存入：不支持的数据组件 %s（%s）",
+    "feca.msg.storage.component.notWhitelisted": "该数据组件不在可入库白名单内",
+    "feca.msg.storage.component.removed": "该物品移除了默认数据组件",
+    "feca.msg.storage.component.enchantments.empty": "附魔列表为空",
+    "feca.msg.storage.component.enchantments.notMaxLevel": "附魔 %s 不是最高等级",
+    "feca.msg.storage.component.potion.noPotion": "药水数据未指向任何药水",
+    "feca.msg.storage.component.potion.custom": "药水带有自定义效果、颜色或名称",
+    "feca.msg.storage.component.potion.notHighestLevel": "药水不是最高等级",
+    "feca.msg.storage.component.fireworks.explosions": "烟花火箭只能带飞行时长，不能带爆炸效果",
     "feca.msg.gui.infinityInventory.err.addToInvFail": "存入库存失败"
 }
