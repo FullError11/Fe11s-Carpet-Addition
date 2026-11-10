@@ -155,5 +155,11 @@
     "feca.msg.storage.component.potion.custom": "药水带有自定义效果、颜色或名称",
     "feca.msg.storage.component.potion.notHighestLevel": "药水不是最高等级",
     "feca.msg.storage.component.fireworks.explosions": "烟花火箭只能带飞行时长，不能带爆炸效果",
-    "feca.msg.gui.infinityInventory.err.addToInvFail": "存入库存失败"
+    "feca.msg.gui.infinityInventory.err.addToInvFail": "存入库存失败",
+    "feca.msg.cmd.infinityInventory.store.rejected": "无法存入 %s",
+    "feca.msg.cmd.infinityInventory.count.variantsHint": "另有 %d 个带组件的变体；用 /infinityInventory variants <物品> 查看",
+    "feca.msg.cmd.infinityInventory.variants.header": "库存内 %s 的条目（共 %d 项）:",
+    "feca.msg.cmd.infinityInventory.variants.empty": "库存内没有 %s",
+    "feca.msg.cmd.infinityInventory.variants.more": "…另有 %d 项未显示",
+    "feca.msg.cmd.infinityInventory.variants.hint": "悬停到物品名称以显示具体信息"
 }

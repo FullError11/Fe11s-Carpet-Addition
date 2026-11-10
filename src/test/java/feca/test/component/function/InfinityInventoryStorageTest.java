@@ -29,6 +29,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -273,6 +274,61 @@ class InfinityInventoryStorageTest {
         return DataComponentPatch.builder()
                 .set(DataComponents.POTION_CONTENTS, new PotionContents(potion))
                 .build();
+    }
+
+    @Test
+    @DisplayName("展示顺序：无组件条目在前，变体按数量降序，数量相同保持插入顺序")
+    void displayOrder() {
+        final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
+
+        final ItemTemplate plain = ItemTemplate.of(Items.FIREWORK_ROCKET);
+        final ItemTemplate a = ItemTemplate.of(Items.FIREWORK_ROCKET, fireworkPatch(1));
+        final ItemTemplate b = ItemTemplate.of(Items.FIREWORK_ROCKET, fireworkPatch(2));
+        final ItemTemplate c = ItemTemplate.of(Items.FIREWORK_ROCKET, fireworkPatch(3));
+        final ItemTemplate d = ItemTemplate.of(Items.FIREWORK_ROCKET, fireworkPatch(0));
+
+        // 插入顺序故意打乱：无组件 1000 / a 100 / b 100 / c 10000 / d 10
+        storage.modifyCount(a, 100);
+        storage.modifyCount(b, 100);
+        storage.modifyCount(plain, 1000);
+        storage.modifyCount(c, 10000);
+        storage.modifyCount(d, 10);
+
+        final List<ItemTemplate> expected = List.of(plain, c, a, b, d);
+
+        assertEquals(expected, templatesOf(storage), "迭代顺序：无组件在前，变体数量降序，同数量保持插入顺序");
+        assertEquals(List.of(c, a, b, d), storage.getVariants(Items.FIREWORK_ROCKET), "变体列表同样按数量降序");
+        assertEquals(expected, templatesOf(storage.subVariantView(0, 10)), "全部条目视图与迭代口径一致");
+        assertEquals(List.of(plain), templatesOf(storage.subView(0, 10)), "物品级视图只有无组件条目");
+    }
+
+    @Test
+    @DisplayName("展示顺序：不同物品之间也是全部无组件条目在前")
+    void displayOrderAcrossItems() {
+        final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
+
+        final ItemTemplate plainDirt = ItemTemplate.of(Items.DIRT);
+        final ItemTemplate plainStone = ItemTemplate.of(Items.STONE);
+        final ItemTemplate stoneVariant = ItemTemplate.of(Items.STONE, fireworkPatch(1));
+
+        storage.modifyCount(stoneVariant, 500);
+        storage.modifyCount(plainStone, 3);
+        storage.modifyCount(plainDirt, 200);
+
+        assertEquals(List.of(plainDirt, plainStone, stoneVariant), templatesOf(storage),
+                "无组件条目整体在前（同组内按数量降序），变体排在所有无组件条目之后");
+    }
+
+    private static List<ItemTemplate> templatesOf(InfinityInventoryStorage storage) {
+        final List<ItemTemplate> result = new ArrayList<>();
+        for (var entry : storage) {
+            result.add(entry.getKey());
+        }
+        return result;
+    }
+
+    private static List<ItemTemplate> templatesOf(List<InfinityInventoryStorage.View> views) {
+        return views.stream().map(InfinityInventoryStorage.View::template).toList();
     }
 
     @Test

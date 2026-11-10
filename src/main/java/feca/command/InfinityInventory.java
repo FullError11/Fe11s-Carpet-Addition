@@ -20,6 +20,8 @@ import feca.command.utils.PlayerExecutor;
 import feca.function.CommandInfinityInventorySync;
 import feca.function.InfinityInventoryMenu;
 import feca.function.utils.InfinityInventoryStorage;
+import feca.function.utils.InfinityInventoryStorage.ItemTemplate;
+import feca.function.utils.ItemStoragePolicy;
 import feca.network.InfinityInventoryNetworking;
 import feca.utils.ContainerHelper;
 import feca.registry.OnInitializeCallbackRegistry;
@@ -27,6 +29,7 @@ import feca.registry.RuleChangeCallbackRegistry;
 import feca.rule.Rules;
 import feca.rule.options.CommandPermissionOptions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -34,7 +37,6 @@ import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
@@ -55,6 +57,7 @@ public class InfinityInventory {
                         .then(SubCommands.store(buildContext))
                         .then(SubCommands.take(buildContext))
                         .then(SubCommands.count(buildContext))
+                        .then(SubCommands.variants(buildContext))
                         .then(SubCommands.sync())
                         .then(Commands.literal("menu")
                                 .requires(_ -> Rules.infinityInventoryMenu)
@@ -90,43 +93,58 @@ public class InfinityInventory {
             final Function<CountGetter, Command<CommandSourceStack>> executorCreator = countGetter ->
                     PlayerExecutor.requireExecByPlayer((ctx, player) -> {
                         var source = ctx.getSource();
-                        var item = Arguments.ITEM.get(ctx).item().value();
+                        var template = templateOf(ctx);
                         var inventory = player.getInventory();
+                        var storage = getStorage(player);
 
-                        var count = countGetter.get(ctx, inventory, item);
-                        if (!requireCountIsPositive(count, ctx)) return CommandResult.FAILURE;
+                        var requested = countGetter.get(ctx, inventory, template);
+                        if (!requireCountIsPositive(requested, ctx)) return CommandResult.FAILURE;
 
-                        var hasCount = inventory.countItem(item);
-                        if (hasCount < count) {
+                        // 模板本身不可入库（例如数据组件不在白名单内）时直接拒绝
+                        if (!InfinityInventoryStorage.isStorable(template.newStack(1))) {
                             source.sendFailure(Component.translatable(
-                                    "feca.msg.cmd.infinityInventory.store.notEnough",
-                                    item.getDefaultInstance().getDisplayName(), count, hasCount));
+                                    "feca.msg.cmd.infinityInventory.store.rejected", rejectReason(template)));
                             return CommandResult.FAILURE;
                         }
 
-                        var storage = getStorage(player);
-                        var itemName = item.getDefaultInstance().getDisplayName();
+                        var hasCount = countInInventory(inventory, template);
+                        var name = template.newStack(1).getHoverName();
+                        if (hasCount < requested) {
+                            source.sendFailure(Component.translatable(
+                                    "feca.msg.cmd.infinityInventory.store.notEnough", name, requested, hasCount));
+                            return CommandResult.FAILURE;
+                        }
 
-
-                        var remaining = count;
+                        var remaining = requested;
                         for (var stack : inventory) {
                             if (remaining <= 0) break;
-                            if (!stack.is(item)) continue;
+                            if (stack.isEmpty()) continue;
+                            if (!template.equals(ItemTemplate.of(stack))) continue;
 
                             var toPush = Math.min(stack.getCount(), remaining);
 
                             // 先输出信息，防止 stack 被取空后显示为 `空气`
                             if (FeCA.DEBUG)
-                                FeCA.LOGGER.debug("储存了 {} * {}", stack.getDisplayName().getSiblings(), toPush);
+                                FeCA.LOGGER.debug("储存了 {} * {}", stack.getDisplayName(), toPush);
 
-                            storage.push(stack.split(toPush));
+                            var pushed = stack.split(toPush);
+                            if (!storage.push(pushed)) {
+                                // 存入失败（半完成或组件被拒）：把拆出来的数量放回原槽位
+                                stack.grow(pushed.getCount());
+                                source.sendFailure(Component.translatable(
+                                        "feca.msg.cmd.infinityInventory.store.rejected",
+                                        InfinityInventoryStorage.rejectionReason(pushed)
+                                                .map(ItemStoragePolicy.Rejection::describe)
+                                                .orElseGet(() -> Component.translatable(
+                                                        "feca.msg.gui.infinityInventory.err.addToInvFail"))));
+                                return CommandResult.FAILURE;
+                            }
                             remaining -= toPush;
-
                         }
 
                         source.sendSystemMessage(Component.translatable(
                                 "feca.msg.cmd.infinityInventory.store.succ",
-                                count, itemName, storage.getCount(item)));
+                                requested, name, storage.getCount(template)));
                         return CommandResult.SUCCESS;
                     });
 
@@ -136,7 +154,7 @@ public class InfinityInventory {
                             .then(Arguments.COUNT.require()
                                     .executes(executorCreator.apply(CountGetter.FROM_ARGUMENT)))
                             .then(Commands.literal("all")
-                                    .executes(executorCreator.apply((_, inv, it) -> inv.countItem(it))))
+                                    .executes(executorCreator.apply((_, inv, template) -> countInInventory(inv, template))))
                     )
                     .then(Commands.literal("allStackable")
                             .executes(PlayerExecutor.requireExecByPlayer((ctx, player) -> {
@@ -169,15 +187,16 @@ public class InfinityInventory {
                 @Contract(pure = true)
                 static @NonNull Command<CommandSourceStack> create(CountGetter countGetter, boolean doBest) {
                     return PlayerExecutor.requireExecByPlayer((ctx, player) -> {
-                        var item = Arguments.ITEM.get(ctx).item().value();
+                        var template = templateOf(ctx);
                         var inventory = player.getInventory();
-
                         var storage = getStorage(player);
-                        var hasCount = storage.getCount(item);
-                        var nonEquipment = inventory.getNonEquipmentItems();
-                        var canStoreCount = ContainerHelper.canStoreCount(nonEquipment, item);
 
-                        var requested = countGetter.get(ctx, inventory, item);
+                        var single = template.newStack(1);
+                        var hasCount = storage.getCount(template);
+                        var nonEquipment = inventory.getNonEquipmentItems();
+                        var canStoreCount = ContainerHelper.canStoreCount(nonEquipment, single);
+
+                        var requested = countGetter.get(ctx, inventory, template);
 
                         final int count;  // 在 doBest 条件判断中进行赋值
                         if (!doBest) {
@@ -212,11 +231,11 @@ public class InfinityInventory {
                             }
                         }
 
-                        var popCount = storage.tryPopTo(item, count, nonEquipment);
+                        var popCount = storage.tryPopTo(template, count, nonEquipment);
 
-                        var name = item.getDefaultInstance().getDisplayName();
+                        var name = single.getHoverName();
                         var msg = Component.translatable(
-                                "feca.msg.cmd.infinityInventory.take.succ", popCount, name, storage.getCount(item));
+                                "feca.msg.cmd.infinityInventory.take.succ", popCount, name, storage.getCount(template));
                         ctx.getSource().sendSystemMessage(msg);
 
                         return CommandResult.SUCCESS;
@@ -231,8 +250,9 @@ public class InfinityInventory {
                                     .executes(ExecutorCreator.create(CountGetter.FROM_ARGUMENT, false))
                             )
                             .then(Commands.literal("full")
-                                    .executes(ExecutorCreator.create((_, inventory, item) -> {
-                                        return ContainerHelper.canStoreCount(inventory.getNonEquipmentItems(), item);
+                                    .executes(ExecutorCreator.create((_, inventory, template) -> {
+                                        return ContainerHelper.canStoreCount(
+                                                inventory.getNonEquipmentItems(), template.newStack(1));
                                     }, true))
                             )
                     );
@@ -242,11 +262,11 @@ public class InfinityInventory {
                     .then(Arguments.ITEM.require(buildContext)
                             .suggests(new SuggestionProviders.InventoryItemPriority(Arguments.ITEM.argumentType(buildContext)))
                             .executes(PlayerExecutor.requireExecByPlayer((ctx, player) -> {
-                                var item = Arguments.ITEM.get(ctx).item().value();
+                                var template = templateOf(ctx);
                                 var storage = getStorage(player);
 
-                                var count = storage.getCount(item);
-                                var name = item.getDefaultInstance().getDisplayName();
+                                var count = storage.getCount(template);
+                                var name = template.newStack(1).getHoverName();
                                 // noinspection IfStatementWithIdenticalBranches
                                 if (count <= 0) {
                                     var msg = Component.translatable(
@@ -258,10 +278,68 @@ public class InfinityInventory {
                                     ctx.getSource().sendSystemMessage(msg);
                                 }
 
+                                // 参数是无组件物品时，提示还存在多少个带组件的变体（带组件条目只能按模板存取）
+                                if (template.isPlain()) {
+                                    int variants = storage.getVariantCount(template.item());
+                                    if (variants > 0) {
+                                        ctx.getSource().sendSystemMessage(Component.translatable(
+                                                "feca.msg.cmd.infinityInventory.count.variantsHint",
+                                                variants, name));
+                                    }
+                                }
+
                                 return CommandResult.SUCCESS;
                             }))
                     );
         }
+        /// 列出某物品在库存中的全部条目（无组件条目 + 带组件变体）
+        private static ArgumentBuilder<CommandSourceStack, ?> variants(CommandBuildContext buildContext) {
+            return Commands.literal("variants")
+                    .then(Arguments.ITEM.require(buildContext)
+                            .suggests(new SuggestionProviders.InventoryItemPriority(Arguments.ITEM.argumentType(buildContext)))
+                            .executes(PlayerExecutor.requireExecByPlayer((ctx, player) -> {
+                                // 只按物品过滤：输入里的组件不参与筛选
+                                var item = templateOf(ctx).item();
+                                var storage = getStorage(player);
+                                var name = item.getDefaultInstance().getDisplayName();
+
+                                List<ItemTemplate> templates = new ArrayList<>();
+                                if (storage.getCount(ItemTemplate.of(item)) > 0) {
+                                    templates.add(ItemTemplate.of(item));
+                                }
+                                templates.addAll(storage.getVariants(item));
+
+                                if (templates.isEmpty()) {
+                                    ctx.getSource().sendSystemMessage(Component.translatable(
+                                            "feca.msg.cmd.infinityInventory.variants.empty", name));
+                                    return CommandResult.SUCCESS;
+                                }
+
+                                ctx.getSource().sendSystemMessage(Component.translatable(
+                                        "feca.msg.cmd.infinityInventory.variants.header", name, templates.size()));
+
+                                int shown = Math.min(templates.size(), MAX_VARIANTS_SHOWN);
+                                for (int i = 0; i < shown; i++) {
+                                    var template = templates.get(i);
+                                    var msg = Component.literal("▪ ")
+                                            .append(template.newStack().getDisplayName().copy().withStyle(ChatFormatting.AQUA))
+                                            .append(" *" + storage.getCount(template));
+                                    ctx.getSource().sendSystemMessage(msg);
+                                }
+                                if (templates.size() > shown) {
+                                    ctx.getSource().sendSystemMessage(Component.translatable(
+                                            "feca.msg.cmd.infinityInventory.variants.more", templates.size() - shown));
+                                }
+                                ctx.getSource().sendSystemMessage(Component.translatable(
+                                        "feca.msg.cmd.infinityInventory.variants.hint").withStyle(ChatFormatting.GRAY));
+
+                                return CommandResult.SUCCESS;
+                            }))
+                    );
+        }
+        /// 一次最多展示的条目数，避免收藏了大量变体时刷屏
+        private static final int MAX_VARIANTS_SHOWN = 20;
+
         private static ArgumentBuilder<CommandSourceStack, ?> sync() {
             // 申请完整快照
             final PlayerExecutor.IsPlayerExecutorEx syncFull = (ctx, player) -> {
@@ -292,8 +370,34 @@ public class InfinityInventory {
         }
     }
 
-
     // ============================== UTILS ==============================
+    /// 命令参数解析出的库存条目模板：物品 + 数据组件（数量恒为 1）
+    ///
+    /// 参数语法与 `/give` 一致，例如 `minecraft:diamond_sword[enchantments={levels:{"minecraft:sharpness":5}}]`；
+    /// 不写组件时就是无组件条目，与旧用法完全兼容。
+    private static @NonNull ItemTemplate templateOf(@NonNull CommandContext<CommandSourceStack> ctx)
+            throws CommandSyntaxException {
+        return ItemTemplate.of(Arguments.ITEM.itemStack(ctx));
+    }
+
+    /// @return 背包内与 {@code template} 的物品与组件完全一致的总数量
+    private static int countInInventory(@NonNull Inventory inventory, @NonNull ItemTemplate template) {
+        int count = 0;
+        for (var stack : inventory) {
+            if (stack.isEmpty()) continue;
+            if (!template.equals(ItemTemplate.of(stack))) continue;
+            count += stack.getCount();
+        }
+        return count;
+    }
+
+    /// @return 模板不可入库时的拒绝原因
+    private static @NonNull Component rejectReason(@NonNull ItemTemplate template) {
+        return InfinityInventoryStorage.rejectionReason(template.newStack(1))
+                .map(ItemStoragePolicy.Rejection::describe)
+                .orElseGet(() -> Component.translatable("feca.msg.gui.infinityInventory.err.addToInvFail"));
+    }
+
     private interface Arguments {
         class ItemArgument1 extends ItemArgument {
             public ItemArgument1(String name) {
@@ -395,7 +499,7 @@ public class InfinityInventory {
 
 
     private interface CountGetter {
-        int get(CommandContext<CommandSourceStack> ctx, Inventory inventory, Item item) throws CommandSyntaxException;
+        int get(CommandContext<CommandSourceStack> ctx, Inventory inventory, ItemTemplate template) throws CommandSyntaxException;
 
         CountGetter FROM_ARGUMENT = (ctx, _, _) -> Arguments.COUNT.calcAsInt(ctx);
     }
@@ -407,21 +511,21 @@ public class InfinityInventory {
     // ============================== DEBUG ==============================
     private static void registerDebug() {
         interface CountGetter {
-            int get(CommandContext<CommandSourceStack> ctx, InfinityInventoryStorage storage, Item item) throws CommandSyntaxException;
+            int get(CommandContext<CommandSourceStack> ctx, InfinityInventoryStorage storage, ItemTemplate template) throws CommandSyntaxException;
 
             CountGetter FROM_ARGUMENT = (ctx, _, _) -> Arguments.COUNT.calcAsInt(ctx);
         }
 
         final Function<CountGetter, Command<CommandSourceStack>> storeExecCreator = countGetter -> {
             return PlayerExecutor.requireExecByPlayer((ctx, player) -> {
-                var item = Arguments.ITEM.get(ctx).item().value();
+                var template = templateOf(ctx);
                 var storage = getStorage(player);
-                var count = countGetter.get(ctx, storage, item);
+                var count = countGetter.get(ctx, storage, template);
                 if (!requireCountIsPositive(count, ctx)) return CommandResult.FAILURE;
 
-                storage.modifyCount(item, count);
+                storage.modifyCount(template, count);
                 var msg = Component.translatable(
-                        "feca.msg.cmd.infinityInventory.debug.store.succ", count, storage.getCount(item));
+                        "feca.msg.cmd.infinityInventory.debug.store.succ", count, storage.getCount(template));
                 ctx.getSource().sendSystemMessage(msg);
 
                 return CommandResult.SUCCESS;
@@ -429,14 +533,14 @@ public class InfinityInventory {
         };
         final Function<CountGetter, Command<CommandSourceStack>> takeExecCreator = countGetter -> {
             return PlayerExecutor.requireExecByPlayer((ctx, player) -> {
-                var item = Arguments.ITEM.get(ctx).item().value();
+                var template = templateOf(ctx);
                 var storage = getStorage(player);
-                var count = countGetter.get(ctx, storage, item);
+                var count = countGetter.get(ctx, storage, template);
                 if (!requireCountIsPositive(count, ctx)) return CommandResult.FAILURE;
 
-                storage.modifyCount(item, -count);
+                storage.modifyCount(template, -count);
                 var msg = Component.translatable(
-                        "feca.msg.cmd.infinityInventory.debug.take.succ", count, storage.getCount(item));
+                        "feca.msg.cmd.infinityInventory.debug.take.succ", count, storage.getCount(template));
                 ctx.getSource().sendSystemMessage(msg);
                 return CommandResult.SUCCESS;
             });
@@ -456,16 +560,16 @@ public class InfinityInventory {
                                 .then(requireArgsAndExec.apply(buildContext, storeExecCreator.apply(CountGetter.FROM_ARGUMENT)))
                         )
                         .then(Commands.literal("storeToCount")
-                                .then(requireArgsAndExec.apply(buildContext, storeExecCreator.apply((ctx, storage, item) -> {
-                                    return Arguments.COUNT.calcAsInt(ctx) - storage.getCount(item);
+                                .then(requireArgsAndExec.apply(buildContext, storeExecCreator.apply((ctx, storage, template) -> {
+                                    return Arguments.COUNT.calcAsInt(ctx) - storage.getCount(template);
                                 })))
                         )
                         .then(Commands.literal("take")
                                 .then(requireArgsAndExec.apply(buildContext, takeExecCreator.apply(CountGetter.FROM_ARGUMENT)))
                         )
                         .then(Commands.literal("takeToCount")
-                                .then(requireArgsAndExec.apply(buildContext, takeExecCreator.apply((ctx, storage, item) -> {
-                                    return storage.getCount(item) - Arguments.COUNT.calcAsInt(ctx);
+                                .then(requireArgsAndExec.apply(buildContext, takeExecCreator.apply((ctx, storage, template) -> {
+                                    return storage.getCount(template) - Arguments.COUNT.calcAsInt(ctx);
                                 })))
                         )
                 )

@@ -38,6 +38,11 @@ import java.util.*;
 /// 其余带组件的物品（容器内容、命名、Lore 等取值无限的组件）会被显式拒绝，
 /// 拒绝原因见 {@link #rejectionReason(ItemStack)}。
 ///
+/// ## 顺序
+/// 迭代、{@link #subView(int, int)}、{@link #subVariantView(int, int)}、{@link #getVariants(Item)} 统一按
+/// {@link #DISPLAY_ORDER}：**无组件条目在前**，带组件的变体在后；同组内按库存数量降序，数量相同保持插入顺序。
+/// 持久化仍按插入顺序写。
+///
 /// ## 持久化
 /// 当前格式：`{format: 2, items: [{item: <物品 ID>, components: {...}?, count: <数量>}, ...]}`（{@link #NBT_CODEC}）。
 /// 旧格式（v1：`{items: {<物品 ID>: {count}}}`）的读取与迁移在 {@link InfinityInventoryLegacyMigration}（临时类）。
@@ -46,7 +51,38 @@ public class InfinityInventoryStorage
         implements Iterable<Map.Entry<InfinityInventoryStorage.ItemTemplate, InfinityInventoryStorage.ItemStorageData>> {
     @Override
     public @NonNull Iterator<Map.Entry<ItemTemplate, ItemStorageData>> iterator() {
-        return items.entrySet().iterator();
+        return sortedEntries(false).iterator();
+    }
+
+    // =========================================================
+    // 展示顺序
+    // =========================================================
+
+    /// 条目在各类视图与迭代中的顺序：
+    ///
+    /// 1. **无组件条目在前**，带组件的变体在后（无组件条目是该物品的「主」条目）
+    /// 2. 同一组内按库存数量**降序**（存量多的先展示）
+    /// 3. 数量相同时保持插入顺序（{@link List#sort} 是稳定排序）
+    ///
+    /// 例：石头 有「无组件 1000 / 命名a 100 / 命名b 100 / 命名c 10000 / 命名d 10」，
+    /// 顺序为 `[无组件] [命名c] [命名a] [命名b] [命名d]`。
+    ///
+    /// @apiNote 只影响展示顺序；持久化仍按插入顺序写（见 {@link #NBT_CODEC}）
+    private static final Comparator<Map.Entry<ItemTemplate, ItemStorageData>> DISPLAY_ORDER =
+            Comparator.comparing((Map.Entry<ItemTemplate, ItemStorageData> entry) -> !entry.getKey().isPlain())
+                    .thenComparing(Comparator.comparingInt(
+                            (Map.Entry<ItemTemplate, ItemStorageData> entry) -> entry.getValue().getCount()).reversed());
+
+    /// @return 按 {@link #DISPLAY_ORDER} 排好序的条目快照（条目引用仍然存活，读取的是当前数量）
+    /// @param plainOnly true: 只保留无组件条目（物品级视图）；false: 全部条目
+    private @NonNull List<Map.Entry<ItemTemplate, ItemStorageData>> sortedEntries(boolean plainOnly) {
+        List<Map.Entry<ItemTemplate, ItemStorageData>> entries = new ArrayList<>(items.size());
+        for (var entry : items.entrySet()) {
+            if (plainOnly && !entry.getKey().isPlain()) continue;
+            entries.add(entry);
+        }
+        entries.sort(DISPLAY_ORDER);
+        return entries;
     }
 
     /// 物品模板：`物品 + 数据组件补丁`，与数量无关，是库存条目的键。
@@ -503,12 +539,13 @@ public class InfinityInventoryStorage
         return result;
     }
 
-    /// @return 该物品在库存中的全部变体模板（按插入顺序，不含无组件条目）
+    /// @return 该物品在库存中的全部变体模板（不含无组件条目），按库存数量降序、同数量保持插入顺序
     public @NonNull List<ItemTemplate> getVariants(@NonNull Item item) {
         List<ItemTemplate> result = new ArrayList<>();
         for (var template : items.keySet()) {
             if (template.item() == item && !template.isPlain()) result.add(template);
         }
+        result.sort(Comparator.comparingInt((ItemTemplate template) -> this.getCount(template)).reversed());
         return result;
     }
 
@@ -649,7 +686,8 @@ public class InfinityInventoryStorage
     }
 
     /**
-     * 物品级分页视图：只包含无组件条目，下标与 {@link #size()} 口径一致
+     * 物品级分页视图：只包含无组件条目，下标与 {@link #size()} 口径一致。
+     * 顺序见 {@link #DISPLAY_ORDER}
      *
      * @throws IndexOutOfBoundsException first < 0
      * @throws IllegalArgumentException  count < 0
@@ -659,7 +697,8 @@ public class InfinityInventoryStorage
     }
 
     /**
-     * 全部条目的分页视图（含带组件的变体条目），供直接展示 NBT 条目的界面使用
+     * 全部条目的分页视图（含带组件的变体条目），供直接展示 NBT 条目的界面使用。
+     * 顺序见 {@link #DISPLAY_ORDER}（无组件条目在前，其余按数量降序）
      *
      * @throws IndexOutOfBoundsException first < 0
      * @throws IllegalArgumentException  count < 0
@@ -675,12 +714,9 @@ public class InfinityInventoryStorage
         List<View> result = new ArrayList<>(Math.min(count, items.size()));
         if (count == 0) return result;
 
-        int skipped = 0;
-        for (var entry : items.entrySet()) {
-            if (result.size() >= count) break;
-            if (plainOnly && !entry.getKey().isPlain()) continue;
-            if (skipped++ < first) continue;
-            result.add(new View(entry));
+        var entries = sortedEntries(plainOnly);
+        for (int i = first; i < entries.size() && result.size() < count; i++) {
+            result.add(new View(entries.get(i)));
         }
         return result;
     }

@@ -29,19 +29,14 @@ public final class ContainerHelper {
     }
 
     /**
-     * 统计容器中还能再放入多少个与给定物品堆一致的物品。
+     * 统计容器中还能再放入多少个与给定物品堆一致的物品（按 物品 + 数据组件 匹配）。
      *
      * @param container 目标容器
-     * @param stack     模板物品堆
+     * @param stack     模板物品堆（可带数据组件）
      * @return 还能放入的总数量；若 {@code stack} 为空则返回 0
-     * @throws UnsupportedOperationException 若 {@code stack} 带有额外组件
      */
     public static int canStoreCount(@NonNull List<ItemStack> container, @NonNull ItemStack stack) {
         if (stack.isEmpty()) return 0;
-        if (!ItemStack.isSameItemSameComponents(stack, stack.getItem().getDefaultInstance())) {
-            throw new UnsupportedOperationException(
-                    "Special item stacks are not supported: " + stack);
-        }
 
         int templateMax = stack.getMaxStackSize();
         int total = 0;
@@ -49,7 +44,7 @@ public final class ContainerHelper {
         for (ItemStack slot : container) {
             if (slot == null || slot.isEmpty()) {
                 total += templateMax;
-            } else if (slot.is(stack.getItem())) {
+            } else if (ItemStack.isSameItemSameComponents(slot, stack)) {
                 total += Math.max(0, slot.getMaxStackSize() - slot.getCount());
             }
         }
