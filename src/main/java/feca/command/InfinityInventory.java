@@ -36,9 +36,14 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.Nullable;
 import org.jspecify.annotations.NonNull;
 
 import java.util.*;
@@ -55,7 +60,9 @@ public class InfinityInventory {
                 dispatcher.register(Commands.literal("infinityInventory")
                         .requires(stack -> CommandHelper.canUseCommand(stack, Rules.infinityInventory))
                         .then(SubCommands.store(buildContext))
+                        .then(SubCommands.storePointingContainer(buildContext))
                         .then(SubCommands.take(buildContext))
+                        .then(SubCommands.takeToPointingContainer(buildContext))
                         .then(SubCommands.count(buildContext))
                         .then(SubCommands.variants(buildContext))
                         .then(SubCommands.sync())
@@ -182,6 +189,93 @@ public class InfinityInventory {
                             }))
                     );
         }
+        private static ArgumentBuilder<CommandSourceStack, ?> storePointingContainer(CommandBuildContext buildContext) {
+            // 存入时的条目过滤：{@code null} 表示容器内全部物品
+            @FunctionalInterface
+            interface FilterGetter {
+                @Nullable ItemTemplate get(CommandContext<CommandSourceStack> ctx) throws CommandSyntaxException;
+            }
+
+            final Function<FilterGetter, Command<CommandSourceStack>> executorCreator = filterGetter ->
+                    PlayerExecutor.requireExecByPlayer((ctx, player) -> {
+                        var source = ctx.getSource();
+                        var filter = filterGetter.get(ctx);
+
+                        var container = pointingContainer(player);
+                        if (container == null) {
+                            source.sendFailure(Component.translatable(
+                                    "feca.msg.cmd.infinityInventory.pointingContainer.none"));
+                            return CommandResult.FAILURE;
+                        }
+
+                        // 指定条目时先确认它本身可入库，避免遍历完只报“容器里没有”
+                        var single = filter == null ? null : filter.newStack(1);
+                        if (filter != null && !InfinityInventoryStorage.isStorable(single)) {
+                            source.sendFailure(Component.translatable(
+                                    "feca.msg.cmd.infinityInventory.store.rejected", rejectReason(filter)));
+                            return CommandResult.FAILURE;
+                        }
+
+                        var storage = getStorage(player);
+                        int storedSlots = 0;
+                        int storedCount = 0;
+                        int rejectedSlots = 0;
+
+                        for (int i = 0; i < container.getContainerSize(); i++) {
+                            var stack = container.getItem(i);
+                            if (stack.isEmpty()) continue;
+                            if (filter != null && !filter.equals(ItemTemplate.of(stack))) continue;
+
+                            // push 可能只完成一部分（潜影盒拆包等），按实际消耗的数量计数
+                            var before = stack.getCount();
+                            var pushed = storage.push(stack);
+                            storedCount += Math.max(0, before - Math.max(0, stack.getCount()));
+
+                            if (!pushed) {
+                                rejectedSlots++;
+                                continue;
+                            }
+
+                            container.setItem(i, ItemStack.EMPTY);
+                            storedSlots++;
+                        }
+
+                        container.setChanged();
+
+                        if (rejectedSlots > 0) {
+                            source.sendFailure(Component.translatable(
+                                    "feca.msg.cmd.infinityInventory.storePointingContainer.rejected", rejectedSlots));
+                        }
+
+                        if (storedCount <= 0) {
+                            source.sendFailure(filter == null
+                                    ? Component.translatable(
+                                            "feca.msg.cmd.infinityInventory.storePointingContainer.empty")
+                                    : Component.translatable(
+                                            "feca.msg.cmd.infinityInventory.storePointingContainer.notFound",
+                                            single.getHoverName()));
+                            return CommandResult.FAILURE;
+                        }
+
+                        source.sendSystemMessage(filter == null
+                                ? Component.translatable(
+                                        "feca.msg.cmd.infinityInventory.storePointingContainer.succ",
+                                        storedCount, storedSlots)
+                                : Component.translatable(
+                                        "feca.msg.cmd.infinityInventory.storePointingContainer.succTemplate",
+                                        storedCount, single.getHoverName(), storage.getCount(filter)));
+                        return CommandResult.SUCCESS;
+                    });
+
+            return Commands.literal("storePointingContainer")
+                    .then(Commands.literal("all")
+                            .executes(executorCreator.apply(_ -> null))
+                    )
+                    .then(Arguments.ITEM.require(buildContext)
+                            .suggests(new SuggestionProviders.InventoryItemPriority(Arguments.ITEM.argumentType(buildContext)))
+                            .executes(executorCreator.apply(InfinityInventory::templateOf))
+                    );
+        }
         private static ArgumentBuilder<CommandSourceStack, ?> take(CommandBuildContext buildContext) {
             interface ExecutorCreator {
                 @Contract(pure = true)
@@ -257,6 +351,74 @@ public class InfinityInventory {
                             )
                     );
         }
+        private static ArgumentBuilder<CommandSourceStack, ?> takeToPointingContainer(CommandBuildContext buildContext) {
+            return Commands.literal("takeToPointingContainer")
+                    .then(Arguments.ITEM.require(buildContext)
+                            .suggests(new SuggestionProviders.InventoryItemPriority(Arguments.ITEM.argumentType(buildContext)))
+                            .executes(PlayerExecutor.requireExecByPlayer((ctx, player) -> {
+                                var source = ctx.getSource();
+                                var template = templateOf(ctx);
+                                var maxStackSize = template.newStack(1).getMaxStackSize();
+                                var name = template.newStack(1).getHoverName();
+
+                                var container = pointingContainer(player);
+                                if (container == null) {
+                                    source.sendFailure(Component.translatable(
+                                            "feca.msg.cmd.infinityInventory.pointingContainer.none"));
+                                    return CommandResult.FAILURE;
+                                }
+
+                                var storage = getStorage(player);
+                                var available = storage.getCount(template);
+                                if (available <= 0) {
+                                    source.sendFailure(Component.translatable(
+                                            "feca.msg.cmd.infinityInventory.takeToPointingContainer.notEnough", name));
+                                    return CommandResult.FAILURE;
+                                }
+
+                                // 逐格写入，放不下的部分留在库存里（允许部分成功）
+                                int placed = 0;
+
+                                // 先合并进已有同类条目（物品 + 组件一致）且未满的槽位
+                                for (int i = 0; i < container.getContainerSize() && placed < available; i++) {
+                                    var slot = container.getItem(i);
+                                    if (slot.isEmpty() || !template.equals(ItemTemplate.of(slot))) continue;
+
+                                    var room = slot.getMaxStackSize() - slot.getCount();
+                                    if (room <= 0) continue;
+
+                                    var add = Math.min(room, available - placed);
+                                    slot.setCount(slot.getCount() + add);
+                                    container.setItem(i, slot);
+                                    placed += add;
+                                }
+
+                                // 再填充空槽
+                                for (int i = 0; i < container.getContainerSize() && placed < available; i++) {
+                                    if (!container.getItem(i).isEmpty()) continue;
+
+                                    var stack = template.newStack(Math.min(available - placed, maxStackSize));
+                                    container.setItem(i, stack);
+                                    placed += stack.getCount();
+                                }
+
+                                if (placed <= 0) {
+                                    source.sendFailure(Component.translatable(
+                                            "feca.msg.cmd.infinityInventory.takeToPointingContainer.noSpace", name));
+                                    return CommandResult.FAILURE;
+                                }
+
+                                storage.tryPop(template, placed);
+                                container.setChanged();
+
+                                source.sendSystemMessage(Component.translatable(
+                                        "feca.msg.cmd.infinityInventory.takeToPointingContainer.succ",
+                                        placed, name, storage.getCount(template)));
+                                return CommandResult.SUCCESS;
+                            }))
+                    );
+        }
+
         private static ArgumentBuilder<CommandSourceStack, ?> count(CommandBuildContext buildContext) {
             return Commands.literal("count")
                     .then(Arguments.ITEM.require(buildContext)
@@ -396,6 +558,46 @@ public class InfinityInventory {
         return InfinityInventoryStorage.rejectionReason(template.newStack(1))
                 .map(ItemStoragePolicy.Rejection::describe)
                 .orElseGet(() -> Component.translatable("feca.msg.gui.infinityInventory.err.addToInvFail"));
+    }
+
+    // ============================== 指向的容器 ==============================
+
+    /// 玩家视线指向的容器：方块容器（箱子/木桶/潜影盒等）或实体容器（箱子矿车/运输船）。
+    ///
+    /// 先按方块交互距离做方块射线检测：命中方块时只看该方块实体是不是容器
+    /// （被非容器方块挡住时视为未指向）；只有完全没命中方块时，才沿同一视线找最近的实体容器。
+    ///
+    /// @return 未指向容器时返回 {@code null}
+    private static @Nullable Container pointingContainer(@NonNull ServerPlayer player) {
+        @SuppressWarnings("resource")
+        var level = player.level();
+
+        var hit = player.pick(player.blockInteractionRange(), 0.0F, false);
+        if (hit.getType() == HitResult.Type.BLOCK) {
+            var pos = ((BlockHitResult) hit).getBlockPos();
+            return level.isLoaded(pos) && level.getBlockEntity(pos) instanceof Container container ? container : null;
+        }
+
+        var eye = player.getEyePosition();
+        var look = player.getViewVector(1.0F);
+        var range = player.entityInteractionRange();
+        var end = eye.add(look.scale(range));
+        var searchBox = player.getBoundingBox().expandTowards(look.scale(range)).inflate(1.0D);
+
+        Container nearest = null;
+        double nearestDistance = Double.MAX_VALUE;
+        for (var entity : level.getEntities(player, searchBox,
+                candidate -> candidate instanceof Container && candidate.isAlive())) {
+            var clip = entity.getBoundingBox().inflate(entity.getPickRadius()).clip(eye, end);
+            if (clip.isEmpty()) continue;
+
+            var distance = eye.distanceTo(clip.get());
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearest = (Container) entity;
+            }
+        }
+        return nearest;
     }
 
     private interface Arguments {
