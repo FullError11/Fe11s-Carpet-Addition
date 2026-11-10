@@ -10,10 +10,10 @@
     "carpet.rule.largeBucket.extra.1": "Non-player sources (e.g. dispensers) cannot trigger the large bucket effect",
 
     "carpet.rule.undyingFakePlayer.name": "Undying Fake Players",
-    "carpet.rule.undyingFakePlayer.desc": "Prevents Carpet fake players from taking damage from anything other than the configured sources, and makes them immune to negative effects",
+    "carpet.rule.undyingFakePlayer.desc": "Prevents Carpet fake players from taking damage other than the configured damage types",
 
     "carpet.rule.undyingSnowGolem.name": "Undying Snow Golems",
-    "carpet.rule.undyingSnowGolem.desc": "Prevents snow golems from taking damage from anything other than the configured sources, and makes them immune to negative effects",
+    "carpet.rule.undyingSnowGolem.desc": "Prevents snow golems from taking damage other than the configured damage types",
 
     "carpet.rule.activeMending.name": "Active Mending",
     "carpet.rule.activeMending.desc": "When the player has experience and an item with Mending in a configured slot is not at full durability, experience is consumed automatically to repair it",

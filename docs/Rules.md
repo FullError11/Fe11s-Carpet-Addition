@@ -21,7 +21,19 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 
 ### 不死假人 (`undyingFakePlayer`)
 
-使 Carpet 假人免疫白名单以外的伤害，并免疫负面效果。`ONLY_VOID` 只放行虚空伤害，`PLAYER` 放行虚空与玩家伤害。
+使 Carpet 假人免疫白名单以外的伤害（按伤害类型判定）。`ONLY_VOID` 只放行虚空伤害，`PLAYER` 额外放行玩家近战攻击。
+
+### 不死雪傀儡 (`undyingSnowGolem`)
+
+使雪傀儡免疫白名单以外的伤害（在伤害结算前直接取消）。取值与 `undyingFakePlayer` 相同：
+
+- `ONLY_VOID`：只放行虚空伤害（`minecraft:fell_out_of_world`），其余伤害类型全部取消；
+- `PLAYER`：额外放行玩家近战攻击（`minecraft:player_attack`），其余仍全部取消。
+
+> 白名单按**伤害类型**判定，不区分实际来源：`PLAYER` 下玩家用弓、三叉戟、药水造成的伤害属于 `arrow` / `trident` / `magic` 等类型，依旧被取消。
+> 环境伤害同样被取消，雪傀儡不再因炎热生物群系的融化（`on_fire`）或入水溶解（`drown`）掉血。
+> `/kill` 不走伤害事件（直接移除实体），仍然有效；想手动验证白名单可用 `/damage <目标> <数值> minecraft:out_of_world`。
+> 只拦截伤害，不处理状态效果。
 
 ### 主动经验修补 (`activeMending`)
 

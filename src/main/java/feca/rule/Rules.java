@@ -70,7 +70,6 @@ public final class Rules {
     @RuleImplBy(UndyingFakePlayer.class)
     public static UndyingEntityOptions undyingFakePlayer = UndyingEntityOptions.FALSE;
 
-    // TODO: 补充文档
     @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(UndyingSnowGolem.class)
     public static UndyingEntityOptions undyingSnowGolem = UndyingEntityOptions.FALSE;
