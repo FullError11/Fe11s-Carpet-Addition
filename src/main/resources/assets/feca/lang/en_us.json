@@ -124,6 +124,7 @@
 
     "feca.msg.gui.infinityInventory.title": "无限库存",
     "feca.msg.gui.infinityInventory.label.storage": "库存量: ",
+  "feca.msg.gui.infinityInventory.label.components": "数据组件: ",
     "feca.msg.gui.infinityInventory.label.craftable": "可合成: ",
     "feca.msg.gui.infinityInventory.label.craftableApprox": "约可合成: ",
     "feca.msg.gui.infinityInventory.label.countPrefix": "即 ",

@@ -3,6 +3,7 @@ package feca.function;
 import feca.FeCA;
 import feca.function.utils.InfinityInventoryCraftHelper;
 import feca.function.utils.InfinityInventoryStorage;
+import feca.function.utils.InfinityInventoryStorage.ItemTemplate;
 import feca.rule.utils.RuleImpl;
 import feca.utils.CraftingRecipeCaches;
 import feca.utils.PlayerInventoryHelper;
@@ -97,6 +98,7 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
         FeCA.LOGGER.debug("clicked: slot index: {}", slotIndex);
         // 虚拟槽位自行处理点击，其余槽位交给原版
         if (slotIndex < virtualSlots.length && slotIndex >= 0) {
+            FeCA.LOGGER.debug("clicked: slot index={}, buttonNum={}, input={}", slotIndex, buttonNum, containerInput);
             virtualSlots[slotIndex].clicked(containerInput, buttonNum);
 
             page.update();
@@ -457,11 +459,15 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
         @Contract(pure = true)
         @Override
         protected @NonNull ItemStack buildIcon() {
-            return LoreUtils.applyLore(item().getDefaultInstance(),
+            var template = template();
+            if (template.item() == Items.AIR) return ItemStack.EMPTY;
+
+            return LoreUtils.applyLore(template.newStack(1),
                     LoreUtils.line(
                             LoreUtils.label(Component.translatable("feca.msg.gui.infinityInventory.label.storage")),
                             LoreUtils.value(count())),
-                    LoreUtils.buildCountBreakdown(item(), count()),
+                    LoreUtils.buildCountBreakdown(template.item(), count()),
+                    componentLine(template),
                     LoreUtils.separator(),
                     LoreUtils.action(
                             Component.translatable("feca.msg.gui.infinityInventory.key.left"),
@@ -472,27 +478,38 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
             );
         }
 
-        /// 从库存取出一组
+        /// 「数据组件」行：变体条目列出携带的组件 id；
+        /// 无组件条目返回空组件（{@link LoreUtils#applyLore} 会把空行过滤掉）
+        private @NonNull Component componentLine(@NonNull ItemTemplate template) {
+            var ids = template.componentIds();
+            if (ids.isEmpty()) return Component.empty();
+
+            return LoreUtils.line(
+                    LoreUtils.label(Component.translatable("feca.msg.gui.infinityInventory.label.components")),
+                    LoreUtils.value(Component.literal(String.join(", ", ids)))
+            );
+        }
+
+        /// 从库存取出一组（按模板物化，保留数据组件）
         private @NonNull ItemStack takeStack() {
-            var item = item();
-            var popCount = storage.tryPop(item, item.getDefaultMaxStackSize());
-            if (popCount > 0)
-                return new ItemStack(item, popCount);
+            var template = template();
+            var popCount = storage.tryPop(template, template.newStack(1).getMaxStackSize());
+            if (popCount > 0) return template.newStack(popCount);
             return ItemStack.EMPTY;
         }
-        /// 从库存取出一盒：消耗一个空潜影盒并把物品装入
+        /// 从库存取出一盒：消耗一个空潜影盒并把该模板的物品装入
         private @NonNull ItemStack takeBox() {
             if (count() <= 0) return ItemStack.EMPTY;
-            var item = item();
+            var template = template();
 
             // 物品本身是潜影盒时退化为取一组
-            if (Block.byItem(item) instanceof ShulkerBoxBlock) return takeStack();
+            if (Block.byItem(template.item()) instanceof ShulkerBoxBlock) return takeStack();
 
             if (storage.pop(Items.SHULKER_BOX, 1)) {
                 var shulker = Items.SHULKER_BOX.getDefaultInstance();
 
                 try (var box = ShulkerBoxAccessor.openAutoSaved(shulker)) {
-                    if (storage.tryPopTo(item, Integer.MAX_VALUE, box.list()) > 0) {
+                    if (storage.tryPopTo(template, Integer.MAX_VALUE, box.list()) > 0) {
                         return shulker;
                     }
                 }
@@ -503,8 +520,10 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
             return ItemStack.EMPTY;
         }
 
-        /// 槽位对应的物品
-        protected abstract Item item();
+        /// 槽位对应的库存条目模板（物品 + 数据组件）
+        protected abstract ItemTemplate template();
+        /// 槽位对应的物品（模板的物品部分）
+        protected Item item() { return template().item(); }
         /// 槽位对应的库存数量
         protected abstract int count();
     }
@@ -529,7 +548,7 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
             return page.at(storageIndex);
         }
 
-        @Override protected Item item() { return view().item(); }
+        @Override protected @NonNull ItemTemplate template() { return view().template(); }
         @Override protected int count() { return view().count(); }
     }
 
@@ -749,20 +768,21 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
         }
 
         private @NonNull ItemStack craftBox() {
-            Item item = craftData.output().getItem();
+            var template = ItemTemplate.of(craftData.output());
 
             // 潜影盒本身无法再装箱，退化为「一组」
-            if (Block.byItem(item) instanceof ShulkerBoxBlock) return craftStack();
+            if (Block.byItem(template.item()) instanceof ShulkerBoxBlock) return craftStack();
 
             int maxCraftable = maxCraftableCount();
             if (maxCraftable <= 0) return ItemStack.EMPTY;
 
-            int boxSize = item.getDefaultMaxStackSize() * ShulkerBoxBlockEntity.CONTAINER_SIZE;
+            int boxSize = template.newStack(1).getMaxStackSize() * ShulkerBoxBlockEntity.CONTAINER_SIZE;
             int target = Math.min(maxCraftable, boxSize);
 
             if (storage.getCount(Items.SHULKER_BOX) <= 0) {
                 sendMenuMessage(
-                        Component.translatable("feca.msg.gui.infinityInventory.err.noShulker")
+                        Component.translatable(
+                                "feca.msg.gui.infinityInventory.err.noShulker")
                                 .withStyle(ChatFormatting.RED));
                 return ItemStack.EMPTY;
             }
@@ -778,8 +798,8 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
             }
 
             try (var accessor = ShulkerBoxAccessor.openAutoSaved(shulker)) {
-                int remaining = ShulkerBoxPacker.fill(accessor, item, crafted.getCount());
-                if (remaining > 0) collectSideProduct(new ItemStack(item, remaining));
+                int remaining = ShulkerBoxPacker.fill(accessor, template, crafted.getCount());
+                if (remaining > 0) collectSideProduct(template.newStack(remaining));
             }
 
             return shulker;
@@ -859,13 +879,14 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
         }
 
         @Override
-        protected @NonNull Item item() {
-            return craftData.output.getItem();
+        protected @NonNull ItemTemplate template() {
+            // 配方产物可能带组件（例如药水、烟花），按完整模板计数与取出
+            return ItemTemplate.of(craftData.output());
         }
 
         @Override
         protected int count() {
-            return storage.getCount(craftData.output.getItem());
+            return storage.getCount(craftData.output());
         }
 
         private static @NonNull ItemStack newPlaceholder() {
@@ -897,13 +918,13 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
         }
 
         @Override
-        protected Item item() {
-            return craftData.inputMonotonousItem;
+        protected @NonNull ItemTemplate template() {
+            return ItemTemplate.of(craftData.inputMonotonousItem);
         }
 
         @Override
         protected int count() {
-            return storage.getCount(craftData.inputMonotonousItem);
+            return storage.getCount(template());
         }
 
         private static @NonNull ItemStack newPlaceholder() {
@@ -1013,18 +1034,19 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
             return CraftingRecipeCaches.getRecipe(Items.SHULKER_BOX, level.recipeAccess());
         }
 
-        /// 物品在库存中的数量，供 {@link CraftingRecipeCaches.Recipes#best} 使用
+        /// 物品模板在库存中的数量，供 {@link CraftingRecipeCaches.Recipes#best} 使用
         private int countOf(@NonNull ItemStack stack) {
-            return storage.getCount(stack.getItem());
+            // 配方原料通常是白板物品；这里按完整模板计数，带组件的原料才会精度更高
+            return storage.getCount(stack);
         }
 
         /// 优先使用第一个有库存的染色潜影盒；全部为空时使用默认（无染色）潜影盒
         @Override
-        protected Item item() {
-            if (storage.getCount(Items.SHULKER_BOX) != 0) return Items.SHULKER_BOX;
+        protected @NonNull ItemTemplate template() {
+            if (storage.getCount(Items.SHULKER_BOX) != 0) return ItemTemplate.of(Items.SHULKER_BOX);
 
             var colored = storage.getFirstNotEmpty(Items.DYED_SHULKER_BOX);
-            return colored == Items.AIR ? Items.SHULKER_BOX : colored;
+            return ItemTemplate.of(colored == Items.AIR ? Items.SHULKER_BOX : colored);
         }
 
         /// 所有潜影盒（默认 + 染色）的库存总数
@@ -1139,10 +1161,10 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
         public void next() {
             final int nextPageFirst = (page + 1) * Layout.ITEM_SLOTS;
 
-            FeCA.LOGGER.debug("Page: next: page={}({} ~ {}), storage size={}",
-                    page, page * Layout.ITEM_SLOTS, nextPageFirst - 1, storage.size());
+            FeCA.LOGGER.debug("Page: next: page={}({} ~ {}), storage variant size={}",
+                    page, page * Layout.ITEM_SLOTS, nextPageFirst - 1, storage.variantSize());
 
-            if (nextPageFirst < storage.size()) {
+            if (nextPageFirst < storage.variantSize()) {
                 page++;
                 updatePageData();
                 refreshItemSlots();
@@ -1150,8 +1172,9 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
         }
 
         /// 按当前页码重建页内视图，并用 NONE 补齐 36 格
+        /// @apiNote 展示全部条目：按物品分组，主条目在前、其后是该物品的变体（顺序见 storage 的分组排序）
         public void updatePageData() {
-            this.views = storage.subView(page * Layout.ITEM_SLOTS, Layout.ITEM_SLOTS);
+            this.views = storage.subVariantView(page * Layout.ITEM_SLOTS, Layout.ITEM_SLOTS);
             FeCA.LOGGER.debug("Page: update: page={}, got size={}", page, views.size());
             while (this.views.size() < Layout.ITEM_SLOTS) {
                 this.views.add(InfinityInventoryStorage.View.NONE);

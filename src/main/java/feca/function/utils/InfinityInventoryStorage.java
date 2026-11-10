@@ -40,7 +40,7 @@ import java.util.*;
 ///
 /// ## 顺序
 /// 迭代、{@link #subView(int, int)}、{@link #subVariantView(int, int)}、{@link #getVariants(Item)} 统一按
-/// {@link #DISPLAY_ORDER}：**无组件条目在前**，带组件的变体在后；同组内按库存数量降序，数量相同保持插入顺序。
+/// {@link #ENTRY_ORDER}：**按物品分组**——同一物品的主条目在前、它的变体紧随其后；组间按「该物品总量（主条目 + 全部变体）」降序，组内按各自数量降序。
 /// 持久化仍按插入顺序写。
 ///
 /// ## 持久化
@@ -58,31 +58,49 @@ public class InfinityInventoryStorage
     // 展示顺序
     // =========================================================
 
-    /// 条目在各类视图与迭代中的顺序：
+    /// 条目在各类视图与迭代中的顺序——**按物品分组，主物品在前，其后是它自己的变体**：
     ///
-    /// 1. **无组件条目在前**，带组件的变体在后（无组件条目是该物品的「主」条目）
-    /// 2. 同一组内按库存数量**降序**（存量多的先展示）
-    /// 3. 数量相同时保持插入顺序（{@link List#sort} 是稳定排序）
+    /// 1. **分组**：同一物品的条目相邻（主条目不与它的变体分离）
+    /// 2. **组间顺序**：该物品的**总量**（主条目 + 所有变体的库存量之和）**降序**；
+    ///    总量相同时保持首次出现的顺序（{@link List#sort} 是稳定排序）
+    /// 3. **组内顺序**：无组件条目（「主」条目）在前，带组件的变体在后
+    /// 4. **组内同段**：按各自的库存数量**降序**，数量相同时保持插入顺序
     ///
-    /// 例：石头 有「无组件 1000 / 命名a 100 / 命名b 100 / 命名c 10000 / 命名d 10」，
-    /// 顺序为 `[无组件] [命名c] [命名a] [命名b] [命名d]`。
+    /// 例：石头「无组件 9900 / 变体A 50 / 变体B 50」总量 10000；泥土「无组件 100 / 10 个变体共 900」总量 1000。
+    /// 石头总量更大，整组在前：`[石头·无组件] [石头·变体A] [石头·变体B] [泥土·无组件] [泥土·变体…]`。
     ///
     /// @apiNote 只影响展示顺序；持久化仍按插入顺序写（见 {@link #NBT_CODEC}）
-    private static final Comparator<Map.Entry<ItemTemplate, ItemStorageData>> DISPLAY_ORDER =
+    private static final Comparator<Map.Entry<ItemTemplate, ItemStorageData>> ENTRY_ORDER =
             Comparator.comparing((Map.Entry<ItemTemplate, ItemStorageData> entry) -> !entry.getKey().isPlain())
                     .thenComparing(Comparator.comparingInt(
                             (Map.Entry<ItemTemplate, ItemStorageData> entry) -> entry.getValue().getCount()).reversed());
 
-    /// @return 按 {@link #DISPLAY_ORDER} 排好序的条目快照（条目引用仍然存活，读取的是当前数量）
+    /// @return 按分组顺序排好的条目快照（条目引用仍然存活，读取的是当前数量）
     /// @param plainOnly true: 只保留无组件条目（物品级视图）；false: 全部条目
     private @NonNull List<Map.Entry<ItemTemplate, ItemStorageData>> sortedEntries(boolean plainOnly) {
-        List<Map.Entry<ItemTemplate, ItemStorageData>> entries = new ArrayList<>(items.size());
+        // 组间排序用的量：该物品的总量（主条目 + 所有变体）
+        Map<Item, Long> groupTotals = new HashMap<>();
+        for (var entry : items.entrySet()) {
+            groupTotals.merge(entry.getKey().item(), (long) entry.getValue().getCount(), Long::sum);
+        }
+
+        // 按物品分组，`byItem` 保持首次出现顺序；`groups.sort` 是稳定排序，所以总量并列时保持该顺序
+        Map<Item, List<Map.Entry<ItemTemplate, ItemStorageData>>> byItem = new LinkedHashMap<>();
         for (var entry : items.entrySet()) {
             if (plainOnly && !entry.getKey().isPlain()) continue;
-            entries.add(entry);
+            byItem.computeIfAbsent(entry.getKey().item(), _ -> new ArrayList<>(2)).add(entry);
         }
-        entries.sort(DISPLAY_ORDER);
-        return entries;
+
+        List<List<Map.Entry<ItemTemplate, ItemStorageData>>> groups = new ArrayList<>(byItem.values());
+        groups.sort(Comparator.comparingLong((List<Map.Entry<ItemTemplate, ItemStorageData>> group) ->
+                groupTotals.getOrDefault(group.getFirst().getKey().item(), 0L)).reversed());
+
+        List<Map.Entry<ItemTemplate, ItemStorageData>> result = new ArrayList<>(items.size());
+        for (var group : groups) {
+            group.sort(ENTRY_ORDER);
+            result.addAll(group);
+        }
+        return result;
     }
 
     /// 物品模板：`物品 + 数据组件补丁`，与数量无关，是库存条目的键。
@@ -121,6 +139,20 @@ public class InfinityInventoryStorage
 
         /// 无数据组件（「白板」物品）
         public boolean isPlain() { return components.isEmpty(); }
+
+        /// @return 该模板携带的数据组件 id（组件注册表的 key 文本）；无组件条目返回空列表
+        ///
+        /// 供界面展示「这个变体带了什么数据组件」
+        public @NonNull List<String> componentIds() {
+            if (components.isEmpty()) return List.of();
+
+            List<String> result = new ArrayList<>(components.size());
+            for (var entry : components.entrySet()) {
+                var key = BuiltInRegistries.DATA_COMPONENT_TYPE.getKey(entry.getKey());
+                result.add(key == null ? String.valueOf(entry.getKey()) : key.toString());
+            }
+            return result;
+        }
 
         /// 按模板创建新物品堆，数量为 1
         @Contract(" -> new")
@@ -664,7 +696,7 @@ public class InfinityInventoryStorage
             this.entry = entry;
         }
 
-        public Item item() { return entry.getKey().item(); }
+        public @NonNull Item item() { return entry.getKey().item(); }
         public @NonNull ItemTemplate template() { return entry.getKey(); }
         public int count() { return entry.getValue().getCount(); }
 
@@ -687,7 +719,7 @@ public class InfinityInventoryStorage
 
     /**
      * 物品级分页视图：只包含无组件条目，下标与 {@link #size()} 口径一致。
-     * 顺序见 {@link #DISPLAY_ORDER}
+     * 顺序见 {@link #ENTRY_ORDER}
      *
      * @throws IndexOutOfBoundsException first < 0
      * @throws IllegalArgumentException  count < 0
@@ -698,7 +730,7 @@ public class InfinityInventoryStorage
 
     /**
      * 全部条目的分页视图（含带组件的变体条目），供直接展示 NBT 条目的界面使用。
-     * 顺序见 {@link #DISPLAY_ORDER}（无组件条目在前，其余按数量降序）
+     * 顺序见 {@link #ENTRY_ORDER}：按物品分组，主条目在前、其后是该物品的变体
      *
      * @throws IndexOutOfBoundsException first < 0
      * @throws IllegalArgumentException  count < 0

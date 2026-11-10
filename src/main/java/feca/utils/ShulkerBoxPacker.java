@@ -18,6 +18,7 @@ import java.util.List;
  * </ul>
  * 不涉及：光标、刷新调度、失败文案。
  */
+@SuppressWarnings("unused")
 public final class ShulkerBoxPacker {
 
     private ShulkerBoxPacker() {}
@@ -50,10 +51,39 @@ public final class ShulkerBoxPacker {
         return remaining;
     }
 
-    /** {@link #fill(List, Item, int)} 的便捷重载，直接传入 accessor。 */
+    /// {@link #fill(List, Item, int)} 的便捷重载，直接传入 accessor。
     public static int fill(
             @NonNull ShulkerBoxAccessor accessor, @NonNull Item item, int totalCount) {
         return fill(accessor.list(), item, totalCount);
+    }
+
+    /**
+     * 把 {@code template}（物品 + 数据组件）尽量填入槽位，返回剩余未放入数量。
+     * <p>
+     * 与 {@link #fill(List, Item, int)} 相同，但按模板创建物品堆，因此带组件的物品也能正确装箱。
+     */
+    public static int fill(
+            @NonNull List<ItemStack> slots, InfinityInventoryStorage.@NonNull ItemTemplate template, int totalCount) {
+        if (totalCount <= 0) return 0;
+
+        int maxStack = template.newStack(1).getMaxStackSize();
+        if (maxStack <= 0) return totalCount;
+
+        int remaining = totalCount;
+        for (int i = 0; i < slots.size() && remaining > 0; i++) {
+            if (slots.get(i).isEmpty()) {
+                int put = Math.min(remaining, maxStack);
+                slots.set(i, template.newStack(put));
+                remaining -= put;
+            }
+        }
+        return remaining;
+    }
+
+    /// {@link #fill(List, InfinityInventoryStorage.ItemTemplate, int)} 的便捷重载，直接传入 accessor。
+    public static int fill(
+            @NonNull ShulkerBoxAccessor accessor, InfinityInventoryStorage.@NonNull ItemTemplate template, int totalCount) {
+        return fill(accessor.list(), template, totalCount);
     }
 
     // =========================================================

@@ -1,6 +1,7 @@
 package feca.test.gametest;
 
 import feca.function.InfinityInventory;
+import feca.function.InfinityInventoryMenu;
 import feca.function.utils.InfinityInventoryStorage;
 import feca.function.utils.InfinityInventoryStorage.ItemStorageData;
 import feca.function.utils.InfinityInventoryStorage.ItemStorageMap;
@@ -18,6 +19,7 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.Fireworks;
@@ -322,6 +324,64 @@ public class InfinityInventoryGameTests {
         if (!(materialized.get(DataComponents.FIREWORKS) instanceof Fireworks fireworks)
                 || fireworks.flightDuration() != 3) {
             throw helper.assertionException("持久化还原后的物品组件不正确");
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest
+    public void menuRendersAndTakesComponentVariants(@NonNull GameTestHelper helper) {
+        final ServerPlayer player = (ServerPlayer) helper.makeMockServerPlayer(GameType.SURVIVAL);
+        final InfinityInventoryStorage storage = InfinityInventory.getStorage(player);
+
+        // 泥土先入库（没有变体），之后是烟花：无组件 1000 个 + 一个白名单变体（只带飞行时长的烟花）
+        if (!storage.push(new ItemStack(Items.DIRT, 5))) {
+            throw helper.assertionException("准备泥土条目失败");
+        }
+        if (!storage.push(new ItemStack(Items.FIREWORK_ROCKET, 1000))) {
+            throw helper.assertionException("准备无组件条目失败");
+        }
+        final ItemStack variant = new ItemStack(Items.FIREWORK_ROCKET);
+        variant.set(DataComponents.FIREWORKS, new Fireworks(2, List.of()));
+        final ItemTemplate variantTemplate = ItemTemplate.of(variant);
+        if (!storage.push(variant)) {
+            throw helper.assertionException("准备变体条目失败");
+        }
+        if (storage.getCount(ItemTemplate.of(Items.FIREWORK_ROCKET)) != 1000
+                || storage.getCount(variantTemplate) != 1) {
+            throw helper.assertionException("库存应同时存在无组件条目与变体条目");
+        }
+
+        final InfinityInventoryMenu menu = new InfinityInventoryMenu(0, player.getInventory());
+
+        // 排序：按物品分组，主条目在前、它的变体紧随其后；有变体的烟花组排在只有主条目的泥土之前
+        // （烟花火箭的默认组件是 flight_duration=1，所以无组件条目的图标读出来是 1，变体是 2）
+        final ItemStack plainIcon = menu.slots.get(0).getItem();
+        if (!(plainIcon.get(DataComponents.FIREWORKS) instanceof Fireworks plainFireworks)
+                || plainFireworks.flightDuration() != 1) {
+            throw helper.assertionException("第 0 格应是烟花的主条目（默认时长 1），实际: " + plainIcon);
+        }
+
+        final ItemStack variantIcon = menu.slots.get(1).getItem();
+        if (!(variantIcon.get(DataComponents.FIREWORKS) instanceof Fireworks iconFireworks)
+                || iconFireworks.flightDuration() != 2) {
+            throw helper.assertionException("第 1 格应是烟花的变体（时长 2），实际: " + variantIcon);
+        }
+
+        final ItemStack dirtIcon = menu.slots.get(2).getItem();
+        if (!dirtIcon.is(Items.DIRT)) {
+            throw helper.assertionException("第 2 格应是泥土（只有主条目的物品排在后面），实际: " + dirtIcon);
+        }
+
+        // 取出变体：光标上应当拿到带组件的物品
+        menu.clicked(1, 0, ContainerInput.PICKUP, player);
+        final ItemStack carried = menu.getCarried();
+        if (!(carried.get(DataComponents.FIREWORKS) instanceof Fireworks taken)
+                || taken.flightDuration() != 2) {
+            throw helper.assertionException("取出的物品应保留数据组件，实际: " + carried);
+        }
+        if (storage.getCount(ItemTemplate.of(Items.FIREWORK_ROCKET)) != 1000) {
+            throw helper.assertionException("取出变体不应影响无组件条目的数量");
         }
 
         helper.succeed();

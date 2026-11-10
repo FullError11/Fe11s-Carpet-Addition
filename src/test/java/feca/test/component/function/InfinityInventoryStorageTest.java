@@ -277,7 +277,7 @@ class InfinityInventoryStorageTest {
     }
 
     @Test
-    @DisplayName("展示顺序：无组件条目在前，变体按数量降序，数量相同保持插入顺序")
+    @DisplayName("展示顺序：同一物品的主条目在前，变体紧随其后并按数量降序")
     void displayOrder() {
         final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
 
@@ -296,27 +296,73 @@ class InfinityInventoryStorageTest {
 
         final List<ItemTemplate> expected = List.of(plain, c, a, b, d);
 
-        assertEquals(expected, templatesOf(storage), "迭代顺序：无组件在前，变体数量降序，同数量保持插入顺序");
+        assertEquals(expected, templatesOf(storage), "主条目在前，变体数量降序，同数量保持插入顺序");
         assertEquals(List.of(c, a, b, d), storage.getVariants(Items.FIREWORK_ROCKET), "变体列表同样按数量降序");
         assertEquals(expected, templatesOf(storage.subVariantView(0, 10)), "全部条目视图与迭代口径一致");
-        assertEquals(List.of(plain), templatesOf(storage.subView(0, 10)), "物品级视图只有无组件条目");
+        assertEquals(List.of(plain), templatesOf(storage.subView(0, 10)), "物品级视图只有主条目");
     }
 
     @Test
-    @DisplayName("展示顺序：不同物品之间也是全部无组件条目在前")
-    void displayOrderAcrossItems() {
+    @DisplayName("展示顺序：按物品分组，主条目与它的变体相邻")
+    void displayOrderGroupsByItem() {
         final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
 
         final ItemTemplate plainDirt = ItemTemplate.of(Items.DIRT);
         final ItemTemplate plainStone = ItemTemplate.of(Items.STONE);
         final ItemTemplate stoneVariant = ItemTemplate.of(Items.STONE, fireworkPatch(1));
 
+        // 泥土先入库，但石头总量更大（3 + 500）→ 石头整组排在前面
+        storage.modifyCount(plainDirt, 200);
         storage.modifyCount(stoneVariant, 500);
         storage.modifyCount(plainStone, 3);
-        storage.modifyCount(plainDirt, 200);
 
-        assertEquals(List.of(plainDirt, plainStone, stoneVariant), templatesOf(storage),
-                "无组件条目整体在前（同组内按数量降序），变体排在所有无组件条目之后");
+        assertEquals(List.of(plainStone, stoneVariant, plainDirt), templatesOf(storage),
+                "石头的组（主条目 + 变体）相邻并排在只有主条目的泥土之前");
+    }
+
+    @Test
+    @DisplayName("展示顺序：都没有变体时按主条目数量降序，而不是入库顺序")
+    void displayOrderPlainItemsByCount() {
+        final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
+
+        final ItemTemplate planks = ItemTemplate.of(Items.OAK_PLANKS);
+        final ItemTemplate logs = ItemTemplate.of(Items.OAK_LOG);
+
+        // 木板先入库，但木头总量更多 → 木头应排在前面
+        storage.modifyCount(planks, 10);
+        storage.modifyCount(logs, 100);
+
+        assertEquals(List.of(logs, planks), templatesOf(storage), "两边都没有变体时按物品总量（即主条目数量）降序");
+    }
+
+    @Test
+    @DisplayName("展示顺序：组间按物品总量（主条目 + 全部变体）降序")
+    void displayOrderByGroupTotal() {
+        final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
+
+        // 石头：主条目 9900 + 2 个变体共 100 = 10000；泥土：主条目 100 + 3 个变体共 900 = 1000
+        // 泥土的变体更多、变体存量也更大，但仍按「物品总量」排序 → 石头整组在前
+        final ItemTemplate stonePlain = ItemTemplate.of(Items.STONE);
+        final ItemTemplate stoneVariantA = ItemTemplate.of(Items.STONE, fireworkPatch(1));
+        final ItemTemplate stoneVariantB = ItemTemplate.of(Items.STONE, fireworkPatch(2));
+        final ItemTemplate dirtPlain = ItemTemplate.of(Items.DIRT);
+        final ItemTemplate dirtVariantA = ItemTemplate.of(Items.DIRT, fireworkPatch(1));
+        final ItemTemplate dirtVariantB = ItemTemplate.of(Items.DIRT, fireworkPatch(2));
+        final ItemTemplate dirtVariantC = ItemTemplate.of(Items.DIRT, fireworkPatch(3));
+
+        storage.modifyCount(dirtPlain, 100);
+        storage.modifyCount(stonePlain, 9900);
+        storage.modifyCount(stoneVariantA, 60);
+        storage.modifyCount(stoneVariantB, 40);
+        storage.modifyCount(dirtVariantA, 500);
+        storage.modifyCount(dirtVariantB, 300);
+        storage.modifyCount(dirtVariantC, 100);
+
+        assertEquals(
+                List.of(stonePlain, stoneVariantA, stoneVariantB,
+                        dirtPlain, dirtVariantA, dirtVariantB, dirtVariantC),
+                templatesOf(storage),
+                "石头总量 10000 > 泥土总量 1000（与变体条目数无关）；组内主条目在前、变体按数量降序");
     }
 
     private static List<ItemTemplate> templatesOf(InfinityInventoryStorage storage) {

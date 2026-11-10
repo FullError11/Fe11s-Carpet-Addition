@@ -73,7 +73,8 @@ static void bootstrap() {
 ## 已知限制 / 待补
 
 - 需要**真实玩家连接**的规则只能人工验证或后续接客户端 GameTest：`activeMending`（经验修补按刻结算）、
-  `infinityInventoryMenu`（菜单打开/取放）、`commandHome`（传送倒计时）、`commandVillagerTradableItem`（需真实村民交易流程）。
+  `commandHome`（传送倒计时）、`commandVillagerTradableItem`（需真实村民交易流程）。
+  （`infinityInventoryMenu` 已用 mock 玩家覆盖「构建菜单 → 渲染条目（含组件变体） → 取出保留组件」，见 `menuRendersAndTakesComponentVariants`。）
 - `undyingFakePlayer` 依赖 carpet 假人（需先 `/player <name> spawn`，且涉及玩家档案网络请求），CI 上不稳定，暂不纳入。
 - `fakeBrittleIce` 依赖 Fabric `FluidFlowEvents` 的真实水流事件，需要用流水+刻延迟模拟（暂未覆盖）。
 - `hardTurtleEgg` 的核心在 `TurtleEggBlock#destroyEgg`（protected），需要踩踏实体触发（暂未覆盖）。
