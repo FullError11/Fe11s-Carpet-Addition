@@ -7,6 +7,7 @@
 - [规则说明](docs/Rules.md)
 - [命令说明](docs/Commands.md)
 - [测试策略](docs/testing.md)
+- [常见问题](docs/OldIssues.md)
 
 ## License
 
