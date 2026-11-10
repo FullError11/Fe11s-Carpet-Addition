@@ -26,7 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * {@link Rules} 的声明契约测试：每条规则都通过 {@link RuleImplBy} 声明了实现类，
- * 且实现类名与规则名对应（{@link RuleImpl#getRuleName} 的契约）；每条规则都有可用的中文翻译。
+ * 且实现类名与规则名对应（{@link RuleImpl#getRuleName} 的契约）；每条规则在 zh_cn / en_us 都有可用翻译。
  */
 public class RulesDeclarationTest {
     @Test
@@ -45,18 +45,20 @@ public class RulesDeclarationTest {
     }
 
     @Test
-    @DisplayName("每条规则都有可用的中文翻译")
+    @DisplayName("每条规则在 zh_cn / en_us 都有可用翻译")
     void everyRuleHasTranslation() throws Exception {
-        final JsonObject lang = loadLang();
+        final JsonObject zhCn = loadLang("zh_cn.json");
+        final JsonObject enUs = loadLang("en_us.json");
 
         for (Field field : ruleFields()) {
-            final String nameKey = "carpet.rule." + field.getName() + ".name";
-            final String descKey = "carpet.rule." + field.getName() + ".desc";
+            for (String suffix : List.of(".name", ".desc")) {
+                final String key = "carpet.rule." + field.getName() + suffix;
 
-            assertTrue(lang.has(nameKey), "缺少规则名翻译: " + nameKey);
-            assertFalse(lang.get(nameKey).getAsString().isBlank(), "规则名翻译为空: " + nameKey);
-            assertTrue(lang.has(descKey), "缺少规则描述翻译: " + descKey);
-            assertFalse(lang.get(descKey).getAsString().isBlank(), "规则描述翻译为空: " + descKey);
+                assertTrue(zhCn.has(key), "缺少中文翻译: " + key);
+                assertFalse(zhCn.get(key).getAsString().isBlank(), "中文翻译为空: " + key);
+                assertTrue(enUs.has(key), "缺少英文翻译: " + key);
+                assertFalse(enUs.get(key).getAsString().isBlank(), "英文翻译为空: " + key);
+            }
         }
     }
 
@@ -73,9 +75,10 @@ public class RulesDeclarationTest {
         return ruleFields().stream().map(Field::getName).toList();
     }
 
-    private static JsonObject loadLang() throws Exception {
-        final var stream = RulesDeclarationTest.class.getResourceAsStream("/assets/feca/lang/en_us.json");
-        assertNotNull(stream, "测试类路径上找不到语言文件 assets/feca/lang/en_us.json");
+    private static JsonObject loadLang(String fileName) throws Exception {
+        final String path = "/assets/feca/lang/" + fileName;
+        final var stream = RulesDeclarationTest.class.getResourceAsStream(path);
+        assertNotNull(stream, "测试类路径上找不到语言文件 " + path);
         try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
             return JsonParser.parseReader(reader).getAsJsonObject();
         }
