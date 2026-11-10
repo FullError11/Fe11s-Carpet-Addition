@@ -36,6 +36,7 @@ import net.minecraft.network.chat.TextColor;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
 
 import java.util.*;
@@ -164,54 +165,75 @@ public class InfinityInventory {
                     );
         }
         private static ArgumentBuilder<CommandSourceStack, ?> take(CommandBuildContext buildContext) {
-            final Function<CountGetter, Command<CommandSourceStack>> executorCreator = countGetter -> {
-                return PlayerExecutor.requireExecByPlayer((ctx, player) -> {
-                    var item = Arguments.ITEM.get(ctx).item().value();
-                    var inventory = player.getInventory();
-                    var count = countGetter.get(ctx, inventory, item);
-                    if (!requireCountIsPositive(count, ctx)) return CommandResult.FAILURE;
+            interface ExecutorCreator {
+                @Contract(pure = true)
+                static @NonNull Command<CommandSourceStack> create(CountGetter countGetter, boolean doBest) {
+                    return PlayerExecutor.requireExecByPlayer((ctx, player) -> {
+                        var item = Arguments.ITEM.get(ctx).item().value();
+                        var inventory = player.getInventory();
 
-                    var storage = getStorage(player);
+                        var storage = getStorage(player);
+                        var hasCount = storage.getCount(item);
+                        var nonEquipment = inventory.getNonEquipmentItems();
+                        var canStoreCount = ContainerHelper.canStoreCount(nonEquipment, item);
 
-                    var hasCount = storage.getCount(item);
-                    if (hasCount < count) {
+                        var requested = countGetter.get(ctx, inventory, item);
+
+                        final int count;  // 在 doBest 条件判断中进行赋值
+                        if (!doBest) {
+                            if (hasCount < requested) {
+                                var msg = Component.translatable(
+                                        "feca.msg.cmd.infinityInventory.take.notEnough", hasCount, requested);
+                                ctx.getSource().sendFailure(msg);
+                                return CommandResult.FAILURE;
+                            }
+
+                            if (canStoreCount < requested) {
+                                var msg = Component.translatable(
+                                        "feca.msg.cmd.infinityInventory.take.noSpace", canStoreCount, requested);
+                                ctx.getSource().sendFailure(msg);
+                                return CommandResult.FAILURE;
+                            }
+
+                            if (!requireCountIsPositive(requested, ctx)) return CommandResult.FAILURE;
+                            count = requested;
+                        } else {
+                            count = Math.min(requested, Math.min(hasCount, canStoreCount));
+
+                            // 结果被截断为 0 时提示
+                            if (count <= 0) {
+                                var msg = hasCount <= 0
+                                        ? Component.translatable(
+                                            "feca.msg.cmd.infinityInventory.take.notEnough", hasCount, requested)
+                                        : Component.translatable(
+                                            "feca.msg.cmd.infinityInventory.take.noSpace", canStoreCount, requested);
+                                ctx.getSource().sendFailure(msg);
+                                return CommandResult.FAILURE;
+                            }
+                        }
+
+                        var popCount = storage.tryPopTo(item, count, nonEquipment);
+
+                        var name = item.getDefaultInstance().getDisplayName();
                         var msg = Component.translatable(
-                                "feca.msg.cmd.infinityInventory.take.notEnough", hasCount, count);
-                        ctx.getSource().sendFailure(msg);
-                        return CommandResult.FAILURE;
-                    }
+                                "feca.msg.cmd.infinityInventory.take.succ", popCount, name, storage.getCount(item));
+                        ctx.getSource().sendSystemMessage(msg);
 
-                    // == 于 INVENTORY_CAN_STORE 无意义
-                    var canStoreCount = ContainerHelper.canStoreCount(inventory.getNonEquipmentItems(), item);
-                    if (canStoreCount < count) {
-                        var msg = Component.translatable(
-                                "feca.msg.cmd.infinityInventory.take.noSpace", canStoreCount, count);
-                        ctx.getSource().sendFailure(msg);
-                        return CommandResult.FAILURE;
-                    }
-                    // == 于 INVENTORY_CAN_STORE 无意义
-
-                    var popCount = storage.tryPopTo(item, count, inventory.getNonEquipmentItems());
-
-                    var name = item.getDefaultInstance().getDisplayName();
-                    var msg = Component.translatable(
-                            "feca.msg.cmd.infinityInventory.take.succ", popCount, name);
-                    ctx.getSource().sendSystemMessage(msg);
-
-                    return CommandResult.SUCCESS;
-                });
-            };
+                        return CommandResult.SUCCESS;
+                    });
+                }
+            }
 
             return Commands.literal("take")
                     .then(Arguments.ITEM.require(buildContext)
                             .suggests(new SuggestionProviders.InventoryItemPriority(Arguments.ITEM.argumentType(buildContext)))
                             .then(Arguments.COUNT.require()
-                                    .executes(executorCreator.apply(CountGetter.FROM_ARGUMENT))
+                                    .executes(ExecutorCreator.create(CountGetter.FROM_ARGUMENT, false))
                             )
                             .then(Commands.literal("full")
-                                    .executes(executorCreator.apply((_, inventory, item) -> {
+                                    .executes(ExecutorCreator.create((_, inventory, item) -> {
                                         return ContainerHelper.canStoreCount(inventory.getNonEquipmentItems(), item);
-                                    }))
+                                    }, true))
                             )
                     );
         }
