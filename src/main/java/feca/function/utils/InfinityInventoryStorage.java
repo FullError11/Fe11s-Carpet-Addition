@@ -44,8 +44,7 @@ import java.util.*;
 /// 持久化仍按插入顺序写。
 ///
 /// ## 持久化
-/// 当前格式：`{format: 2, items: [{item: <物品 ID>, components: {...}?, count: <数量>}, ...]}`（{@link #NBT_CODEC}）。
-/// 旧格式（v1：`{items: {<物品 ID>: {count}}}`）的读取与迁移在 {@link InfinityInventoryLegacyMigration}（临时类）。
+/// 格式：`{items: [{item: <物品 ID>, components: {...}?, count: <数量>}, ...]}`（{@link #NBT_CODEC}），读写共用同一份编码。
 @SuppressWarnings("unused")
 public class InfinityInventoryStorage
         implements Iterable<Map.Entry<InfinityInventoryStorage.ItemTemplate, InfinityInventoryStorage.ItemStorageData>> {
@@ -315,18 +314,11 @@ public class InfinityInventoryStorage
     // 持久化
     // =========================================================
 
-    /// 当前持久化格式版本
-    private static final int FORMAT_VERSION = 2;
-
-    /// 持久化编码：`{format: 2, items: [{item, components?, count}, ...]}`
-    ///
-    /// 旧格式（v1）的读取与迁移在 {@link InfinityInventoryLegacyMigration} 里（临时类），
-    /// 这里只负责当前格式。
+    /// 持久化编码：`{items: [{item, components?, count}, ...]}`
     public static final Codec<InfinityInventoryStorage> NBT_CODEC = RecordCodecBuilder.create(instance ->
             instance.group(
-                    Codec.INT.fieldOf("format").forGetter(_ -> FORMAT_VERSION),
                     ItemStorageMap.NBT_CODEC.fieldOf("items").forGetter(storage -> storage.items)
-            ).apply(instance, (format, items) -> ofWithDefaultProcessors(items))
+            ).apply(instance, InfinityInventoryStorage::ofWithDefaultProcessors)
     );
 
     /// 完整快照的网络编码

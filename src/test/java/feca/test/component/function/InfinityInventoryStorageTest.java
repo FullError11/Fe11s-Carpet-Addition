@@ -38,7 +38,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * 组件测试: {@link InfinityInventoryStorage}（规则 {@code infinityInventory} 的库存组件）。
  *
  * <p>只覆盖不涉及 {@code ItemStack} 的部分：按模板计数、物品级接口的隔离语义、
- * pop 语义、持久化格式（含旧格式迁移）与组件白名单策略。
+ * pop 语义、持久化格式与组件白名单策略。
  * {@code push(ItemStack)}、潜影盒拆包等需要物品组件绑定，属于 L2。</p>
  */
 class InfinityInventoryStorageTest {
@@ -115,7 +115,7 @@ class InfinityInventoryStorageTest {
     }
 
     @Test
-    @DisplayName("NBT 编解码往返（库存持久化格式 v2）")
+    @DisplayName("NBT 编解码往返（库存持久化格式）")
     void nbtCodecRoundTrip() {
         final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
         storage.modifyCount(Items.STONE, 64);
@@ -124,8 +124,8 @@ class InfinityInventoryStorageTest {
         final var tag = InfinityInventoryStorage.NBT_CODEC.encodeStart(NbtOps.INSTANCE, storage).getOrThrow();
 
         final CompoundTag compound = (CompoundTag) tag;
-        assertEquals(2, compound.getIntOr("format", -1), "应当写出 v2 格式");
-        assertInstanceOf(ListTag.class, compound.get("items"), "v2 的 items 是条目列表");
+        assertNull(compound.get("format"), "持久化格式不再写版本字段");
+        assertInstanceOf(ListTag.class, compound.get("items"), "items 是条目列表");
 
         final InfinityInventoryStorage restored = InfinityInventoryStorage.NBT_CODEC.parse(NbtOps.INSTANCE, tag).getOrThrow();
 

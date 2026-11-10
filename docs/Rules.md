@@ -85,8 +85,7 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 命令与菜单都按「物品 + 组件」操作：菜单物品栏会同时列出无组件条目与带组件变体
 （顺序：按物品分组，主条目在前、它的变体紧随其后；组间按物品总量（主条目 + 全部变体）降序，组内按存量降序），取出时保留完整的组件。
 
-旧版本（只有物品 ID 与数量）的库存数据**加载时照常读出、保存时写成当前格式**，不需要任何手动步骤，
-也不会主动改写磁盘上的老文件；兼容代码集中在 `InfinityInventoryLegacyMigration`（临时类，存量数据转换完成后即可删除）。
+库存的持久化格式是 `{items: [{item, components?, count}, ...]}`。
 
 ### 无限库存菜单 (`infinityInventoryMenu`)
 

@@ -1,7 +1,6 @@
 package feca.function;
 
 import feca.FeCA;
-import feca.function.utils.InfinityInventoryLegacyMigration;
 import feca.function.utils.InfinityInventoryStorage;
 import feca.network.InfinityInventoryNetworking;
 import feca.registry.OnInitializeCallbackRegistry;
@@ -35,8 +34,7 @@ public class InfinityInventory implements RuleImpl {
 
     public static final AttachmentType<InfinityInventoryStorage> STORAGE_ATTACHMENT_TYPE =
             AttachmentRegistry.create(FeCA.id("infinity_inventory_storage"), builder -> builder
-                    // 旧格式数据的加载时迁移在 InfinityInventoryLegacyMigration（临时类，用一个版本后即可换回 NBT_CODEC 并删除）
-                    .persistent(InfinityInventoryLegacyMigration.PERSISTENCE_CODEC)
+                    .persistent(InfinityInventoryStorage.NBT_CODEC)
                     .copyOnDeath()
                     .initializer(InfinityInventoryStorage::createWithDefaultProcessors)
             );
