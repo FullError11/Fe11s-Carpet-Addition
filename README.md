@@ -21,12 +21,12 @@
 
 ### 优化
 
-- [ ] InfinityInventory 的排序优化。  
+- [x] InfinityInventory 的排序优化。  
     **原因**：  
     在 Menu 打开期间，物品数量的变化频繁触发库存内容排序，这会导致**性能开销**和**连续取物体验不佳**。  
     **方案**：  
-    1. 排序使用预设定的顺序(提前进行分类分组)。  
-    2. 排序更换为主动触发(只在必要时进行)。  
+    排序使用预设定的顺序(提前进行分类分组)。
+- [ ] 优化 [infinity_inventory_item_sequence.json](src/main/resources/assets/feca/infinity_inventory_item_sequence.json) 顺序
 
 ### 新功能
 

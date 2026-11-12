@@ -354,27 +354,28 @@ public class InfinityInventoryGameTests {
 
         final InfinityInventoryMenu menu = new InfinityInventoryMenu(0, player.getInventory());
 
-        // 排序：按物品分组，主条目在前、它的变体紧随其后；有变体的烟花组排在只有主条目的泥土之前
+        // 排序：按物品分组，主条目在前、它的变体紧随其后；物品顺序由预设序列决定。
+        // 泥土与烟花都不在序列里，按 id 字符顺序排列：minecraft:dirt 在 minecraft:firework_rocket 之前。
         // （烟花火箭的默认组件是 flight_duration=1，所以无组件条目的图标读出来是 1，变体是 2）
-        final ItemStack plainIcon = menu.slots.get(0).getItem();
+        final ItemStack dirtIcon = menu.slots.get(0).getItem();
+        if (!dirtIcon.is(Items.DIRT)) {
+            throw helper.assertionException("第 0 格应是泥土（未登记物品按 id 排序），实际: " + dirtIcon);
+        }
+
+        final ItemStack plainIcon = menu.slots.get(1).getItem();
         if (!(plainIcon.get(DataComponents.FIREWORKS) instanceof Fireworks plainFireworks)
                 || plainFireworks.flightDuration() != 1) {
-            throw helper.assertionException("第 0 格应是烟花的主条目（默认时长 1），实际: " + plainIcon);
+            throw helper.assertionException("第 1 格应是烟花的主条目（默认时长 1），实际: " + plainIcon);
         }
 
-        final ItemStack variantIcon = menu.slots.get(1).getItem();
+        final ItemStack variantIcon = menu.slots.get(2).getItem();
         if (!(variantIcon.get(DataComponents.FIREWORKS) instanceof Fireworks iconFireworks)
                 || iconFireworks.flightDuration() != 2) {
-            throw helper.assertionException("第 1 格应是烟花的变体（时长 2），实际: " + variantIcon);
-        }
-
-        final ItemStack dirtIcon = menu.slots.get(2).getItem();
-        if (!dirtIcon.is(Items.DIRT)) {
-            throw helper.assertionException("第 2 格应是泥土（只有主条目的物品排在后面），实际: " + dirtIcon);
+            throw helper.assertionException("第 2 格应是烟花的变体（时长 2），实际: " + variantIcon);
         }
 
         // 取出变体：光标上应当拿到带组件的物品
-        menu.clicked(1, 0, ContainerInput.PICKUP, player);
+        menu.clicked(2, 0, ContainerInput.PICKUP, player);
         final ItemStack carried = menu.getCarried();
         if (!(carried.get(DataComponents.FIREWORKS) instanceof Fireworks taken)
                 || taken.flightDuration() != 2) {

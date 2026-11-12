@@ -277,7 +277,7 @@ class InfinityInventoryStorageTest {
     }
 
     @Test
-    @DisplayName("展示顺序：同一物品的主条目在前，变体紧随其后并按数量降序")
+    @DisplayName("展示顺序：主条目在前，变体保持入库顺序（与数量无关）")
     void displayOrder() {
         final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
 
@@ -287,23 +287,23 @@ class InfinityInventoryStorageTest {
         final ItemTemplate c = ItemTemplate.of(Items.FIREWORK_ROCKET, fireworkPatch(3));
         final ItemTemplate d = ItemTemplate.of(Items.FIREWORK_ROCKET, fireworkPatch(0));
 
-        // 插入顺序故意打乱：无组件 1000 / a 100 / b 100 / c 10000 / d 10
+        // 入库顺序：a / b / plain / c / d；数量故意打乱
         storage.modifyCount(a, 100);
         storage.modifyCount(b, 100);
         storage.modifyCount(plain, 1000);
         storage.modifyCount(c, 10000);
         storage.modifyCount(d, 10);
 
-        final List<ItemTemplate> expected = List.of(plain, c, a, b, d);
+        final List<ItemTemplate> expected = List.of(plain, a, b, c, d);
 
-        assertEquals(expected, templatesOf(storage), "主条目在前，变体数量降序，同数量保持插入顺序");
-        assertEquals(List.of(c, a, b, d), storage.getVariants(Items.FIREWORK_ROCKET), "变体列表同样按数量降序");
+        assertEquals(expected, templatesOf(storage), "主条目在前，变体保持入库顺序，数量不参与排序");
+        assertEquals(List.of(a, b, c, d), storage.getVariants(Items.FIREWORK_ROCKET), "变体列表同样按入库顺序");
         assertEquals(expected, templatesOf(storage.subVariantView(0, 10)), "全部条目视图与迭代口径一致");
         assertEquals(List.of(plain), templatesOf(storage.subView(0, 10)), "物品级视图只有主条目");
     }
 
     @Test
-    @DisplayName("展示顺序：按物品分组，主条目与它的变体相邻")
+    @DisplayName("展示顺序：同一物品的主条目与变体相邻，组间按预设序列")
     void displayOrderGroupsByItem() {
         final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
 
@@ -311,37 +311,38 @@ class InfinityInventoryStorageTest {
         final ItemTemplate plainStone = ItemTemplate.of(Items.STONE);
         final ItemTemplate stoneVariant = ItemTemplate.of(Items.STONE, fireworkPatch(1));
 
-        // 泥土先入库，但石头总量更大（3 + 500）→ 石头整组排在前面
+        // 泥土先入库、数量也更大；石头在预设序列中已登记，整组排在泥土（未登记）之前
         storage.modifyCount(plainDirt, 200);
-        storage.modifyCount(stoneVariant, 500);
-        storage.modifyCount(plainStone, 3);
+        storage.modifyCount(stoneVariant, 2);
+        storage.modifyCount(plainStone, 1);
 
         assertEquals(List.of(plainStone, stoneVariant, plainDirt), templatesOf(storage),
                 "石头的组（主条目 + 变体）相邻并排在只有主条目的泥土之前");
     }
 
     @Test
-    @DisplayName("展示顺序：都没有变体时按主条目数量降序，而不是入库顺序")
-    void displayOrderPlainItemsByCount() {
+    @DisplayName("展示顺序：物品顺序由预设序列决定，不按数量")
+    void displayOrderIgnoresCounts() {
         final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
 
         final ItemTemplate planks = ItemTemplate.of(Items.OAK_PLANKS);
         final ItemTemplate logs = ItemTemplate.of(Items.OAK_LOG);
 
-        // 木板先入库，但木头总量更多 → 木头应排在前面
-        storage.modifyCount(planks, 10);
-        storage.modifyCount(logs, 100);
+        // 木板先入库且数量远大于木头；内置序列里 oak_log 排在 oak_planks 之前
+        storage.modifyCount(planks, 100);
+        storage.modifyCount(logs, 1);
 
-        assertEquals(List.of(logs, planks), templatesOf(storage), "两边都没有变体时按物品总量（即主条目数量）降序");
+        assertEquals(List.of(logs, planks), templatesOf(storage),
+                "两边都没有变体时也按预设序列排序，与数量无关");
     }
 
     @Test
-    @DisplayName("展示顺序：组间按物品总量（主条目 + 全部变体）降序")
-    void displayOrderByGroupTotal() {
+    @DisplayName("展示顺序：组间顺序与物品总量无关，组内变体保持入库顺序")
+    void displayOrderIgnoresGroupTotals() {
         final InfinityInventoryStorage storage = InfinityInventoryStorage.create();
 
-        // 石头：主条目 9900 + 2 个变体共 100 = 10000；泥土：主条目 100 + 3 个变体共 900 = 1000
-        // 泥土的变体更多、变体存量也更大，但仍按「物品总量」排序 → 石头整组在前
+        // 石头：主条目 1 + 2 个变体各 2；泥土：主条目 10000 + 3 个变体，总量远大于石头。
+        // 但石头在预设序列中已登记，仍整组排在泥土之前；组内主条目在前、变体按入库顺序。
         final ItemTemplate stonePlain = ItemTemplate.of(Items.STONE);
         final ItemTemplate stoneVariantA = ItemTemplate.of(Items.STONE, fireworkPatch(1));
         final ItemTemplate stoneVariantB = ItemTemplate.of(Items.STONE, fireworkPatch(2));
@@ -350,19 +351,19 @@ class InfinityInventoryStorageTest {
         final ItemTemplate dirtVariantB = ItemTemplate.of(Items.DIRT, fireworkPatch(2));
         final ItemTemplate dirtVariantC = ItemTemplate.of(Items.DIRT, fireworkPatch(3));
 
-        storage.modifyCount(dirtPlain, 100);
-        storage.modifyCount(stonePlain, 9900);
-        storage.modifyCount(stoneVariantA, 60);
-        storage.modifyCount(stoneVariantB, 40);
+        storage.modifyCount(dirtPlain, 10000);
         storage.modifyCount(dirtVariantA, 500);
         storage.modifyCount(dirtVariantB, 300);
         storage.modifyCount(dirtVariantC, 100);
+        storage.modifyCount(stoneVariantA, 2);
+        storage.modifyCount(stoneVariantB, 2);
+        storage.modifyCount(stonePlain, 1);
 
         assertEquals(
                 List.of(stonePlain, stoneVariantA, stoneVariantB,
                         dirtPlain, dirtVariantA, dirtVariantB, dirtVariantC),
                 templatesOf(storage),
-                "石头总量 10000 > 泥土总量 1000（与变体条目数无关）；组内主条目在前、变体按数量降序");
+                "组间按预设序列（石头已登记、泥土未登记），组内主条目在前、变体按入库顺序");
     }
 
     private static List<ItemTemplate> templatesOf(InfinityInventoryStorage storage) {
