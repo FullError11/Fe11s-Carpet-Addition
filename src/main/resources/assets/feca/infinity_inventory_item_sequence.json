@@ -36,37 +36,84 @@
             ]
         },
         "stone_parts": {
-            "input": [ "namespace", "id" ],
+            "input": [ "namespace", "id", "ignore", "replace" ],
             "output": [
                 "${namespace}:${id}",
                 "${namespace}:${id}_stairs",
                 "${namespace}:${id}_slab",
                 "${namespace}:${id}_wall"
-            ]
-        },
-        "stone_parts_no_wall": {
-            "input": [ "namespace", "id" ],
-            "output": [
-                "${namespace}:${id}",
-                "${namespace}:${id}_stairs",
-                "${namespace}:${id}_slab"
-            ]
+            ],
+            "replace": [ "${replace}" ],
+            "ignore": [ "${ignore}" ]
         },
         "brick_parts": {
-            "input": [ "namespace", "base", "prefix" ],
+            "input": [ "namespace", "base", "prefix", "ignore", "replace" ],
             "output": [
                 "${namespace}:${base}",
                 "${namespace}:${prefix}_stairs",
                 "${namespace}:${prefix}_slab",
                 "${namespace}:${prefix}_wall"
+            ],
+            "replace": [ "${replace}" ],
+            "ignore": [ "${ignore}" ]
+        },
+        "tree_species": {
+            "input": [ "namespace", "id", "replace" ],
+            "output": [
+                "${namespace}:oak_${id}",
+                "${namespace}:spruce_${id}",
+                "${namespace}:birch_${id}",
+                "${namespace}:jungle_${id}",
+                "${namespace}:acacia_${id}",
+                "${namespace}:dark_oak_${id}",
+                "${namespace}:mangrove_${id}",
+                "${namespace}:cherry_${id}",
+                "${namespace}:pale_oak_${id}",
+                "${namespace}:azalea_${id}",
+                "${namespace}:flowering_azalea_${id}"
+            ],
+            "replace": ["${replace}"]
+        },
+        "color": {
+            "input": [ "namespace", "id" ],
+            "output": [
+                "${namespace}:white_${id}",
+                "${namespace}:light_gray_${id}",
+                "${namespace}:gray_${id}",
+                "${namespace}:black_${id}",
+                "${namespace}:brown_${id}",
+                "${namespace}:red_${id}",
+                "${namespace}:orange_${id}",
+                "${namespace}:yellow_${id}",
+                "${namespace}:lime_${id}",
+                "${namespace}:green_${id}",
+                "${namespace}:cyan_${id}",
+                "${namespace}:light_blue_${id}",
+                "${namespace}:blue_${id}",
+                "${namespace}:purple_${id}",
+                "${namespace}:magenta_${id}",
+                "${namespace}:pink_${id}"
             ]
         },
-        "brick_parts_no_wall": {
-            "input": [ "namespace", "base", "prefix" ],
+        "__dead_coral": {
+            "input": [ "namespace", "id" ],
             "output": [
-                "${namespace}:${base}",
-                "${namespace}:${prefix}_stairs",
-                "${namespace}:${prefix}_slab"
+                "${namespace}:dead_tube_${id}",
+                "${namespace}:dead_brain_${id}",
+                "${namespace}:dead_bubble_${id}",
+                "${namespace}:dead_fire_${id}",
+                "${namespace}:dead_horn_${id}"
+            ]
+        },
+        "coral": {
+            "input": [ "namespace", "id" ],
+            "output": [
+                "${namespace}:tube_${id}",
+                "${namespace}:brain_${id}",
+                "${namespace}:bubble_${id}",
+                "${namespace}:fire_${id}",
+                "${namespace}:horn_${id}",
+                { "__dead_coral": [ "${namespace}", "${id}" ] }
             ]
         }
     },
@@ -78,9 +125,11 @@
         { "wood": ["minecraft", "cherry"] },
         "minecraft:stick",
         { "stone_parts": ["minecraft", "cobblestone"] },
-        { "stone_parts_no_wall": ["minecraft", "stone"] },
-        "minecraft:smooth_stone",
-        "minecraft:smooth_stone_slab",
+        { "stone_parts": ["minecraft", "stone", ["minecraft:stone_wall"]] },
+        { "stone_parts": ["minecraft", "smooth_stone", [
+            "minecraft:smooth_stone_stairs",
+            "minecraft:smooth_stone_wall"
+        ]] },
         "minecraft:glass",
         "minecraft:white_stained_glass",
 
@@ -202,6 +251,11 @@
         "minecraft:lava_bucket",
         "minecraft:milk_bucket",
 
+        "// 蛙明灯",
+        "minecraft:ochre_froglight",
+        "minecraft:verdant_froglight",
+        "minecraft:pearlescent_froglight",
+
         "// 建材：木头",
         { "wood": ["minecraft", "dark_oak"] },
         { "wood": ["minecraft", "pale_oak"] },
@@ -217,6 +271,14 @@
         { "nether_wood": ["minecraft", "crimson"] },
         { "nether_wood": ["minecraft", "warped" ] },
 
+        "// 树苗、树叶",
+        { "tree_species": ["minecraft", "leaves" ] },
+        { "tree_species": ["minecraft", "sapling", {
+            "minecraft:mangrove_sapling": "minecraft:mangrove_propagule",
+            "minecraft:azalea_sapling": "minecraft:azalea",
+            "minecraft:flowering_azalea_sapling": "minecraft:flowering_azalea"
+        } ] },
+
         "// 建材：石头",
         { "stone_parts": ["minecraft", "mossy_cobblestone"] },
         { "brick_parts": ["minecraft", "stone_bricks", "stone_brick"] },
@@ -226,9 +288,9 @@
         { "stone_parts": ["minecraft", "granite"] },
         { "stone_parts": ["minecraft", "diorite"] },
         { "stone_parts": ["minecraft", "andesite"] },
-        { "stone_parts_no_wall": ["minecraft", "polished_granite"] },
-        { "stone_parts_no_wall": ["minecraft", "polished_diorite"] },
-        { "stone_parts_no_wall": ["minecraft", "polished_andesite"] },
+        { "stone_parts": ["minecraft", "polished_granite", ["minecraft:polished_granite_wall"]] },
+        { "stone_parts": ["minecraft", "polished_diorite", ["minecraft:polished_diorite_wall"]] },
+        { "stone_parts": ["minecraft", "polished_andesite", ["minecraft:polished_andesite_wall"]] },
         "minecraft:deepslate",
         { "stone_parts": ["minecraft", "cobbled_deepslate"] },
         { "stone_parts": ["minecraft", "polished_deepslate"] },
@@ -250,12 +312,16 @@
         "minecraft:chiseled_tuff_bricks",
         { "stone_parts": ["minecraft", "sandstone"] },
         { "stone_parts": ["minecraft", "red_sandstone"] },
-        { "stone_parts_no_wall": ["minecraft", "smooth_sandstone"] },
-        { "stone_parts_no_wall": ["minecraft", "smooth_red_sandstone"] },
-        "minecraft:cut_sandstone",
-        "minecraft:cut_sandstone_slab",
-        "minecraft:cut_red_sandstone",
-        "minecraft:cut_red_sandstone_slab",
+        { "stone_parts": ["minecraft", "smooth_sandstone", ["minecraft:smooth_sandstone_wall"]] },
+        { "stone_parts": ["minecraft", "smooth_red_sandstone", ["minecraft:smooth_red_sandstone_wall"]] },
+        { "stone_parts": ["minecraft", "cut_sandstone", [
+            "minecraft:cut_sandstone_stairs",
+            "minecraft:cut_sandstone_wall"
+        ]] },
+        { "stone_parts": ["minecraft", "cut_red_sandstone", [
+            "minecraft:cut_red_sandstone_stairs",
+            "minecraft:cut_red_sandstone_wall"
+        ]] },
         "minecraft:chiseled_sandstone",
         "minecraft:chiseled_red_sandstone",
         { "brick_parts": ["minecraft", "bricks", "brick"] },
@@ -268,21 +334,21 @@
         "minecraft:cracked_nether_bricks",
         { "brick_parts": ["minecraft", "red_nether_bricks", "red_nether_brick"] },
         { "brick_parts": ["minecraft", "end_stone_bricks", "end_stone_brick"] },
-        "minecraft:quartz_block",
-        "minecraft:quartz_stairs",
-        "minecraft:quartz_slab",
+        { "stone_parts": ["minecraft", "quartz_block", ["minecraft:quartz_block_wall"], {
+            "minecraft:quartz_block_stairs": "minecraft:quartz_stairs",
+            "minecraft:quartz_block_slab": "minecraft:quartz_slab"
+        } ] },
         "minecraft:quartz_bricks",
         "minecraft:quartz_pillar",
         "minecraft:chiseled_quartz_block",
-        "minecraft:smooth_quartz",
-        "minecraft:smooth_quartz_stairs",
-        "minecraft:smooth_quartz_slab",
+        { "stone_parts": ["minecraft", "smooth_quartz", ["minecraft:smooth_quartz_wall"]] },
         { "stone_parts": ["minecraft", "prismarine"] },
-        { "brick_parts_no_wall": ["minecraft", "prismarine_bricks", "prismarine_brick"] },
-        { "stone_parts_no_wall": ["minecraft", "dark_prismarine"] },
-        "minecraft:purpur_block",
-        "minecraft:purpur_stairs",
-        "minecraft:purpur_slab",
+        { "brick_parts": ["minecraft", "prismarine_bricks", "prismarine_brick", ["minecraft:prismarine_brick_wall"]] },
+        { "stone_parts": ["minecraft", "dark_prismarine", ["minecraft:dark_prismarine_wall"]] },
+        { "stone_parts": ["minecraft", "purpur_block", ["minecraft:purpur_block_wall"], {
+            "minecraft:purpur_block_stairs": "minecraft:purpur_stairs",
+            "minecraft:purpur_block_slab": "minecraft:purpur_slab"
+        } ] },
         "minecraft:purpur_pillar",
         { "brick_parts": ["minecraft", "resin_bricks", "resin_brick"] },
         "minecraft:resin_block",
@@ -294,6 +360,33 @@
         { "stone_parts": ["minecraft", "sulfur"] },
         { "stone_parts": ["minecraft", "polished_sulfur"] },
         { "brick_parts": ["minecraft", "sulfur_bricks", "sulfur_brick"] },
-        "minecraft:chiseled_sulfur"
+        "minecraft:chiseled_sulfur",
+
+        "// 染色",
+        "minecraft:shulker_box",
+        { "color": ["minecraft", "shulker_box"] },
+        { "color": ["minecraft", "dye"] },
+        "minecraft:glass",
+        "minecraft:tinted_glass",
+        { "color": ["minecraft", "stained_glass"] },
+        "minecraft:glass_pane",
+        { "color": ["minecraft", "stained_glass_pane"] },
+        { "color": ["minecraft", "concrete_powder"] },
+        { "color": ["minecraft", "concrete"] },
+        { "color": ["minecraft", "wool"] },
+        { "color": ["minecraft", "carpet"] },
+        "minecraft:terracotta",
+        { "color": ["minecraft", "terracotta"] },
+        { "color": ["minecraft", "glazed_terracotta"] },
+        { "color": ["minecraft", "bed"] },
+        "minecraft:candle",
+        { "color": ["minecraft", "candle"] },
+        { "color": ["minecraft", "banner"] },
+
+        "// 珊瑚",
+        { "coral": ["minecraft", "coral_block"] },
+        { "coral": ["minecraft", "coral_fan"] },
+        { "coral": ["minecraft", "coral"] }
+
     ]
 }
