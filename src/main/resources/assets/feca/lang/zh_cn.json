@@ -45,6 +45,9 @@
     "carpet.rule.forceTurtleEggHatching.name": "强制孵化海龟蛋",
     "carpet.rule.forceTurtleEggHatching.desc": "手持金胡萝卜右键海龟蛋将使其强制孵化",
 
+    "carpet.rule.witherSpawnNoExplosion.name": "凋零生成不爆炸",
+    "carpet.rule.witherSpawnNoExplosion.desc": "阻止凋零生成时（无敌期结束）的那次爆炸",
+
     "carpet.rule.infinityInventory.name": "无限库存",
     "carpet.rule.infinityInventory.desc": "允许玩家执行 infinityInventory 命令（按权限等级控制）",
 

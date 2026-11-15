@@ -45,6 +45,9 @@
     "carpet.rule.forceTurtleEggHatching.name": "Force Turtle Egg Hatching",
     "carpet.rule.forceTurtleEggHatching.desc": "Right-clicking a turtle egg with a golden carrot forces it to hatch",
 
+    "carpet.rule.witherSpawnNoExplosion.name": "Wither Spawn No Explosion",
+    "carpet.rule.witherSpawnNoExplosion.desc": "Prevents the explosion that happens when a wither is spawned (at the end of its invulnerability phase)",
+
     "carpet.rule.infinityInventory.name": "Infinity Inventory",
     "carpet.rule.infinityInventory.desc": "Allows players to run the infinityInventory command (gated by permission level)",
 

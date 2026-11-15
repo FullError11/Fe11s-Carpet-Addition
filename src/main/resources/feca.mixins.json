@@ -15,6 +15,7 @@
         "SolidBucketItemMixin",
         "SugarCaneBlockMixin",
         "TurtleEggBlockMixin",
+        "WitherBossMixin",
         "accessor.ItemContainerContentsAccessor",
         "accessor.VillagerAccessor",
         "debug.CommandsMixin"
