@@ -43,6 +43,10 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 
 允许用骨粉催熟甘蔗，每次长高一格，最高 3 格。
 
+### 可催熟仙人掌 (`ripenableCactus`)
+
+允许用骨粉催熟仙人掌，每次长高一格，最高 3 格。
+
 ### 冰冰冰 (`fakeBrittleIce`)
 
 引入类似 26.4 脆冰的生成机制，但生成的是冰：水流流到蓝冰相邻位置时结冰。
