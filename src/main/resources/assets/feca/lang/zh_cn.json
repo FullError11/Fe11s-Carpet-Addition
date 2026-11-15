@@ -48,6 +48,9 @@
     "carpet.rule.witherSpawnNoExplosion.name": "凋零生成不爆炸",
     "carpet.rule.witherSpawnNoExplosion.desc": "阻止凋零生成时（无敌期结束）的那次爆炸",
 
+    "carpet.rule.witherIgnorePlayer.name": "凋零无视玩家",
+    "carpet.rule.witherIgnorePlayer.desc": "凋零不会把玩家选为仇恨目标，也不会攻击玩家；玩家仍可正常伤害凋零",
+
     "carpet.rule.infinityInventory.name": "无限库存",
     "carpet.rule.infinityInventory.desc": "允许玩家执行 infinityInventory 命令（按权限等级控制）",
 

@@ -114,6 +114,10 @@ public final class Rules {
     @RuleImplBy(WitherSpawnNoExplosion.class)
     public static boolean witherSpawnNoExplosion = false;
 
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(WitherIgnorePlayer.class)
+    public static boolean witherIgnorePlayer = false;
+
     @Rule(categories = {FECA})
     @RuleImplBy(InfinityInventory.class)
     public static CommandPermissionOptions infinityInventory = CommandPermissionOptions.FALSE;

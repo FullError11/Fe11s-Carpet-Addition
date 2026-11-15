@@ -8,6 +8,7 @@
         "CauldronInteractionsMixin",
         "LevelChunkMixin",
         "LivingEntityMixin",
+        "MobMixin",
         "ObserverBlockMixin",
         "RemoveBlockGoalMixin",
         "ServerGamePacketListenerImplMixin",
