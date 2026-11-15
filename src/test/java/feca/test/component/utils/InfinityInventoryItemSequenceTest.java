@@ -199,7 +199,7 @@ class InfinityInventoryItemSequenceTest {
     }
 
     @Test
-    @DisplayName("从模组资源加载内置配置：所有 id 有效，TODO 的生电材料已补全")
+    @DisplayName("从模组资源加载内置配置：replace/ignore 生效且所有 id 有效")
     void loadsBundledConfig() {
         final var sequence = InfinityInventoryItemSequence.load();
 
@@ -224,12 +224,123 @@ class InfinityInventoryItemSequenceTest {
         assertTrue(sequence.contains(Items.SLIME_BLOCK));
         assertTrue(sequence.contains(Items.HONEY_BLOCK));
 
+        // tree_species 的 replace：不存在的树苗被映射成真实物品
+        assertTrue(sequence.contains(Items.MANGROVE_PROPAGULE));
+        assertTrue(sequence.contains(Items.AZALEA));
+        assertTrue(sequence.contains(Items.FLOWERING_AZALEA));
+
+        // stone_parts 的 replace：石英的楼梯/台阶命名不同
+        assertTrue(sequence.contains(Items.QUARTZ_BLOCK));
+        assertTrue(sequence.contains(Items.QUARTZ_STAIRS));
+        assertTrue(sequence.contains(Items.QUARTZ_SLAB));
+
+        // stone_parts / brick_parts 的 ignore：没有墙 / 楼梯的家族仍保留其余变体
+        assertTrue(sequence.contains(Items.STONE_SLAB));
+        assertTrue(sequence.contains(Items.SMOOTH_STONE_SLAB));
+        assertTrue(sequence.contains(Items.POLISHED_GRANITE_STAIRS));
+        assertTrue(sequence.contains(Items.SMOOTH_SANDSTONE_STAIRS));
+        assertTrue(sequence.contains(Items.CUT_STANDSTONE_SLAB), "切制砂岩只保留台阶段");
+        assertTrue(sequence.contains(Items.PURPUR_STAIRS), "紫珀楼梯由 replace 映射得到");
+        assertTrue(sequence.contains(Items.DARK_PRISMARINE_STAIRS));
+        assertTrue(sequence.contains(Items.PRISMARINE_BRICK_STAIRS));
+
         assertTrue(sequence.ignoredIds().isEmpty(),
                 () -> "内置配置包含无效 id: " + sequence.ignoredIds());
     }
 
     @Test
-    @DisplayName("未定义组与参数个数不匹配被跳过，正常组照常展开")
+    @DisplayName("组 replace：把展开后的 id 按表替换，缺省表参数时不替换")
+    void appliesGroupReplace() {
+        final var sequence = parse("""
+                {
+                    "groups": {
+                        "tree": {
+                            "input": ["namespace", "id", "replace"],
+                            "output": [
+                                "${namespace}:oak_${id}",
+                                "${namespace}:azalea_${id}"
+                            ],
+                            "replace": ["${replace}"]
+                        }
+                    },
+                    "sequence": [
+                        { "tree": ["minecraft", "sapling", {
+                            "minecraft:azalea_sapling": "minecraft:azalea"
+                        }] },
+                        { "tree": ["minecraft", "leaves"] }
+                    ]
+                }
+                """);
+
+        assertEquals(
+                List.of(Items.OAK_SAPLING, Items.AZALEA, Items.OAK_LEAVES, Items.AZALEA_LEAVES),
+                sequence.items(),
+                "replace 只替换本次组调用展开出的 id；缺省表参数时保持原样");
+    }
+
+    @Test
+    @DisplayName("组 ignore：数组参数与 id 模板都能丢弃展开结果")
+    void appliesGroupIgnore() {
+        final var sequence = parse("""
+                {
+                    "groups": {
+                        "parts": {
+                            "input": ["namespace", "id", "ignore"],
+                            "output": [
+                                "${namespace}:${id}",
+                                "${namespace}:${id}_stairs",
+                                "${namespace}:${id}_slab",
+                                "${namespace}:${id}_wall"
+                            ],
+                            "ignore": ["${ignore}"]
+                        },
+                        "family": {
+                            "input": ["namespace", "id"],
+                            "output": [
+                                "${namespace}:${id}",
+                                "${namespace}:${id}_stairs",
+                                "${namespace}:${id}_slab",
+                                "${namespace}:${id}_wall"
+                            ],
+                            "ignore": ["${namespace}:${id}_wall"]
+                        }
+                    },
+                    "sequence": [
+                        { "parts": ["minecraft", "stone", ["minecraft:stone_wall"]] },
+                        { "family": ["minecraft", "cobblestone"] }
+                    ]
+                }
+                """);
+
+        assertEquals(
+                List.of(Items.STONE, Items.STONE_STAIRS, Items.STONE_SLAB,
+                        Items.COBBLESTONE, Items.COBBLESTONE_STAIRS, Items.COBBLESTONE_SLAB),
+                sequence.items(),
+                "数组参数按参数给出 ignore；id 模板用组上下文替换后丢弃");
+    }
+
+    @Test
+    @DisplayName("组 replace 先于 ignore 生效")
+    void replaceRunsBeforeIgnore() {
+        final var sequence = parse("""
+                {
+                    "groups": {
+                        "swap": {
+                            "input": ["namespace", "id"],
+                            "output": [ "${namespace}:${id}" ],
+                            "replace": { "minecraft:stone": "minecraft:dirt" },
+                            "ignore": [ "minecraft:dirt" ]
+                        }
+                    },
+                    "sequence": [ { "swap": ["minecraft", "stone"] } ]
+                }
+                """);
+
+        assertTrue(sequence.isEmpty(), "石头先被替换成泥土，再被 ignore 丢弃");
+    }
+
+    @Test
+    @DisplayName("参数不足按缺省处理，参数过多跳过整个组调用")
     void skipsInvalidCalls() {
         final var sequence = parse("""
                 {
@@ -242,11 +353,13 @@ class InfinityInventoryItemSequenceTest {
                     "sequence": [
                         { "one": [ "stone" ] },
                         { "one": [] },
+                        { "one": [ "stone", "extra" ] },
                         { "missing": [] }
                     ]
                 }
                 """);
 
-        assertEquals(List.of(Items.STONE), sequence.items());
+        assertEquals(List.of(Items.STONE), sequence.items(),
+                "缺省参数不产生物品；参数过多与未定义组整次调用被跳过");
     }
 }

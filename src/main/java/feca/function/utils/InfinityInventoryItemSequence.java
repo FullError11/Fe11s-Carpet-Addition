@@ -3,6 +3,7 @@ package feca.function.utils;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.google.gson.JsonPrimitive;
 import feca.FeCA;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -23,7 +24,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -78,8 +78,26 @@ import java.util.regex.Pattern;
 /// `output` 与组调用的参数支持 `${参数名}` 占位符替换；`output` 里可以嵌套
 /// `{ "组名": [参数...] }` 继续展开，展开结果就是最终展示顺序。
 ///
+/// 组定义还可以带两个可选字段，作用于**本次组调用展开出的全部 id**（先 `replace`，后 `ignore`）：
+/// - `replace`：表对象（`{ "旧 id": "新 id" }`），或由表 / 指向表参数的占位符（如 `"${replace}"`）组成的数组；
+///   展开后的 id 命中表键时替换为表值，多个表按声明顺序叠加、后表优先
+/// - `ignore`：数组，元素是 id 模板（可含 `${...}`）、id 数组，或指向数组参数的占位符（如 `"${ignore}"`）；
+///   展开后的 id 命中时直接丢弃（不打印警告，也不计入 {@link #ignoredIds()}）
+///
+/// ```jsonc
+/// "tree_species": {
+///     "input": [ "namespace", "id", "replace" ],
+///     "output": [ "${namespace}:oak_${id}", "${namespace}:azalea_${id}" ],
+///     "replace": [ "${replace}" ]
+/// }
+/// // 调用：{ "tree_species": [ "minecraft", "sapling", { "minecraft:azalea_sapling": "minecraft:azalea" } ] }
+/// ```
+///
+/// 组参数可以少于 `input` 声明的数量（尾部参数视为缺省）：缺省的参数没有绑定，
+/// `output` 里引用它会警告并跳过该条，`replace` / `ignore` 里引用它则视为没有提供。
+///
 /// ## 语义
-/// - 物品 id 不存在（注册表里没有）、id 文本非法或为空气：忽略并打印警告（同类警告只打印一次），
+/// - 物品 id 不存在（注册表里没有）、id 文本非法或为空气：忽略并打印警告（每次出现都会打印），
 ///   被忽略的 id 可用 {@link #ignoredIds()} 查看
 /// - 同一物品重复出现：只保留**第一次**出现的位置，后续重复不覆盖
 /// - 未登记的物品：{@link #sorted(Collection)} / {@link #comparator()} 把它排在已登记物品之后，
@@ -104,6 +122,9 @@ public final class InfinityInventoryItemSequence {
 
     /// 占位符：`${参数名}`
     private static final Pattern PLACEHOLDER = Pattern.compile("\\$\\{([a-zA-Z0-9_.-]+)}");
+
+    /// 整个字符串就是一个占位符：`${参数名}`（用于把表 / 数组参数原样转发）
+    private static final Pattern SINGLE_PLACEHOLDER = Pattern.compile("\\$\\{([a-zA-Z0-9_.-]+)}");
 
     /// 空序列：任何物品都按 id 字符顺序排列
     public static final InfinityInventoryItemSequence EMPTY =
@@ -282,11 +303,16 @@ public final class InfinityInventoryItemSequence {
     /// 字面模板（可含 `${...}` 占位符）
     private record TextStep(@NonNull String template) implements Step {}
 
-    /// 组调用：组名 + 参数模板（可含 `${...}` 占位符）
-    private record GroupCallStep(@NonNull String group, @NonNull List<String> arguments) implements Step {}
+    /// 组调用：组名 + 参数（字符串模板、表或数组，由组定义决定含义）
+    private record GroupCallStep(@NonNull String group, @NonNull List<JsonElement> arguments) implements Step {}
 
-    /// 组定义：参数名列表 + 输出步骤列表
-    private record GroupDefinition(@NonNull String name, @NonNull List<String> inputs, @NonNull List<Step> outputs) {}
+    /// 组定义：参数名列表 + 输出步骤列表 + `replace` / `ignore` 原始声明
+    private record GroupDefinition(
+            @NonNull String name,
+            @NonNull List<String> inputs,
+            @NonNull List<Step> outputs,
+            @NonNull List<JsonElement> replaceSpecs,
+            @NonNull List<JsonElement> ignoreSpecs) {}
 
     /// 配置构建器：按顺序叠加多份配置，最后统一展开。
     ///
@@ -297,8 +323,6 @@ public final class InfinityInventoryItemSequence {
         private final Map<String, GroupDefinition> groups = new LinkedHashMap<>();
         /// 尚未展开的序列步骤
         private final List<Step> sequence = new ArrayList<>();
-        /// 已经打印过的警告，避免同类问题刷屏
-        private final Set<String> warnings = new HashSet<>();
 
         private Builder() {}
 
@@ -386,7 +410,9 @@ public final class InfinityInventoryItemSequence {
                 JsonObject group = entry.getValue().getAsJsonObject();
                 List<String> inputs = parseInputs(source, name, group.get("input"));
                 List<Step> outputs = parseOutputs(source, name, group.get("output"));
-                result.put(name, new GroupDefinition(name, inputs, outputs));
+                List<JsonElement> replaceSpecs = parseReplaceSpecs(source, name, group.get("replace"));
+                List<JsonElement> ignoreSpecs = parseIgnoreSpecs(source, name, group.get("ignore"));
+                result.put(name, new GroupDefinition(name, inputs, outputs, replaceSpecs, ignoreSpecs));
             }
             return result;
         }
@@ -458,6 +484,53 @@ public final class InfinityInventoryItemSequence {
             return result;
         }
 
+        /// `replace`：表对象，或由表对象 / 指向表参数的占位符组成的数组
+        private @NonNull List<JsonElement> parseReplaceSpecs(
+                @NonNull String source, @NonNull String group, @Nullable JsonElement element) {
+            if (element == null || element.isJsonNull()) return List.of();
+            if (element.isJsonObject()) return List.of(element);
+
+            if (!element.isJsonArray()) {
+                warn(source + ": 组 \"" + group + "\" 的 \"replace\" 必须是表对象或数组");
+                return List.of();
+            }
+
+            List<JsonElement> result = new ArrayList<>();
+            for (JsonElement spec : element.getAsJsonArray()) {
+                if (spec.isJsonObject() || isStringTemplate(spec)) {
+                    result.add(spec);
+                } else {
+                    warn(source + ": 组 \"" + group + "\" 的 \"replace\" 元素必须是表对象或占位符字符串");
+                }
+            }
+            return result;
+        }
+
+        /// `ignore`：数组，元素是 id 模板字符串、id 数组或指向数组参数的占位符字符串
+        private @NonNull List<JsonElement> parseIgnoreSpecs(
+                @NonNull String source, @NonNull String group, @Nullable JsonElement element) {
+            if (element == null || element.isJsonNull()) return List.of();
+
+            if (!element.isJsonArray()) {
+                warn(source + ": 组 \"" + group + "\" 的 \"ignore\" 必须是数组");
+                return List.of();
+            }
+
+            List<JsonElement> result = new ArrayList<>();
+            for (JsonElement spec : element.getAsJsonArray()) {
+                if (spec.isJsonArray() || isStringTemplate(spec)) {
+                    result.add(spec);
+                } else {
+                    warn(source + ": 组 \"" + group + "\" 的 \"ignore\" 元素必须是字符串或字符串数组");
+                }
+            }
+            return result;
+        }
+
+        private static boolean isStringTemplate(@NonNull JsonElement element) {
+            return element.isJsonPrimitive() && element.getAsJsonPrimitive().isString();
+        }
+
         /// 序列元素：裸 id、组调用对象，或 `//` 注释
         private @Nullable Step parseSequenceStep(@NonNull String where, @NonNull JsonElement element) {
             if (element.isJsonPrimitive() && element.getAsJsonPrimitive().isString()) {
@@ -502,17 +575,13 @@ public final class InfinityInventoryItemSequence {
             var entry = object.entrySet().iterator().next();
             JsonElement arguments = entry.getValue();
             if (!arguments.isJsonArray()) {
-                warn(where + ": 组 \"" + entry.getKey() + "\" 的参数必须是字符串数组");
+                warn(where + ": 组 \"" + entry.getKey() + "\" 的参数必须是数组");
                 return null;
             }
 
-            List<String> values = new ArrayList<>();
+            List<JsonElement> values = new ArrayList<>();
             for (JsonElement argument : arguments.getAsJsonArray()) {
-                if (!argument.isJsonPrimitive() || !argument.getAsJsonPrimitive().isString()) {
-                    warn(where + ": 组 \"" + entry.getKey() + "\" 的参数只能包含字符串");
-                    return null;
-                }
-                values.add(argument.getAsString());
+                values.add(argument);
             }
             return new GroupCallStep(entry.getKey(), List.copyOf(values));
         }
@@ -523,7 +592,7 @@ public final class InfinityInventoryItemSequence {
 
         private void expand(
                 @NonNull Step step,
-                @NonNull Map<String, String> context,
+                @NonNull Map<String, JsonElement> context,
                 @NonNull Deque<String> visiting,
                 @NonNull Consumer<String> sink) {
             if (step instanceof TextStep(String template)) {
@@ -538,7 +607,7 @@ public final class InfinityInventoryItemSequence {
 
         private void expandGroup(
                 @NonNull GroupCallStep call,
-                @NonNull Map<String, String> context,
+                @NonNull Map<String, JsonElement> context,
                 @NonNull Deque<String> visiting,
                 @NonNull Consumer<String> sink) {
             GroupDefinition group = groups.get(call.group());
@@ -555,40 +624,146 @@ public final class InfinityInventoryItemSequence {
                 warn("组嵌套超过 " + MAX_GROUP_DEPTH + " 层: " + group.name() + "，已跳过");
                 return;
             }
-            if (call.arguments().size() != group.inputs().size()) {
-                warn("组 \"" + group.name() + "\" 需要 " + group.inputs().size()
+            // 允许少传参数（尾部参数缺省）；多传视为配置错误
+            if (call.arguments().size() > group.inputs().size()) {
+                warn("组 \"" + group.name() + "\" 最多需要 " + group.inputs().size()
                         + " 个参数，实际 " + call.arguments().size() + " 个");
                 return;
             }
 
-            Map<String, String> childContext = new HashMap<>(group.inputs().size());
-            for (int i = 0; i < group.inputs().size(); i++) {
-                String value = substitute(call.arguments().get(i), context);
+            Map<String, JsonElement> childContext = new HashMap<>(group.inputs().size());
+            for (int i = 0; i < call.arguments().size(); i++) {
+                JsonElement value = evaluateArgument(call.arguments().get(i), context);
                 if (value == null) return;
                 childContext.put(group.inputs().get(i), value);
             }
 
+            // 本次组调用展开出的全部 id；replace / ignore 以整个组调用为单位生效
+            List<String> produced = new ArrayList<>();
             visiting.addLast(group.name());
             for (Step output : group.outputs()) {
-                expand(output, childContext, visiting, sink);
+                expand(output, childContext, visiting, produced::add);
             }
             visiting.removeLast();
+
+            List<String> ids = applyReplace(produced, group, childContext);
+            ids = applyIgnore(ids, group, childContext);
+            ids.forEach(sink);
+        }
+
+        /// 求值一个调用参数：字符串模板替换占位符；整个字符串就是一个占位符时原样转发绑定的值
+        private @Nullable JsonElement evaluateArgument(
+                @NonNull JsonElement argument, @NonNull Map<String, JsonElement> context) {
+            if (!isStringTemplate(argument)) return argument; // 表 / 数组参数原样传入
+
+            String text = argument.getAsString();
+            Matcher single = SINGLE_PLACEHOLDER.matcher(text.trim());
+            if (single.matches()) {
+                JsonElement value = context.get(single.group(1));
+                if (value == null) {
+                    warn("参数占位符无法解析: ${" + single.group(1) + "}");
+                }
+                return value;
+            }
+
+            String substituted = substitute(text, context);
+            return substituted == null ? null : new JsonPrimitive(substituted);
+        }
+
+        /// `replace`：把展开出的 id 按表替换（多个表按声明顺序叠加，后表优先）
+        private @NonNull List<String> applyReplace(
+                @NonNull List<String> ids, @NonNull GroupDefinition group,
+                @NonNull Map<String, JsonElement> context) {
+            if (group.replaceSpecs().isEmpty()) return ids;
+
+            Map<String, String> table = new LinkedHashMap<>();
+            for (JsonElement spec : group.replaceSpecs()) {
+                JsonElement resolved = resolveSpec(spec, context);
+                if (resolved == null) continue; // 可选参数没提供
+
+                if (!resolved.isJsonObject()) {
+                    warn("组 \"" + group.name() + "\" 的 replace 期望表对象，实际: " + resolved);
+                    continue;
+                }
+                for (var entry : resolved.getAsJsonObject().entrySet()) {
+                    JsonElement value = entry.getValue();
+                    if (!isStringTemplate(value)) {
+                        warn("组 \"" + group.name() + "\" 的 replace 值必须是字符串: " + entry.getKey());
+                        continue;
+                    }
+                    table.put(entry.getKey(), value.getAsString());
+                }
+            }
+
+            if (table.isEmpty()) return ids;
+            List<String> result = new ArrayList<>(ids.size());
+            for (String id : ids) result.add(table.getOrDefault(id, id));
+            return result;
+        }
+
+        /// `ignore`：丢弃展开后命中的 id
+        private @NonNull List<String> applyIgnore(
+                @NonNull List<String> ids, @NonNull GroupDefinition group,
+                @NonNull Map<String, JsonElement> context) {
+            if (group.ignoreSpecs().isEmpty()) return ids;
+
+            Set<String> ignored = new LinkedHashSet<>();
+            for (JsonElement spec : group.ignoreSpecs()) {
+                JsonElement resolved = resolveSpec(spec, context);
+                if (resolved == null) continue; // 可选参数没提供
+
+                if (resolved.isJsonArray()) {
+                    for (JsonElement element : resolved.getAsJsonArray()) {
+                        addIgnoreId(element, group, context, ignored);
+                    }
+                } else {
+                    addIgnoreId(resolved, group, context, ignored);
+                }
+            }
+
+            if (ignored.isEmpty()) return ids;
+            List<String> result = new ArrayList<>(ids.size());
+            for (String id : ids) {
+                if (!ignored.contains(id)) result.add(id);
+            }
+            return result;
+        }
+
+        private void addIgnoreId(
+                @NonNull JsonElement element, @NonNull GroupDefinition group,
+                @NonNull Map<String, JsonElement> context, @NonNull Set<String> ignored) {
+            if (!isStringTemplate(element)) {
+                warn("组 \"" + group.name() + "\" 的 ignore 只能包含字符串");
+                return;
+            }
+            String id = substitute(element.getAsString(), context);
+            if (id != null) ignored.add(id);
+        }
+
+        /// 解析 `replace` / `ignore` 的声明元素：整个字符串是占位符时返回绑定的值，否则返回原元素
+        private @Nullable JsonElement resolveSpec(
+                @NonNull JsonElement spec, @NonNull Map<String, JsonElement> context) {
+            if (!isStringTemplate(spec)) return spec;
+
+            Matcher single = SINGLE_PLACEHOLDER.matcher(spec.getAsString().trim());
+            if (!single.matches()) return spec;
+            return context.get(single.group(1));
         }
 
         /// 替换模板中的 `${参数名}`；存在无法解析的占位符时警告并返回 null
-        private @Nullable String substitute(@NonNull String template, @NonNull Map<String, String> context) {
+        private @Nullable String substitute(@NonNull String template, @NonNull Map<String, JsonElement> context) {
             if (!template.contains("${")) return template;
 
             Matcher matcher = PLACEHOLDER.matcher(template);
             StringBuilder result = new StringBuilder(template.length());
             while (matcher.find()) {
                 String name = matcher.group(1);
-                String value = context.get(name);
-                if (value == null) {
+                JsonElement value = context.get(name);
+                if (value == null || !isStringTemplate(value)) {
                     warn("占位符无法解析: ${" + name + "}（模板: " + template + "）");
                     return null;
                 }
-                matcher.appendReplacement(result, Matcher.quoteReplacement(value));
+                matcher.appendReplacement(result, Matcher.quoteReplacement(value.getAsString()));
             }
             matcher.appendTail(result);
             return result.toString();
@@ -620,9 +795,7 @@ public final class InfinityInventoryItemSequence {
         }
 
         private void warn(@NonNull String message) {
-            if (warnings.add(message)) {
-                FeCA.LOGGER.warn("InfinityInventoryItemSequence: {}", message);
-            }
+            FeCA.LOGGER.warn("InfinityInventoryItemSequence: {}", message);
         }
     }
 
