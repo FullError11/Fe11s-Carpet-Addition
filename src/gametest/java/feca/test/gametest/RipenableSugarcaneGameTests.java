@@ -20,19 +20,17 @@ public class RipenableSugarcaneGameTests {
         final var headPos = helper.absolutePos(new BlockPos(0, 1, 0));
 
         try (var ignored = GameTestRules.swap("ripenableSugarcane", true)) {
-            if (!RipenableSugarcane.isValidBonemealTarget(level, headPos, helper.getBlockState(new BlockPos(0, 1, 0)))) {
+            if (!RipenableSugarcane.isValidBonemealTarget(level, headPos)) {
                 throw helper.assertionException("单格甘蔗应可被催熟");
             }
 
-            RipenableSugarcane.performBonemeal(level, level.getRandom(), headPos,
-                    helper.getBlockState(new BlockPos(0, 1, 0)));
+            RipenableSugarcane.performBonemeal(level, headPos);
             helper.assertBlockPresent(Blocks.SUGAR_CANE, 0, 2, 0);
         }
 
         // 规则关闭时不是有效催熟目标
         try (var ignored = GameTestRules.swap("ripenableSugarcane", false)) {
-            if (RipenableSugarcane.isValidBonemealTarget(level, headPos,
-                    helper.getBlockState(new BlockPos(0, 1, 0)))) {
+            if (RipenableSugarcane.isValidBonemealTarget(level, headPos)) {
                 throw helper.assertionException("规则关闭时不应可催熟");
             }
         }
@@ -50,8 +48,7 @@ public class RipenableSugarcaneGameTests {
 
         final var topPos = helper.absolutePos(new BlockPos(0, 3, 0));
         try (var ignored = GameTestRules.swap("ripenableSugarcane", true)) {
-            if (RipenableSugarcane.isValidBonemealTarget(level, topPos,
-                    helper.getBlockState(new BlockPos(0, 3, 0)))) {
+            if (RipenableSugarcane.isValidBonemealTarget(level, topPos)) {
                 throw helper.assertionException("达到最大高度（3 格）时不应可催熟");
             }
         }

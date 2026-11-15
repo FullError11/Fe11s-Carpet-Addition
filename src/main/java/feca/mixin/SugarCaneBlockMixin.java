@@ -16,16 +16,16 @@ import org.spongepowered.asm.mixin.Mixin;
 public class SugarCaneBlockMixin implements BonemealableBlock {
     @Override
     public boolean isValidBonemealTarget(@NonNull LevelReader level, @NonNull BlockPos pos, @NonNull BlockState state) {
-        return RipenableSugarcane.isValidBonemealTarget(level, pos, state);
+        return RipenableSugarcane.isValidBonemealTarget(level, pos);
     }
 
     @Override
     public boolean isBonemealSuccess(@NonNull Level level, @NonNull RandomSource random, @NonNull BlockPos pos, @NonNull BlockState state) {
-        return RipenableSugarcane.isBonemealSuccess(level, random, pos, state);
+        return true;
     }
 
     @Override
     public void performBonemeal(@NonNull ServerLevel level, @NonNull RandomSource random, @NonNull BlockPos pos, @NonNull BlockState state) {
-        RipenableSugarcane.performBonemeal(level, random, pos, state);
+        RipenableSugarcane.performBonemeal(level, pos);
     }
 }
