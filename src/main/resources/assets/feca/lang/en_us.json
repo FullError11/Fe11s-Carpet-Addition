@@ -21,6 +21,9 @@
     "carpet.rule.ripenableSugarcane.name": "Ripenable Sugarcane",
     "carpet.rule.ripenableSugarcane.desc": "Allows using bone meal on sugarcane",
 
+    "carpet.rule.ripenableCactus.name": "Ripenable Cactus",
+    "carpet.rule.ripenableCactus.desc": "Allows using bone meal on cactus",
+
     "carpet.rule.commandObserverFreezeAreas.name": "observerFreezeAreas command",
     "carpet.rule.commandObserverFreezeAreas.desc": "Allows players to run the observerFreezeAreas command to freeze observers inside an area",
     "carpet.rule.commandObserverFreezeAreas.extra.1": "This rule is set with setDefault by default",

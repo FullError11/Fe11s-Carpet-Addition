@@ -21,6 +21,9 @@
     "carpet.rule.ripenableSugarcane.name": "可催熟甘蔗",
     "carpet.rule.ripenableSugarcane.desc": "允许使用骨粉催熟甘蔗",
 
+    "carpet.rule.ripenableCactus.name": "可催熟仙人掌",
+    "carpet.rule.ripenableCactus.desc": "允许使用骨粉催熟仙人掌",
+
     "carpet.rule.commandObserverFreezeAreas.name": "observerFreezeAreas 命令",
     "carpet.rule.commandObserverFreezeAreas.desc": "允许玩家执行 observerFreezeAreas 命令以冻结区域内的侦测器",
     "carpet.rule.commandObserverFreezeAreas.extra.1": "此规则将会默认 setDefault",

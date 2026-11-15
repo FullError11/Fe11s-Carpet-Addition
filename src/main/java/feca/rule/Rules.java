@@ -82,6 +82,10 @@ public final class Rules {
     @RuleImplBy(RipenableSugarcane.class)
     public static boolean ripenableSugarcane = false;
 
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(RipenableCactus.class)
+    public static boolean ripenableCactus = false;
+
     @Rule(categories = {FECA, COMMAND, CREATIVE})
     @RuleImplBy(CommandObserverFreezeAreas.class)
     public static CommandPermissionOptions commandObserverFreezeAreas = CommandPermissionOptions.FALSE;
