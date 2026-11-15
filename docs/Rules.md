@@ -89,7 +89,8 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 
 ### 无限库存菜单 (`infinityInventoryMenu`)
 
-允许使用 `/infinityInventory menu` 打开图形化的无限库存菜单。
+允许使用 `/infinityInventory menu` 打开图形化的无限库存菜单。  
+关于图形化菜单的排序，请阅读 [InfinityInventoryItemSequence](InfinityInventoryItemSequence.md)。
 
 ### 无限库存递归合成深度 (`infinityInventoryCraftRecursionDepth`)
 
@@ -97,12 +98,12 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 
 取值是**无硬上限的整数**（carpet 原生 int 规则，`strict = false`），含义是「允许递归合成中间产物的次数」：
 
-| 取值 | 行为 |
-|---|---|
-| `0`（默认） | 关闭递归，只用库存现成原料 |
-| `1` | 目标缺的原料可以由库存原料**再合成一层** |
-| `2` | 中间产物可以再往下递归一层（共两层） |
-| `N` | 最多递归 N 层中间产物 |
+| 取值      | 行为                     |
+|---------|------------------------|
+| `0`（默认） | 关闭递归，只用库存现成原料          |
+| `1`     | 目标缺的原料可以由库存原料**再合成一层** |
+| `2`     | 中间产物可以再往下递归一层（共两层）     |
+| `N`     | 最多递归 N 层中间产物           |
 
 注意**目标产物自身的合成不计入取值**：库存只有原木时，`木镐 ← 木棍 ← 木板 ← 原木` 需要 `2`
 （木棍一层、木板一层，原木是库存原料不算一层）。
