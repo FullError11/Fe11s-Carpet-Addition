@@ -3,6 +3,7 @@ package feca.test.gametest;
 import feca.function.CommandObserverFreezeAreas;
 import feca.function.CommandObserverFreezeAreas.NameableAABB;
 import feca.rule.options.CommandPermissionOptions;
+import feca.test.gametest.common.GameTestRules;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;

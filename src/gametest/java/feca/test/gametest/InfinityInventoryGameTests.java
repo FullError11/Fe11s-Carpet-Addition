@@ -10,6 +10,7 @@ import feca.network.payload.InfinityInventoryStorageDeltaPayload;
 import feca.network.payload.InfinityInventoryStoragePayload;
 import feca.network.payload.InfinityInventorySyncRequestPayload;
 import feca.rule.options.CommandPermissionOptions;
+import feca.test.gametest.common.GameTestRules;
 import feca.utils.ShulkerBoxAccessor;
 import io.netty.buffer.Unpooled;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;

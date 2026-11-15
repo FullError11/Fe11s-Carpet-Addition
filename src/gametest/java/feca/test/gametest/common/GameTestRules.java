@@ -1,4 +1,4 @@
-package feca.test.gametest;
+package feca.test.gametest.common;
 
 import feca.rule.Rules;
 import org.jspecify.annotations.NonNull;
@@ -11,10 +11,10 @@ import java.lang.reflect.Field;
  * <p>{@code gametest} 源集与 JUnit 的 {@code test} 源集不共享类路径，
  * 因此这里自备一份最简实现（`test` 侧对应 {@code feca.test.support.RulesAccess}）。</p>
  */
-final class GameTestRules {
+public final class GameTestRules {
     /// 还原句柄：close 不抛受检异常，便于 try-with-resources
     @FunctionalInterface
-    interface Restore extends AutoCloseable {
+    public interface Restore extends AutoCloseable {
         @Override
         void close();
     }
@@ -22,7 +22,7 @@ final class GameTestRules {
     private GameTestRules() {}
 
     /// 临时修改规则字段
-    static @NonNull Restore swap(String ruleName, Object value) {
+    public static @NonNull Restore swap(String ruleName, Object value) {
         final Field field;
         try {
             field = Rules.class.getDeclaredField(ruleName);

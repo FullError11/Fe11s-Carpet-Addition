@@ -11,6 +11,7 @@
 			"feca.test.gametest.CollectibleSpawnEggGameTests",
 			"feca.test.gametest.LargeBucketGameTests",
 			"feca.test.gametest.RipenableSugarcaneGameTests",
+			"feca.test.gametest.RipenableCactusGameTests",
 			"feca.test.gametest.ObserverFreezeAreasGameTests",
 			"feca.test.gametest.ForceTurtleEggHatchingGameTests",
 			"feca.test.gametest.InfinityInventoryGameTests",

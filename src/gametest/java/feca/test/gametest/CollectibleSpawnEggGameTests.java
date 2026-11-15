@@ -2,6 +2,7 @@ package feca.test.gametest;
 
 import feca.function.CollectibleSpawnEgg;
 import feca.rule.options.CollectibleSpawnEggOptions;
+import feca.test.gametest.common.GameTestRules;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.BlockPos;
 import net.minecraft.gametest.framework.GameTestHelper;
