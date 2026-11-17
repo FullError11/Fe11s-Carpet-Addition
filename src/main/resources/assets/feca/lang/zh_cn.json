@@ -51,6 +51,9 @@
     "carpet.rule.witherIgnorePlayer.name": "凋零无视玩家",
     "carpet.rule.witherIgnorePlayer.desc": "凋零不会把玩家选为仇恨目标，也不会攻击玩家；玩家仍可正常伤害凋零",
 
+    "carpet.rule.noBabyNaturalSpawn.name": "怪物生成老龄化",
+    "carpet.rule.noBabyNaturalSpawn.desc": "怪物生成必定不会出现 baby 变体(鸡骑士等也不会生成)",
+
     "carpet.rule.infinityInventory.name": "无限库存",
     "carpet.rule.infinityInventory.desc": "允许玩家执行 infinityInventory 命令（按权限等级控制）",
 

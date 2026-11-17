@@ -118,6 +118,10 @@ public final class Rules {
     @RuleImplBy(WitherIgnorePlayer.class)
     public static boolean witherIgnorePlayer = false;
 
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(NoBabyNaturalSpawn.class)
+    public static boolean noBabyNaturalSpawn = false;
+
     @Rule(categories = {FECA})
     @RuleImplBy(InfinityInventory.class)
     public static CommandPermissionOptions infinityInventory = CommandPermissionOptions.FALSE;

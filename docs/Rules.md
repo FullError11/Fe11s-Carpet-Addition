@@ -67,6 +67,12 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 
 凋零把玩家当成不可攻击的目标：不选玩家为仇恨目标，三个头也不会去打玩家，被玩家攻击后同样不还手。
 
+### 怪物生成老龄化 (`noBabyNaturalSpawn`)
+
+怪物生成必定不会出现 baby 变体(鸡骑士等也不会生成)
+
+> NBT 写死 `IsBaby` 的刷怪笼、繁殖、刷怪蛋、`/summon` 等不受影响
+
 ## 命令向
 
 命令的完整语法见 [Commands.md](Commands.md)。

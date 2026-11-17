@@ -17,6 +17,7 @@
         "SugarCaneBlockMixin",
         "TurtleEggBlockMixin",
         "WitherBossMixin",
+        "ZombieMixin",
         "accessor.ItemContainerContentsAccessor",
         "accessor.VillagerAccessor",
         "debug.CommandsMixin"
