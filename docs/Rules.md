@@ -79,6 +79,17 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 
 > 玩家破坏、活塞、爆炸等其它破坏方式照常。
 
+### 纯净陶罐掉落物 (`potBreakingDropMode`)
+
+控制饰纹陶罐**破碎**时的掉落物：
+
+- `FALSE` 原版
+- `CONTENT` 仅掉罐内内容
+- `NOTHING` 什么都不掉。
+
+> 只作用于破碎（`cracked`）：弹射物撞碎、空手等原本就不掉陶罐本体的破坏方式。
+> 用工具正常破坏时仍按原版掉本体；爆炸、活塞等不产生破碎状态的途径也不受影响。
+
 ## 命令向
 
 命令的完整语法见 [Commands.md](Commands.md)。

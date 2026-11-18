@@ -3,10 +3,7 @@ package feca.rule;
 import carpet.api.settings.Rule;
 import carpet.api.settings.Validators;
 import feca.function.*;
-import feca.rule.options.ActiveMendingOptions;
-import feca.rule.options.CollectibleSpawnEggOptions;
-import feca.rule.options.CommandPermissionOptions;
-import feca.rule.options.UndyingEntityOptions;
+import feca.rule.options.*;
 import feca.rule.utils.RuleImpl;
 import feca.rule.utils.RuleImplBy;
 import feca.utils.ClassForceLoader;
@@ -125,6 +122,10 @@ public final class Rules {
     @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(ImpactResistantPot.class)
     public static boolean impactResistantPot = false;
+
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(PotBreakingDropMode.class)
+    public static PotBreakingDropModeOptions potBreakingDropMode = PotBreakingDropModeOptions.FALSE;
 
     @Rule(categories = {FECA})
     @RuleImplBy(InfinityInventory.class)

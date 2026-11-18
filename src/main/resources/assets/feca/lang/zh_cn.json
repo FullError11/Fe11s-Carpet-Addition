@@ -57,6 +57,9 @@
     "carpet.rule.impactResistantPot.name": "耐冲击陶罐",
     "carpet.rule.impactResistantPot.desc": "饰纹陶罐不会被弹射物撞碎",
 
+    "carpet.rule.potBreakingDropMode.name": "纯净陶罐掉落物",
+    "carpet.rule.potBreakingDropMode.desc": "控制饰纹陶罐破碎时的掉落物：FALSE 原版，CONTENT 仅掉罐内内容，NOTHING 什么都不掉",
+
     "carpet.rule.infinityInventory.name": "无限库存",
     "carpet.rule.infinityInventory.desc": "允许玩家执行 infinityInventory 命令（按权限等级控制）",
 
