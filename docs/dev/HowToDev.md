@@ -28,6 +28,23 @@ FeCA 为了处理 java 的类懒初始化问题，设计了 `RuleImpl` 机制：
 
 对于规则实现类，会在模组初始化时被强制加载，所以它的 static 字段被保证初始化。
 
+### 规则配件
+
+#### i18n
+
+添加一条新的规则后，模组还不能正常允许，需要前往 [lang](../../src/main/resources/assets/feca/lang) 添加规则的 i18n 字段。  
+必须的字段分别为:
+
+- `carpet.rule.{RULE_NAME}.name`: 规则名
+- `carpet.rule.{RULE_NAME}.desc`: 规则简要解释
+
+还可以存在 `carpet.rule.{RULE_NAME}.extra.{LINE_NUMBER}` 字段，
+这是规则的详细解释 *(LINE_NUMBER 是从 1 开始的整数行号)*。
+
+#### 文档
+
+添加一条规则后，好的习惯是在 [Rules](../Rules.md) 添加对应文档。
+
 ## Mixin 规范
 
 FeCA 追求尽可能少的在 mixin 内添加内容，
@@ -41,3 +58,8 @@ FeCA 有多个 utils 包，其分类遵循以下规则：
 
 - 对于可能被复用的工具类，存放在 [根utils包](../../src/main/java/feca/utils) 内。
 - 对于不会被跨包复用的工具类，存放在**使用它的包的utils子包**下，如 [command-utils](../../src/main/java/feca/command/utils) 和 [function-utils](../../src/main/java/feca/function/utils)。
+
+## git
+
+FeCA 使用 **约定式提交规范**。  
+FeCA **推荐**相对频繁的提交，并要求每次提交都为单一事件 (如新功能/修改文档等)。
