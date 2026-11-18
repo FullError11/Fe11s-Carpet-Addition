@@ -6,6 +6,7 @@
         "BucketItemMixin",
         "CactusBlockMixin",
         "CauldronInteractionsMixin",
+        "DecoratedPotBlockMixin",
         "LevelChunkMixin",
         "LivingEntityMixin",
         "MobMixin",

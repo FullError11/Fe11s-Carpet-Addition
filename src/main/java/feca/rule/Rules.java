@@ -122,6 +122,10 @@ public final class Rules {
     @RuleImplBy(NoBabyNaturalSpawn.class)
     public static boolean noBabyNaturalSpawn = false;
 
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(ImpactResistantPot.class)
+    public static boolean impactResistantPot = false;
+
     @Rule(categories = {FECA})
     @RuleImplBy(InfinityInventory.class)
     public static CommandPermissionOptions infinityInventory = CommandPermissionOptions.FALSE;

@@ -54,6 +54,9 @@
     "carpet.rule.noBabyNaturalSpawn.name": "No Baby Natural Spawns",
     "carpet.rule.noBabyNaturalSpawn.desc": "Mobs spawned never baby variants always",
 
+    "carpet.rule.impactResistantPot.name": "Impact Resistant Pot",
+    "carpet.rule.impactResistantPot.desc": "Decorated pots no longer crack or shatter when hit by projectiles",
+
     "carpet.rule.infinityInventory.name": "Infinity Inventory",
     "carpet.rule.infinityInventory.desc": "Allows players to run the infinityInventory command (gated by permission level)",
 

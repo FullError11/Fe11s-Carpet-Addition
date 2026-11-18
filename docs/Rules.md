@@ -73,6 +73,12 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 
 > NBT 写死 `IsBaby` 的刷怪笼、繁殖、刷怪蛋、`/summon` 等不受影响
 
+### 耐冲击陶罐 (`impactResistantPot`)
+
+饰纹陶罐不会被弹射物撞碎，命中后保持完好。
+
+> 玩家破坏、活塞、爆炸等其它破坏方式照常。
+
 ## 命令向
 
 命令的完整语法见 [Commands.md](Commands.md)。
