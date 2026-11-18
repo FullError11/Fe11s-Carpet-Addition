@@ -1,11 +1,11 @@
 # InfinityInventoryItemSequence
 
-InfinityInventoryItemSequence 是规则 [InfinityInventoryMenu](./Rules.md#无限库存菜单-infinityinventorymenu) 的排序工具，
+InfinityInventoryItemSequence 是规则 [InfinityInventoryMenu](../Rules.md#无限库存菜单-infinityinventorymenu) 的排序工具，
 使用 `json` 作为配置，并提供了额外的语法拓展。
 
 ## infinity_inventory_item_sequence JSON
 
-InfinityInventoryItemSequence 的默认配置文件在 [infinity_inventory_item_sequence.json](../src/main/resources/assets/feca/infinity_inventory_item_sequence.json)。  
+InfinityInventoryItemSequence 的默认配置文件在 [infinity_inventory_item_sequence.json](../../src/main/resources/assets/feca/infinity_inventory_item_sequence.json)。  
 以下是一些拓展语法的介绍
 
 infinity_inventory_item_sequence.json 的标准结构如下:

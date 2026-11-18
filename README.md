@@ -4,10 +4,17 @@
 
 ## 文档
 
+### 使用相关
+
 - [规则说明](docs/Rules.md)
 - [命令说明](docs/Commands.md)
-- [测试策略](docs/testing.md)
 - [常见问题](docs/OldIssues.md)
+
+### 开发相关文档
+
+- [如何开发](docs/dev/HowToDev.md)
+- [测试策略](docs/dev/testing.md)
+- [InfinityInventoryMenu排序](docs/dev/InfinityInventoryItemSequence.md)
 
 ## License
 

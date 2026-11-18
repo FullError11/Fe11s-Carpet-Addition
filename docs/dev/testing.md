@@ -4,11 +4,11 @@
 
 ## 分层
 
-| 层 | 位置 | 内容 | 运行方式 |
-|---|---|---|---|
-| L1 单元测试 | `src/test/java/feca/test/**` | 纯逻辑与组件：选项枚举、配置 codec、分页、维度容器、表达式解析、AABB 表、库存持久化等 | `./gradlew test`，fabric-loader-junit 启动 Knot，无需世界 |
-| L2 GameTest | `src/gametest/java/feca/test/gametest/**` | 规则实现的世界行为：桶交互、击杀掉落、骨粉催熟、海龟蛋孵化、冻结区判定、`ItemStack` 相关组件 | `./gradlew runGameTest`（`check`/`build` 已包含） |
-| L3 客户端 | `src/clientTest/java/feca/test/client/**` | 客户端渲染器、客户端网络入口、Litematica 兼容层 | `./gradlew test`（loom 的 split source set） |
+| 层           | 位置                                        | 内容                                                   | 运行方式                                              |
+|-------------|-------------------------------------------|------------------------------------------------------|---------------------------------------------------|
+| L1 单元测试     | `src/test/java/feca/test/**`              | 纯逻辑与组件：选项枚举、配置 codec、分页、维度容器、表达式解析、AABB 表、库存持久化等     | `./gradlew test`，fabric-loader-junit 启动 Knot，无需世界 |
+| L2 GameTest | `src/gametest/java/feca/test/gametest/**` | 规则实现的世界行为：桶交互、击杀掉落、骨粉催熟、海龟蛋孵化、冻结区判定、`ItemStack` 相关组件 | `./gradlew runGameTest`（`check`/`build` 已包含）      |
+| L3 客户端      | `src/clientTest/java/feca/test/client/**` | 客户端渲染器、客户端网络入口、Litematica 兼容层                        | `./gradlew test`（loom 的 split source set）         |
 
 L2 由 loom 的 `fabricApi.configureTests { }` 自动创建测试源集与运行任务（测试 mod id `feca-test`，
 入口点 `fabric-gametest`）。GameTest 使用 Fabric 自带的 8×8×8 空结构，坐标为相对坐标；

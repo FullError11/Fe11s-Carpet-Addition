@@ -108,7 +108,7 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 ### 无限库存菜单 (`infinityInventoryMenu`)
 
 允许使用 `/infinityInventory menu` 打开图形化的无限库存菜单。  
-关于图形化菜单的排序，请阅读 [InfinityInventoryItemSequence](InfinityInventoryItemSequence.md)。
+关于图形化菜单的排序，请阅读 [InfinityInventoryItemSequence](dev/InfinityInventoryItemSequence.md)。
 
 ### 无限库存递归合成深度 (`infinityInventoryCraftRecursionDepth`)
 
