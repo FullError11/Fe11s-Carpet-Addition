@@ -26,8 +26,10 @@ jobs:
         with:
           # 首次需要下载 Minecraft 依赖；分支上只读缓存，避免污染主分支缓存
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-      - name: make gradle wrapper executable
-        run: chmod +x ./gradlew
+      - name: make gradle wrappers executable
+        run: |
+          chmod +x ./gradlew
+          chmod +x vendor/ryansrenderingkit/gradlew
       # build 依赖 check -> test + runGameTest：编译、L1 单元测试与 L2 GameTest 一次跑完
       - name: build & test
         run: ./gradlew build --stacktrace
