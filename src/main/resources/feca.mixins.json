@@ -13,6 +13,7 @@
         "LivingEntityMixin",
         "MobMixin",
         "ObserverBlockMixin",
+        "RecipeManagerMixin",
         "RemoveBlockGoalMixin",
         "ServerGamePacketListenerImplMixin",
         "ServerLevelMixin",
@@ -22,6 +23,7 @@
         "WitherBossMixin",
         "ZombieMixin",
         "accessor.ItemContainerContentsAccessor",
+        "accessor.RecipeManagerAccessor",
         "accessor.VillagerAccessor",
         "debug.CommandsMixin"
     ],

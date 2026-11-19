@@ -46,6 +46,9 @@ static void bootstrap() {
 10. 规则 13/14 `infinityInventory(Menu)`：组件 `InfinityInventoryStorage` / `ContainerHelper` / 网络 payload → 菜单与取放（L2）。
 11. 规则 15 `infinityInventoryCraftRecursionDepth`：组件 `InfinityInventoryCraftHelper.RecursiveContext` → 递归估算与递归合成（L2）。
 12. 客户端（L3）：`AABBRenderer`、`CommandObserverFreezeAreas`、`InfinityInventoryClientNetworking`。
+13. 运行时配方注入（`feca/recipe`）：L1 `FeCARecipeManagerTest`（注册幂等 / 启用禁用 / 重复开关无副作用）
+    → L2 `FeCARecipeGameTests`（真实 `RecipeManager` 配方表：注册即可匹配、禁用后不可匹配且按 ID 不可查、
+    重新启用后恢复可匹配）。
 
 ## 已完成
 

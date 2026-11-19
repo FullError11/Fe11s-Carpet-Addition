@@ -3,6 +3,7 @@ package feca;
 import carpet.CarpetExtension;
 import carpet.CarpetServer;
 import feca.command.FeCADebug;
+import feca.recipe.FeCARecipeManager;
 import feca.registry.OnInitializeCallbackRegistry;
 import feca.registry.OnReloadCallbackRegistry;
 import feca.registry.OnServerLoadedCallbackRegistry;
@@ -72,6 +73,8 @@ public class FeCA implements ModInitializer, CarpetExtension {
 		CarpetExtension.super.onServerLoaded(server);
 		OnServerLoadedCallbackRegistry.CALLBACKS.forEach(Runnable::run);
 
+		FeCARecipeManager.onServerLoaded(server);
+
 		Path worldRoot = server.getWorldPath(LevelResource.ROOT);
 		CONFIG.setPathAndLoad(worldRoot.resolve("FeCAConfig.json").toString());
 	}
@@ -79,6 +82,7 @@ public class FeCA implements ModInitializer, CarpetExtension {
 	@Override
 	public void onServerClosed(MinecraftServer server) {
 		CarpetExtension.super.onServerClosed(server);
+		FeCARecipeManager.onServerClosed();
 		CONFIG.saveAndRelease();
 	}
 
