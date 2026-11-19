@@ -20,8 +20,11 @@ repositories {
 	}
 }
 
-// Ryan'sRenderingKit（内置依赖）：子模块构建、本地仓组装与 include 都在这个脚本里
+// 内置依赖：libs/ 里的 jar 组装成本地 Maven 仓后 include 成嵌套 jar
 apply from: 'gradle/vendor-ryansrenderingkit.gradle'
+
+// 从上游重新构建内置依赖产物（./gradlew buildVendorLibs -Pvendor=rrk）
+apply from: 'gradle/vendor-build.gradle'
 
 loom {
 	splitEnvironmentSourceSets()

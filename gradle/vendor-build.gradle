@@ -1,0 +1,87 @@
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+
+/*
+ * 从上游重新构建内置依赖的产物到 libs/。
+ *
+ * 用法：
+ *   ./gradlew buildVendorLibs -Pvendor=rrk
+ *
+ * 设计要点：
+ *   1. 源码浅克隆到系统临时目录，用完即删——仓库里不保留任何第三方源码；
+ *   2. 子构建使用独立的 --project-cache-dir：与 FeCA 共用会争同一个
+ *      fabric-loom 缓存锁，实测会互相等待卡死；
+ *   3. 复用共享的 GRADLE_USER_HOME，避免重复下载整套 MC 与 Loom 工具链。
+ */
+
+ext {
+	vendorSpecs = [
+		rrk: [
+			repo   : "https://github.com/hotpad100c/ryansrenderingkit",
+			branch : rrk_branch,
+			commit : rrk_commit,
+			task   : ":${rrk_mc_version}:buildAndCollect",
+			modId  : "ryansserverrenderingkit",
+			// 上游把产物收集到 build/libs/<mod version>/ 下
+			output : "build/libs/${rrk_mod_version}/ryansserverrenderingkit-${rrk_version}.jar",
+			target : "${rrk_mod_id}-${rrk_version}.jar"
+		]
+	]
+}
+
+tasks.register("buildVendorLibs") {
+	group = "build"
+	description = "从上游源码重新构建内置依赖产物到 libs/（需 -Pvendor=<name>，默认 rrk）"
+
+	doLast {
+		def name = (project.findProperty("vendor") ?: "rrk").toString()
+		def spec = vendorSpecs[name]
+		if (spec == null) {
+			throw new GradleException("未知的 vendor: ${name}，可选: ${vendorSpecs.keySet()}")
+		}
+
+		def execOps = services.get(ExecOperations)
+		def tempRoot = Files.createTempDirectory("feca-vendor-${name}-").toFile()
+		logger.lifecycle("构建 vendor ${name}（临时目录 ${tempRoot}）")
+
+		try {
+			// 浅克隆指定分支；锁定 commit 时再用 fetch 补齐（浅克隆可能拿不到非头部 commit）
+			execOps.exec {
+				commandLine "git", "clone", "--depth", "1", "--branch", spec.branch as String,
+					spec.repo as String, tempRoot.absolutePath
+			}
+			if (spec.commit != null && !spec.commit.toString().isEmpty()) {
+				execOps.exec {
+					workingDir tempRoot
+					commandLine "git", "fetch", "--depth", "1", "origin", spec.commit as String
+				}
+				execOps.exec {
+					workingDir tempRoot
+					commandLine "git", "checkout", spec.commit as String
+				}
+			}
+
+			def wrapper = org.gradle.internal.os.OperatingSystem.current().isWindows() ? "gradlew.bat" : "./gradlew"
+			execOps.exec {
+				workingDir tempRoot
+				// 独立 project cache：与 FeCA 共用会争同一个 fabric-loom 缓存锁而死锁
+				commandLine new File(tempRoot, wrapper).absolutePath,
+					"--project-cache-dir", new File(tempRoot, ".gradle/nested-build").absolutePath,
+					"--console=plain", spec.task as String
+			}
+
+			def produced = new File(tempRoot, spec.output as String)
+			if (!produced.exists()) {
+				throw new GradleException("构建完成但未找到预期产物: ${produced}")
+			}
+
+			def target = layout.projectDirectory.file("libs/${spec.target}").asFile
+			target.parentFile.mkdirs()
+			Files.copy(produced.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
+			logger.lifecycle("已更新内置依赖产物: ${target}")
+		} finally {
+			// 无论成败都清理，避免临时目录堆积
+			delete tempRoot
+		}
+	}
+}
