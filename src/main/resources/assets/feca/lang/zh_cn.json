@@ -60,6 +60,9 @@
     "carpet.rule.potBreakingDropMode.name": "纯净陶罐掉落物",
     "carpet.rule.potBreakingDropMode.desc": "控制饰纹陶罐破碎时的掉落物：FALSE 原版，CONTENT 仅掉罐内内容，NOTHING 什么都不掉",
 
+    "carpet.rule.stackableTotemOfUndying.name": "可堆叠不死图腾",
+    "carpet.rule.stackableTotemOfUndying.desc": "覆盖不死图腾的堆叠上限：-1 不修改（默认，兼容其它模组），1 / 16 / 64 强制为该上限",
+
     "carpet.rule.infinityInventory.name": "无限库存",
     "carpet.rule.infinityInventory.desc": "允许玩家执行 infinityInventory 命令（按权限等级控制）",
 

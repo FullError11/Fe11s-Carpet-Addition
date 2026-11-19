@@ -127,6 +127,10 @@ public final class Rules {
     @RuleImplBy(PotBreakingDropMode.class)
     public static PotBreakingDropModeOptions potBreakingDropMode = PotBreakingDropModeOptions.FALSE;
 
+    @Rule(categories = {FECA, SURVIVAL}, options = {"-1", "1", "16", "64"})
+    @RuleImplBy(StackableTotemOfUndying.class)
+    public static int stackableTotemOfUndying = -1;
+
     @Rule(categories = {FECA})
     @RuleImplBy(InfinityInventory.class)
     public static CommandPermissionOptions infinityInventory = CommandPermissionOptions.FALSE;

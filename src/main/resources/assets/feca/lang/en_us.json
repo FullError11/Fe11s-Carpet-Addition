@@ -60,6 +60,9 @@
     "carpet.rule.potBreakingDropMode.name": "Pure Decorated Pot Drops",
     "carpet.rule.potBreakingDropMode.desc": "Controls decorated pot drops when it shatters: FALSE is vanilla, CONTENT drops only the stored item, NOTHING drops nothing",
 
+    "carpet.rule.stackableTotemOfUndying.name": "Stackable Totem of Undying",
+    "carpet.rule.stackableTotemOfUndying.desc": "Overrides the totem of undying stack size: -1 keeps vanilla (default, compatible with other mods), 1 / 16 / 64 forces that limit",
+
     "carpet.rule.infinityInventory.name": "Infinity Inventory",
     "carpet.rule.infinityInventory.desc": "Allows players to run the infinityInventory command (gated by permission level)",
 
