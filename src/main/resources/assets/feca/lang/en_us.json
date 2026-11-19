@@ -99,12 +99,10 @@
     "feca.msg.cmd.observerFreezeAreas.getDimensionFromExectorFail": "Cannot get the dimension from the executor: this variant only supports players",
 
     "feca.msg.cmd.observerFreezeAreas.overlay.enabled": "Subscribed to observer freeze area rendering",
-    "feca.msg.cmd.observerFreezeAreas.overlay.f3Hint": "Note: due to Carpet, toggling F3 or changing dimension requires toggling the overlay again",
     "feca.msg.cmd.observerFreezeAreas.overlay.disabled": "Unsubscribed from observer freeze area rendering",
     "feca.msg.cmd.observerFreezeAreas.overlay.enable.fail": "Subscribe failed: you are already subscribed",
     "feca.msg.cmd.observerFreezeAreas.overlay.disable.fail": "Unsubscribe failed: you are not subscribed",
     "feca.msg.cmd.observerFreezeAreas.overlay.list.header": "%d player(s) subscribed to observer freeze area rendering:",
-    "feca.msg.cmd.observerFreezeAreas.overlay.list.entry": " - %s",
     "feca.msg.cmd.observerFreezeAreas.overlay.list.empty": "No player is subscribed to observer freeze area rendering",
     "feca.msg.cmd.observerFreezeAreas.overlay.hide.succ": "Stopped rendering the observer freeze area at %s %s",
     "feca.msg.cmd.observerFreezeAreas.overlay.hide.fail": "Stop rendering failed: the area at %s %s does not exist or is not rendered",

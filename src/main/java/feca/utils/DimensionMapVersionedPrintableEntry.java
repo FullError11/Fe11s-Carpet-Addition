@@ -92,8 +92,9 @@ public class DimensionMapVersionedPrintableEntry<T, S extends Collection<T>> ext
 
     @Override
     public <R> R modify(@NonNull Accessor<R> modifier) {
+        R result = super.modify(modifier);
         changed();
-        return super.modify(modifier);
+        return result;
     }
 
 

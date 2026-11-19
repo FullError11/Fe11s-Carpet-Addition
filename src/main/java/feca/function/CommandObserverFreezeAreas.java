@@ -42,14 +42,14 @@ public class CommandObserverFreezeAreas implements RuleImpl {
     /// 设置单个区域是否参与 overlay 渲染 (不影响冻结判定)
     /// @return 是否发生了变化 (区域不存在或状态相同时为 {@code false})
     public static boolean setRendered(@NonNull ResourceKey<Level> dimension, @NonNull AABB aabb, boolean rendered) {
-        var entry = DIMENSION_MAP.tryGetEntry(dimension).orElse(null);
+        var entry = DIMENSION_MAP.getEntryNullable(dimension);
         return entry != null && entry.modify(storage -> ((NameableAABBMap) storage).setRendered(aabb, rendered));
     }
 
     /// 设置该维度全部区域是否参与 overlay 渲染
     /// @return 发生变化的区域数
     public static int setAllRendered(@NonNull ResourceKey<Level> dimension, boolean rendered) {
-        var entry = DIMENSION_MAP.tryGetEntry(dimension).orElse(null);
+        var entry = DIMENSION_MAP.getEntryNullable(dimension);
         return entry == null ? 0 : entry.modify(storage -> ((NameableAABBMap) storage).setAllRendered(rendered));
     }
 

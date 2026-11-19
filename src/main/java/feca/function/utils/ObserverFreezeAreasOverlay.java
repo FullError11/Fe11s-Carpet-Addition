@@ -1,54 +1,62 @@
 package feca.function.utils;
 
-import carpet.script.external.Carpet;
 import com.google.gson.reflect.TypeToken;
+import carpet.CarpetServer;
 import feca.FeCA;
 import feca.function.CommandObserverFreezeAreas;
 import feca.registry.OnInitializeCallbackRegistry;
 import feca.utils.ConfigManager;
+import ml.mypals.ryansserverrenderingkit.builders.shapeBuilders.ShapeGenerator;
+import ml.mypals.ryansserverrenderingkit.shape.Shape;
+import ml.mypals.ryansserverrenderingkit.shape.box.BoxShape;
+import ml.mypals.ryansserverrenderingkit.shape.line.LineShape;
+import ml.mypals.ryansserverrenderingkit.shapeManagers.ShapeManagers;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.UnmodifiableView;
 import org.jspecify.annotations.NonNull;
-import org.jspecify.annotations.Nullable;
 
+import java.awt.Color;
 import java.util.*;
 
 /**
- * 侦测器冻结区域的 overlay：把区域编码成 carpet scarpet 的 {@code box} 形状，下发给订阅者。
+ * 侦测器冻结区域的 overlay：区域经 RyansRenderingKit 以服务端 Display 实体渲染
+ * （12 条 {@link LineShape} 棱 + 1 个半透明面 {@link BoxShape}）。
  *
- * <p><b>已知限制</b>：
- * <p>
- *     carpet 客户端在 {@code DebugRenderer#refreshRendererList()}（打开/切换 F3 调试渲染器）
- *     时会清空自己的形状表，服务端无法感知，需要重新开关一次 overlay 才会重新下发。
- * </p>
- * <p>
- *     carpet 会不下发跨纬度 box 数据包，所以无法跨纬度同步，用户切换维度需要重新开关一次 overlay。
- * </p>
- * </p>
+ * <p>走 RRK 而不是 carpet 的 scarpet {@code box}：服务端渲染对任何原版客户端生效，
+ * 也不受 carpet 客户端切换 F3 / 维度时清空形状表的限制。</p>
+ *
+ * <p>区域表 {@code DIMENSION_MAP} 是唯一数据源，形状表 {@link #SHAPES} 只是它的镜像。
+ * 订阅状态由形状的 {@code visibleTo} 谓词表达，RRK 每 tick 求值，
+ * 所以订阅变化只需改 {@link #SUBSCRIBERS}，不必重建形状。</p>
  */
 @SuppressWarnings("unused")
 public final class ObserverFreezeAreasOverlay {
     private ObserverFreezeAreasOverlay() {}
 
-    /// 粒子降级路径的下发半径(格)：粒子在更远处看不见，只用于限制一次性爆发的数据包量
-    private static final double PARTICLE_RADIUS = 64.0;
+    /// 棱不透明、面半透明：面太实会挡住区域内部
+    private static final Color EDGE_COLOR = new Color(1.0f, 0.1f, 0.1f, 1.0f);
+    private static final Color FACE_COLOR = new Color(1.0f, 0.1f, 0.1f, 0.1f);
+
+    /// 不能太小：RRK 的 {@code sanitizeThickness} 会把 {@code <= 0.0001} 兜底成 0.05，反而更粗
+    private static final float EDGE_WIDTH = 0.01F;
+
+    /// 形状 id 的命名空间与路径前缀
+    private static final String SHAPE_NAMESPACE = "feca";
+    private static final String SHAPE_ROOT = "observer_freeze_areas";
 
     /// 订阅者(UUID)，持久化到配置，重启后无需重新订阅
     private static final Set<UUID> SUBSCRIBERS = new LinkedHashSet<>();
 
-    /// 每个玩家“已下发且仍然存活”的区域，按维度分组，用来算增量
-    private static final Map<UUID, Map<ResourceKey<Level>, Set<AABB>>> SENT = new HashMap<>();
-
-    /// 当前服务器实例：区域表/订阅变化这类回调里拿不到 server 参数
-    private static @Nullable MinecraftServer SERVER = null;
+    /// 已注册的形状：(维度, 区域) → 形状 id。同一坐标在不同维度各有一个形状
+    private static final Map<ResourceKey<Level>, Map<AABB, Identifier>> SHAPES = new HashMap<>();
 
     static {
         FeCA.CONFIG.register(
@@ -63,10 +71,10 @@ public final class ObserverFreezeAreasOverlay {
         );
 
         OnInitializeCallbackRegistry.register(() -> {
-            ServerLifecycleEvents.SERVER_STARTED.register(server -> SERVER = server);
-            ServerLifecycleEvents.SERVER_STOPPING.register(server -> SERVER = null);
-            ServerPlayConnectionEvents.JOIN.register((handler, _, _) -> sync(handler.player));
-            ServerPlayConnectionEvents.DISCONNECT.register((handler, _) -> SENT.remove(handler.player.getUUID()));
+            // 用 SERVER_STARTED 而不是 onServerLoaded：配置（含区域表）在 onServerLoaded 里读入，
+            // 这里才能拿到最终状态做首次镜像
+            ServerLifecycleEvents.SERVER_STARTED.register(_ -> rebuild());
+            ServerLifecycleEvents.SERVER_STOPPING.register(_ -> clearAll());
         });
     }
 
@@ -84,17 +92,13 @@ public final class ObserverFreezeAreasOverlay {
 
     /// @return 本次是否真的加入了订阅名单
     public static boolean subscribe(@NonNull UUID uuid) {
-        if (!SUBSCRIBERS.add(uuid)) return false;
-        sync(playerOf(uuid));
-        return true;
+        return SUBSCRIBERS.add(uuid);
     }
 
     /// @return 本次是否真的移除了订阅
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")
     public static boolean unsubscribe(@NonNull UUID uuid) {
-        if (!SUBSCRIBERS.remove(uuid)) return false;
-        clear(playerOf(uuid));
-        return true;
+        return SUBSCRIBERS.remove(uuid);
     }
 
     /// 切换订阅状态
@@ -105,17 +109,17 @@ public final class ObserverFreezeAreasOverlay {
 
     /* ============================== 事件入口 ============================== */
 
-    /// 区域表发生了变化：全维度下发，因此与玩家在哪个维度无关
+    /// 区域表变化回调
+    ///
+    /// @apiNote 依赖 {@code DimensionMapVersionedPrintableEntry.modify()} 在修改<b>之后</b>通知；
+    /// 若先通知后修改，这里读到的是旧数据，形状会慢一拍（命令报成功但画面不变）
     public static void onAreasChanged() {
-        final var server = SERVER;
-        if (server == null) return;
-
-        server.getPlayerList().getPlayers().forEach(ObserverFreezeAreasOverlay::sync);
+        rebuild();
     }
 
-    /// 规则开关发生变化：开 → 同步；关 → 清理
+    /// 规则开关变化回调
     public static void onRuleChanged() {
-        onAreasChanged();
+        rebuild();
     }
 
     /* ============================== 增量计算 ============================== */
@@ -143,78 +147,131 @@ public final class ObserverFreezeAreasOverlay {
         return new Delta(List.copyOf(added), List.copyOf(removed));
     }
 
-    /* ============================== 同步 ============================== */
+    /* ============================== 形状镜像 ============================== */
 
-    /// 让该玩家的客户端与「他应该看到的区域」一致（逐维度做增量）
-    private static void sync(@Nullable ServerPlayer player) {
-        final var server = SERVER;
-        if (server == null || player == null) return;
-
-        if (!SUBSCRIBERS.contains(player.getUUID()) || !CommandObserverFreezeAreas.isEnabled()) {
-            clear(player);
-            return;
-        }
-
-        final boolean carpetClient = Carpet.isValidCarpetPlayer(player);
-        final var wanted = wantedBoxes(player, carpetClient);
-        final var sent = SENT.getOrDefault(player.getUUID(), Map.of());
-
-        final Set<ResourceKey<Level>> dimensions = new HashSet<>(wanted.keySet());
-        dimensions.addAll(sent.keySet());
-
-        boolean changed = false;
-        for (var dimension : dimensions) {
-            final Delta delta = computeDelta(
-                    sent.getOrDefault(dimension, Set.of()),
-                    wanted.getOrDefault(dimension, Set.of())
-            );
-            if (delta.isEmpty()) continue;
-            changed = true;
-
-            OverlayBoxShapes.send(server, player, dimension, delta.added(), Integer.MAX_VALUE);
-            // 只有 carpet 客户端才有「删除形状」的概念；粒子只是不再下发
-            if (carpetClient) {
-                OverlayBoxShapes.send(server, player, dimension, delta.removed(), 0);
-            }
-        }
-
-        SENT.put(player.getUUID(), wanted);
-        if (changed && FeCA.DEBUG) {
-            FeCA.LOGGER.debug("<ObserverFreezeAreasOverlay> synced {} dimension(s) for {}",
-                    wanted.size(), player.getName().getString());
-        }
-    }
-
-    /// 清掉该玩家已下发的常驻线框（退订 / 规则关闭）
-    private static void clear(@Nullable ServerPlayer player) {
-        if (player == null) return;
-
-        final var sent = SENT.remove(player.getUUID());
-        if (sent == null || !Carpet.isValidCarpetPlayer(player)) return;   // 粒子会自己消散
-
-        final var server = SERVER;
+    /// 让形状表与「区域表 ∩ 规则开启」一致（逐维度做增量）
+    private static void rebuild() {
+        final MinecraftServer server = CarpetServer.minecraft_server;
         if (server == null) return;
 
-        sent.forEach((dimension, boxes) ->
-                OverlayBoxShapes.send(server, player, dimension, boxes, 0));
+        final Map<ResourceKey<Level>, Set<AABB>> wanted = wantedBoxes();
+        final Set<ResourceKey<Level>> dimensions = new HashSet<>(wanted.keySet());
+        dimensions.addAll(SHAPES.keySet());
+
+        for (var dimension : dimensions) {
+            final var registered = SHAPES.getOrDefault(dimension, Map.of());
+            final Delta delta = computeDelta(registered.keySet(), wanted.getOrDefault(dimension, Set.of()));
+            if (delta.isEmpty()) continue;
+
+            final Map<AABB, Identifier> current = new HashMap<>(registered);
+            delete(delta.removed(), current);
+            create(server, dimension, delta.added(), current);
+
+            if (current.isEmpty()) SHAPES.remove(dimension);
+            else SHAPES.put(dimension, current);
+        }
     }
 
-    /// 该玩家应当收到哪些区域：维度 → 区域集合
+    /// 注册一个区域的形状：1 个只画面的 {@link BoxShape} + 12 条 {@link LineShape} 棱
     ///
-    /// @apiNote carpet 客户端拿全部维度（形状自带维度）；粒子客户端只拿当前维度、且只算
-    /// {@link #PARTICLE_RADIUS} 内的区域——carpet 的 {@code Box#alternative()} 本身就按当前维度过滤，
-    /// 其它维度的粒子只会被丢弃。
-    private static @NonNull Map<ResourceKey<Level>, Set<AABB>> wantedBoxes(
-            @NonNull ServerPlayer player, boolean carpetClient) {
+    /// @apiNote 棱不用 {@code BoxShape.renderWireframe}：它把每条棱拆成独立的方块 Display，
+    /// 小线宽下相邻方块之间会露缝（看起来像虚线）；方块 Display 也不吃 glow 颜色，显示为白色
+    private static void create(@NonNull MinecraftServer server, @NonNull ResourceKey<Level> dimension,
+                               @NonNull Collection<AABB> boxes, @NonNull Map<AABB, Identifier> current) {
+        final ServerLevel level = server.getLevel(dimension);
+        if (level == null) return;
+
+        for (AABB box : boxes) {
+            final Identifier id = shapeId(dimension, box);
+            current.put(box, id);
+
+            final Shape face = ShapeGenerator.generateBox()
+                    .aabb(new Vec3(box.minX, box.minY, box.minZ), new Vec3(box.maxX, box.maxY, box.maxZ))
+                    .level(level)
+                    .color(FACE_COLOR)
+                    .seeThrough(true)
+                    .visibleTo(player -> isSubscribed(player.getUUID()))
+                    .build();
+            ShapeManagers.addShape(childId(id, "face"), face);
+
+            final Vec3[][] edges = edgeSegments(box);
+            for (int i = 0; i < edges.length; i++) {
+                final Shape line = ShapeGenerator.generateLine()
+                        .start(edges[i][0])
+                        .end(edges[i][1])
+                        .lineWidth(EDGE_WIDTH)
+                        .level(level)
+                        .color(EDGE_COLOR)
+                        .seeThrough(false)
+                        .visibleTo(player -> isSubscribed(player.getUUID()))
+                        .build();
+                ShapeManagers.addShape(childId(id, "edge_" + i), line);
+            }
+        }
+    }
+
+    /// 区域的 12 条棱（底面 4 + 顶面 4 + 竖直 4）
+    ///
+    /// @apiNote 公开供组件测试校验几何
+    @Contract(pure = true)
+    public static @NonNull Vec3[][] edgeSegments(@NonNull AABB box) {
+        final Vec3[] c = {
+                new Vec3(box.minX, box.minY, box.minZ),
+                new Vec3(box.maxX, box.minY, box.minZ),
+                new Vec3(box.maxX, box.minY, box.maxZ),
+                new Vec3(box.minX, box.minY, box.maxZ),
+                new Vec3(box.minX, box.maxY, box.minZ),
+                new Vec3(box.maxX, box.maxY, box.minZ),
+                new Vec3(box.maxX, box.maxY, box.maxZ),
+                new Vec3(box.minX, box.maxY, box.maxZ),
+        };
+        final int[][] pairs = {
+                {0, 1}, {1, 2}, {2, 3}, {3, 0},   // 底面
+                {4, 5}, {5, 6}, {6, 7}, {7, 4},   // 顶面
+                {0, 4}, {1, 5}, {2, 6}, {3, 7},   // 竖直
+        };
+        final Vec3[][] result = new Vec3[pairs.length][];
+        for (int i = 0; i < pairs.length; i++) {
+            result[i] = new Vec3[]{c[pairs[i][0]], c[pairs[i][1]]};
+        }
+        return result;
+    }
+
+    /// 整组删除的前缀，必须带 {@code "/"}
+    ///
+    /// @apiNote {@code removeShapes} 用 {@code startsWith} 匹配，不带分隔符时
+    /// id 为 {@code ab} 的区域会连带删掉 {@code abc} 的子形状。公开供测试校验
+    @Contract(pure = true)
+    public static @NonNull Identifier groupId(@NonNull Identifier areaId) {
+        return areaId.withPath(areaId.getPath() + "/");
+    }
+
+    private static @NonNull Identifier childId(@NonNull Identifier areaId, @NonNull String suffix) {
+        return areaId.withPath(areaId.getPath() + "/" + suffix);
+    }
+
+    /// 删除区域的面与全部棱
+    private static void delete(@NonNull Collection<AABB> boxes, @NonNull Map<AABB, Identifier> current) {
+        for (AABB box : boxes) {
+            final Identifier id = current.remove(box);
+            if (id == null) continue;
+            ShapeManagers.removeShapes(groupId(id));
+        }
+    }
+
+    private static void clearAll() {
+        if (SHAPES.isEmpty()) return;
+        // 根前缀带 "/"，避免误删路径以 observer_freeze_areas 开头的其它形状
+        ShapeManagers.removeShapes(Identifier.fromNamespaceAndPath(SHAPE_NAMESPACE, SHAPE_ROOT + "/"));
+        SHAPES.clear();
+    }
+
+    /// 需要渲染的区域：规则关闭时为空
+    private static @NonNull Map<ResourceKey<Level>, Set<AABB>> wantedBoxes() {
         final Map<ResourceKey<Level>, Set<AABB>> result = new HashMap<>();
-        @SuppressWarnings("resource")
-        final var currentDimension = player.level().dimension();
-        final Vec3 eye = player.getEyePosition();
-        final double radiusSqr = PARTICLE_RADIUS * PARTICLE_RADIUS;
+        if (!CommandObserverFreezeAreas.isEnabled()) return result;
 
         for (var dimension : CommandObserverFreezeAreas.DIMENSION_MAP.dimensions()) {
-            if (!carpetClient && !dimension.equals(currentDimension)) continue;
-
             final var entry = CommandObserverFreezeAreas.DIMENSION_MAP.getEntryNullable(dimension);
             if (entry == null) continue;
 
@@ -222,8 +279,6 @@ public final class ObserverFreezeAreasOverlay {
             for (var area : entry) {
                 final AABB box = area.value();
                 if (!area.rendered() || box.hasNaN()) continue;
-                if (!carpetClient && box.distanceToSqr(eye) > radiusSqr) continue;
-
                 boxes.add(box);
             }
             if (!boxes.isEmpty()) result.put(dimension, boxes);
@@ -231,8 +286,17 @@ public final class ObserverFreezeAreasOverlay {
         return result;
     }
 
-    private static @Nullable ServerPlayer playerOf(@NonNull UUID uuid) {
-        final var server = SERVER;
-        return server == null ? null : server.getPlayerList().getPlayer(uuid);
+    /// 形状 id：只需在「同一维度内唯一且稳定」，不必可读
+    ///
+    /// @apiNote 坐标文本会带科学计数法（{@code 1.2E7}）与负号，都不是合法路径字符，故用哈希
+    private static @NonNull Identifier shapeId(@NonNull ResourceKey<Level> dimension, @NonNull AABB box) {
+        return Identifier.fromNamespaceAndPath(SHAPE_NAMESPACE,
+                SHAPE_ROOT + "/" + dimension.identifier().getPath() + "/" + boxHash(box));
+    }
+
+    private static @NonNull String boxHash(@NonNull AABB box) {
+        final int hash = Arrays.hashCode(new double[]{
+                box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ});
+        return Integer.toHexString(hash);
     }
 }

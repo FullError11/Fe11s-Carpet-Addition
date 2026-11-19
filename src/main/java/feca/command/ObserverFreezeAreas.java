@@ -419,15 +419,11 @@ public class ObserverFreezeAreas {
                     ? "feca.msg.cmd.observerFreezeAreas.overlay.enabled"
                     : "feca.msg.cmd.observerFreezeAreas.overlay.disabled"
             );
-            // carpet 客户端切换 F3 调试渲染器时会清空形状表, 只能靠重新订阅补发
-            final Component f3Hint = Component.translatable("feca.msg.cmd.observerFreezeAreas.overlay.f3Hint")
-                    .withColor(TextColor.GRAY);
 
             return Commands.literal("overlay")
                     .executes(PlayerExecutor.requireExecByPlayer((ctx, player) -> {
                         var subscribed = ObserverFreezeAreasOverlay.toggle(player.getUUID());
                         ctx.getSource().sendSuccess(() -> subscriptionMsg.apply(subscribed), false);
-                        if (subscribed) player.sendSystemMessage(f3Hint);
                         return SUCCESS;
                     }))
                     .then(Commands.literal("enable")
@@ -438,7 +434,6 @@ public class ObserverFreezeAreas {
                                     return FAILURE;
                                 }
                                 ctx.getSource().sendSuccess(() -> subscriptionMsg.apply(true), false);
-                                player.sendSystemMessage(f3Hint);
                                 return SUCCESS;
                             }))
                     )
@@ -467,9 +462,7 @@ public class ObserverFreezeAreas {
                                 "feca.msg.cmd.observerFreezeAreas.overlay.list.header", subscribers.size()));
                         for (var uuid : subscribers) {
                             var online = playerList.getPlayer(uuid);
-                            var name = online != null ? online.getName().getString() : uuid.toString();
-                            msg.append("\n").append(Component.translatable(
-                                    "feca.msg.cmd.observerFreezeAreas.overlay.list.entry", name));
+                            msg.append("\n").append("- " + (online != null ? online.getName().getString() : uuid.toString()));
                         }
                         ctx.getSource().sendSystemMessage(msg);
                         return SUCCESS;
