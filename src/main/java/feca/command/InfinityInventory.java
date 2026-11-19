@@ -34,12 +34,15 @@ import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.ChestBlock;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import org.jetbrains.annotations.Contract;
@@ -575,7 +578,7 @@ public class InfinityInventory {
         var hit = player.pick(player.blockInteractionRange(), 0.0F, false);
         if (hit.getType() == HitResult.Type.BLOCK) {
             var pos = ((BlockHitResult) hit).getBlockPos();
-            return level.isLoaded(pos) && level.getBlockEntity(pos) instanceof Container container ? container : null;
+            return level.isLoaded(pos) ? containerAt(level, pos) : null;
         }
 
         var eye = player.getEyePosition();
@@ -598,6 +601,23 @@ public class InfinityInventory {
             }
         }
         return nearest;
+    }
+
+    /// 指向位置上的方块容器。
+    ///
+    /// 大箱子（连接状态）是两个 27 格的方块实体，必须走 {@link ChestBlock#getContainer} 合并成
+    /// {@code CompoundContainer} 才能看到全部 54 格；直接取方块实体只会拿到被指到的那一半。
+    ///
+    /// {@code ignoreBeingBlocked = true}：这是命令而不是开箱子界面，不做「上方有方块压住就开不了」的限制。
+    static @Nullable Container containerAt(@NonNull Level level, @NonNull BlockPos pos) {
+        if (!(level.getBlockEntity(pos) instanceof Container container)) return null;
+
+        var state = level.getBlockState(pos);
+        if (state.getBlock() instanceof ChestBlock chestBlock) {
+            var combined = ChestBlock.getContainer(chestBlock, state, level, pos, true);
+            return combined != null ? combined : container;
+        }
+        return container;
     }
 
     private interface Arguments {
