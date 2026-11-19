@@ -42,6 +42,7 @@
 		"minecraft": "~26.2",
 		"java": ">=25",
 		"fabric-api": "*",
+		"carpet": "*",
 		"ryansserverrenderingkit": ">=1.2.0"
 	}
 }
