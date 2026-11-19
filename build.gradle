@@ -60,7 +60,6 @@ dependencies {
 
 	// Carpet Mod
 	implementation "carpet:fabric-carpet:${project.carpet_version}"
-	include "carpet:fabric-carpet:${project.carpet_version}"
 
 	// Litematica / MaLiLib（仅客户端，软依赖）
 	clientCompileOnly "maven.modrinth:litematica:${project.litematica_version}"
