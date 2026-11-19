@@ -1,0 +1,4 @@
+[submodule "vendor/ryansrenderingkit"]
+	path = vendor/ryansrenderingkit
+	url = https://github.com/hotpad100c/ryansrenderingkit
+	branch = MultiVersion-ServerSide

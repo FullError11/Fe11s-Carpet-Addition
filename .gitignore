@@ -32,6 +32,11 @@ bin/
 
 run/
 
+# 内置依赖 RyansRenderingKit（git submodule 的构建产物）
+vendor/ryansrenderingkit/build/
+vendor/ryansrenderingkit/.gradle/
+vendor/ryansrenderingkit/run/
+
 # java
 
 hs_err_*.log

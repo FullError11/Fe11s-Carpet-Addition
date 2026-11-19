@@ -20,6 +20,9 @@ repositories {
 	}
 }
 
+// Ryan'sRenderingKit（内置依赖）：子模块构建、本地仓组装与 include 都在这个脚本里
+apply from: 'gradle/vendor-ryansrenderingkit.gradle'
+
 loom {
 	splitEnvironmentSourceSets()
 
