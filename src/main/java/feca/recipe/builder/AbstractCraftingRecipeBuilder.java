@@ -34,7 +34,7 @@ public abstract class AbstractCraftingRecipeBuilder<S extends AbstractCraftingRe
         return self();
     }
 
-    protected abstract S self();
+    protected abstract @NonNull S self();
 
     public abstract T build();
 

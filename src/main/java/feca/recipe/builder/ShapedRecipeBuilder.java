@@ -20,7 +20,7 @@ public class ShapedRecipeBuilder extends AbstractCraftingRecipeBuilder<ShapedRec
     }
 
     @Override
-    protected ShapedRecipeBuilder self() {
+    protected @NonNull ShapedRecipeBuilder self() {
         return this;
     }
 

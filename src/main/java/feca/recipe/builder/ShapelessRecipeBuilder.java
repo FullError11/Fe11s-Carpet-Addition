@@ -28,7 +28,7 @@ public class ShapelessRecipeBuilder extends AbstractCraftingRecipeBuilder<Shapel
     }
 
     @Override
-    protected ShapelessRecipeBuilder self() {
+    protected @NonNull ShapelessRecipeBuilder self() {
         return this;
     }
 
