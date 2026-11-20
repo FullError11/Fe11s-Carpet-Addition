@@ -50,6 +50,7 @@ public final class Rules {
     }
 
     private static final String FECA = "FeCA";
+    private static final String RECIPE = "recipe";
 
     @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(NoThunder.class)
@@ -95,7 +96,7 @@ public final class Rules {
     @RuleImplBy(CommandHome.class)
     public static CommandPermissionOptions commandHome = CommandPermissionOptions.FALSE;
 
-    @Rule(categories = {FECA, SURVIVAL})
+    @Rule(categories = {FECA, SURVIVAL, FEATURE})
     @RuleImplBy(FakeBrittleIce.class)
     public static boolean fakeBrittleIce = false;
 
@@ -152,15 +153,15 @@ public final class Rules {
     @RuleImplBy(CommandInfinityInventorySync.class)
     public static boolean commandInfinityInventorySync = false;
 
-    @Rule(categories = {FECA, SURVIVAL})
+    @Rule(categories = {FECA, SURVIVAL, RECIPE})
     @RuleImplBy(ReverseWoolCrafting.class)
     public static boolean reverseWoolCrafting = false;
 
-    @Rule(categories = {FECA, SURVIVAL})
+    @Rule(categories = {FECA, SURVIVAL, RECIPE})
     @RuleImplBy(CarpetColorExtraction.class)
     public static ColorExtractionOptions carpetColorExtraction = ColorExtractionOptions.FALSE;
 
-    @Rule(categories = {FECA, SURVIVAL})
+    @Rule(categories = {FECA, SURVIVAL, RECIPE})
     @RuleImplBy(CraftableReinforcedDeepslate.class)
     public static boolean craftableReinforcedDeepslate = false;
 }
