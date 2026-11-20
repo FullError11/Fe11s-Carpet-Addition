@@ -109,6 +109,14 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
     <tr><td>地毯</td> <td>地毯</td></tr>
 </table>
 
+### 地毯颜色萃取 (`carpetColorExtraction`)
+
+允许把染料从已染色的地毯里取回来：
+
+- `FALSE` 关闭（默认）
+- `CRAFT` 染色地毯 → 1 个同色染料
+- `EXTRACTION` 染色地毯 **+ 白色染料** → 1 个同色染料
+
 ## 命令向
 
 命令的完整语法见 [Commands.md](Commands.md)。

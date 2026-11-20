@@ -4,6 +4,8 @@ import feca.utils.ColorCollectionUtils;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.level.block.ColorCollection;
+import org.jetbrains.annotations.Contract;
+import org.jspecify.annotations.NonNull;
 
 import java.util.ArrayList;
 import java.util.function.Function;
@@ -15,7 +17,8 @@ public class ColorRecipeHandle<T extends Recipe<?>> implements Handle {
         this.recipes = recipes;
     }
 
-    public static <T extends Recipe<?>> ColorRecipeHandle<T> ofColors(Function<DyeColor, RecipeHandle<T>> factory) {
+    @Contract("_ -> new")
+    public static <T extends Recipe<?>> @NonNull ColorRecipeHandle<T> ofColors(Function<DyeColor, RecipeHandle<T>> factory) {
         var list = new ArrayList<RecipeHandle<T>>(ColorCollectionUtils.COLOR_COUNT);
 
         for (int i = 0; i < ColorCollectionUtils.COLOR_COUNT; i++) {

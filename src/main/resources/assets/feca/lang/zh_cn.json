@@ -78,6 +78,11 @@
     "carpet.rule.reverseWoolCrafting.name": "反向羊毛合成",
     "carpet.rule.reverseWoolCrafting.desc": "允许用 2×2 同色地毯合成 2 个同色羊毛",
 
+    "carpet.rule.carpetColorExtraction.name": "地毯颜色萃取",
+    "carpet.rule.carpetColorExtraction.desc": "允许用地毯合成染料",
+    "carpet.rule.carpetColorExtraction.extra.1": "craft: 地毯 => 同色染料",
+    "carpet.rule.carpetColorExtraction.extra.2": "extraction: 地毯 + 白色染料 => 同色染料",
+
     "feca.msg.common.enterCommand": "输入命令到聊天框",
     "feca.msg.common.pageNumberOutOfRange": "页码 %d 不存在，请输入 %d ~ %d 间的数字",
     "feca.msg.common.inventoryFull": "背包内无空间",

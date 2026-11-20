@@ -155,4 +155,8 @@ public final class Rules {
     @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(ReverseWoolCrafting.class)
     public static boolean reverseWoolCrafting = false;
+
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(CarpetColorExtraction.class)
+    public static ColorExtractionOptions carpetColorExtraction = ColorExtractionOptions.FALSE;
 }
