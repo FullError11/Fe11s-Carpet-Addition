@@ -97,6 +97,9 @@
     "carpet.rule.craftableCobweb.extra.3": "[粘液球] [ 线  ] [粘液球]",
     "carpet.rule.craftableCobweb.extra.4": "[ 线  ] [粘液球] [ 线  ]",
 
+    "carpet.rule.concretePowderFiredIntoGlass.name": "混凝土粉末烧制为玻璃",
+    "carpet.rule.concretePowderFiredIntoGlass.desc": "允许在熔炉内将混凝土粉末烧制为同色玻璃",
+
     "feca.msg.common.enterCommand": "输入命令到聊天框",
     "feca.msg.common.pageNumberOutOfRange": "页码 %d 不存在，请输入 %d ~ %d 间的数字",
     "feca.msg.common.inventoryFull": "背包内无空间",

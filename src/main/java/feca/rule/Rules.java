@@ -168,4 +168,8 @@ public final class Rules {
     @Rule(categories = {FECA, SURVIVAL, RECIPE})
     @RuleImplBy(CraftableCobweb.class)
     public static boolean craftableCobweb = false;
+
+    @Rule(categories = {FECA, SURVIVAL, RECIPE})
+    @RuleImplBy(ConcretePowderFiredIntoGlass.class)
+    public static boolean concretePowderFiredIntoGlass = false;
 }

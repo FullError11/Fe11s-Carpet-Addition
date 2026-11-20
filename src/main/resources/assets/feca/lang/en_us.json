@@ -97,6 +97,9 @@
     "carpet.rule.craftableCobweb.extra.3": "[SlimeBall] [ String  ] [SlimeBall]",
     "carpet.rule.craftableCobweb.extra.4": "[ String  ] [SlimeBall] [ String  ]",
 
+    "carpet.rule.concretePowderFiredIntoGlass.name": "Concrete Powder Fired Into Glass",
+    "carpet.rule.concretePowderFiredIntoGlass.desc": "Allows smelting concrete powder into stained glass of the same colour in a furnace",
+
     "feca.msg.common.enterCommand": "Type the command into the chat box",
     "feca.msg.common.pageNumberOutOfRange": "Page %d does not exist; enter a number between %d and %d",
     "feca.msg.common.inventoryFull": "No space in inventory",
