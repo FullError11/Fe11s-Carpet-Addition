@@ -71,7 +71,10 @@ static void bootstrap() {
   以及潜影盒槽的递归（箱子 ← 木板 ← 原木 能合出潜影盒、关闭递归后合不出）。
 - 生产代码小幅可测化：`LargeBucket` 抽出纯 NBT 的 `getBucketContentCount(CompoundTag)` / `setBucketContentCount(CompoundTag, int)`（行为不变）。
 - 测试发现的真实缺陷：`CommandObserverFreezeAreas` 的 `render` 字段旧配置兼容守卫丢失（老世界加载 FeCAConfig 会抛异常）——已修复并由 `legacyConfigDefaultsToRendered` 锁定。
-- CI：`.github/workflows/build.yml` 在 push/PR 上执行 `./gradlew build`（= L1 单元测试 + L2 GameTest），并上传构建产物与测试报告。
+- CI：`.github/workflows/build.yml` 在 push/PR 上分三个 job：
+  `build`（`./gradlew assemble`，只编译打包）先串行跑；
+  通过后 `test`（`./gradlew test`，L1 单元测试） 与 `gametest`（`./gradlew runGameTest`，L2 GameTest）并行执行，二者均 `needs: build`。
+  编译不过时两个测试 job 直接不启动，节省 runner；各自上传构建产物 / 测试报告 / GameTest 日志。
 
 ## 已知限制 / 待补
 

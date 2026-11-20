@@ -1,13 +1,16 @@
-# Automatically build the project and run any configured tests for every push
-# and submitted pull request. This can help catch issues that only occur on
-# certain platforms or Java versions, and provides a first line of defence
-# against bad commits.
+# CI 结构：build -> (test, gametest)
+#
+#   build     先串行跑完编译与打包；失败则后面的测试 job 直接不启动。
+#   test      L1 单元测试，依赖 build。
+#   gametest  L2 GameTest，依赖 build。
+
 
 name: build
 on: [pull_request, push]
 
 jobs:
   build:
+    name: build
     runs-on: ubuntu-24.04
     steps:
       - name: checkout repository
@@ -26,24 +29,74 @@ jobs:
         with:
           # 首次需要下载 Minecraft 依赖；分支上只读缓存，避免污染主分支缓存
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-      - name: make gradle wrappers executable
-        run: |
-          chmod +x ./gradlew
-          chmod +x vendor/ryansrenderingkit/gradlew
-      # build 依赖 check -> test + runGameTest：编译、L1 单元测试与 L2 GameTest 一次跑完
-      - name: build & test
-        run: ./gradlew build --stacktrace
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+      # 编译
+      - name: assemble
+        run: ./gradlew assemble --stacktrace
       - name: capture build artifacts
         uses: actions/upload-artifact@v7
         with:
           name: Artifacts
           path: build/libs/
+
+  test:
+    name: test
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+      - name: setup gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+      # JUnit 单元测试
+      - name: run unit tests
+        run: ./gradlew test --stacktrace
       - name: capture test reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: Test Reports
           path: build/reports/tests/
+
+  gametest:
+    name: gametest
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'microsoft'
+      - name: setup gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+      # Fabric GameTest
+      - name: run game tests
+        run: ./gradlew runGameTest --stacktrace
       - name: capture gametest logs
         if: always()
         uses: actions/upload-artifact@v7
