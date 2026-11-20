@@ -83,6 +83,13 @@
     "carpet.rule.carpetColorExtraction.extra.1": "craft: 地毯 => 同色染料",
     "carpet.rule.carpetColorExtraction.extra.2": "extraction: 地毯 + 白色染料 => 同色染料",
 
+    "carpet.rule.craftableReinforcedDeepslate.name": "可合成强化深板岩",
+    "carpet.rule.craftableReinforcedDeepslate.desc": "添加强化深板岩合成配方",
+    "carpet.rule.craftableReinforcedDeepslate.extra.1": "配方：",
+    "carpet.rule.craftableReinforcedDeepslate.extra.2": "[黑曜石] [黑曜石] [黑曜石]",
+    "carpet.rule.craftableReinforcedDeepslate.extra.3": "[黑曜石] [深板岩] [黑曜石]",
+    "carpet.rule.craftableReinforcedDeepslate.extra.4": "[黑曜石] [黑曜石] [黑曜石]",
+
     "feca.msg.common.enterCommand": "输入命令到聊天框",
     "feca.msg.common.pageNumberOutOfRange": "页码 %d 不存在，请输入 %d ~ %d 间的数字",
     "feca.msg.common.inventoryFull": "背包内无空间",

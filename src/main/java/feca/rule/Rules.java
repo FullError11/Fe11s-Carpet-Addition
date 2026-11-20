@@ -159,4 +159,8 @@ public final class Rules {
     @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(CarpetColorExtraction.class)
     public static ColorExtractionOptions carpetColorExtraction = ColorExtractionOptions.FALSE;
+
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(CraftableReinforcedDeepslate.class)
+    public static boolean craftableReinforcedDeepslate = false;
 }

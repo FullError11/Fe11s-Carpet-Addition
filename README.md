@@ -59,7 +59,7 @@
     - false: 禁用  
     - craft: 合成(染色地毯 => 染料)  
     - extraction: 萃取(染料地毯 + 白色染料 => 染料)  
-- [ ] 可合成强化深板岩  
+- [x] 可合成强化深板岩  
     配方:  
     <table style="margin: 0 auto; text-align: center;">
         <tr>

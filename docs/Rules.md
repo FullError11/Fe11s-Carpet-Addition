@@ -117,6 +117,16 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 - `CRAFT` 染色地毯 → 1 个同色染料
 - `EXTRACTION` 染色地毯 **+ 白色染料** → 1 个同色染料
 
+### 可合成强化深板岩 (`craftableReinforcedDeepslate`)
+
+添加强化深板岩的合成配方：**8 个黑曜石环绕 1 个深板岩** → 1 个强化深板岩。
+
+<table style="margin: 0 auto; text-align: center;">
+    <tr><td>黑曜石</td> <td>黑曜石</td> <td>黑曜石</td></tr>
+    <tr><td>黑曜石</td> <td>深板岩</td> <td>黑曜石</td></tr>
+    <tr><td>黑曜石</td> <td>黑曜石</td> <td>黑曜石</td></tr>
+</table>
+
 ## 命令向
 
 命令的完整语法见 [Commands.md](Commands.md)。

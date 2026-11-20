@@ -83,6 +83,13 @@
     "carpet.rule.carpetColorExtraction.extra.1": "craft: carpet => dye of the same colour",
     "carpet.rule.carpetColorExtraction.extra.2": "extraction: carpet + white dye => dye of the same colour",
 
+    "carpet.rule.craftableReinforcedDeepslate.name": "Craftable Reinforced Deepslate",
+    "carpet.rule.craftableReinforcedDeepslate.desc": "Adds a crafting recipe for reinforced deepslate",
+    "carpet.rule.craftableReinforcedDeepslate.extra.1": "Recipe:",
+    "carpet.rule.craftableReinforcedDeepslate.extra.2": "[Obsidian] [Obsidian] [Obsidian]",
+    "carpet.rule.craftableReinforcedDeepslate.extra.3": "[Obsidian] [Deepslate] [Obsidian]",
+    "carpet.rule.craftableReinforcedDeepslate.extra.4": "[Obsidian] [Obsidian] [Obsidian]",
+
     "feca.msg.common.enterCommand": "Type the command into the chat box",
     "feca.msg.common.pageNumberOutOfRange": "Page %d does not exist; enter a number between %d and %d",
     "feca.msg.common.inventoryFull": "No space in inventory",
