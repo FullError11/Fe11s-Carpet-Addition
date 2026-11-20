@@ -90,6 +90,13 @@
     "carpet.rule.craftableReinforcedDeepslate.extra.3": "[黑曜石] [深板岩] [黑曜石]",
     "carpet.rule.craftableReinforcedDeepslate.extra.4": "[黑曜石] [黑曜石] [黑曜石]",
 
+    "carpet.rule.craftableCobweb.name": "可合成蜘蛛网",
+    "carpet.rule.craftableCobweb.desc": "添加蜘蛛网合成配方",
+    "carpet.rule.craftableCobweb.extra.1": "配方：",
+    "carpet.rule.craftableCobweb.extra.2": "[ 线  ] [粘液球] [ 线  ]",
+    "carpet.rule.craftableCobweb.extra.3": "[粘液球] [ 线  ] [粘液球]",
+    "carpet.rule.craftableCobweb.extra.4": "[ 线  ] [粘液球] [ 线  ]",
+
     "feca.msg.common.enterCommand": "输入命令到聊天框",
     "feca.msg.common.pageNumberOutOfRange": "页码 %d 不存在，请输入 %d ~ %d 间的数字",
     "feca.msg.common.inventoryFull": "背包内无空间",

@@ -164,4 +164,8 @@ public final class Rules {
     @Rule(categories = {FECA, SURVIVAL, RECIPE})
     @RuleImplBy(CraftableReinforcedDeepslate.class)
     public static boolean craftableReinforcedDeepslate = false;
+
+    @Rule(categories = {FECA, SURVIVAL, RECIPE})
+    @RuleImplBy(CraftableCobweb.class)
+    public static boolean craftableCobweb = false;
 }

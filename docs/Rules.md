@@ -127,6 +127,16 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
     <tr><td>黑曜石</td> <td>黑曜石</td> <td>黑曜石</td></tr>
 </table>
 
+### 可合成蜘蛛网 (`craftableCobweb`)
+
+添加蜘蛛网的合成配方：
+
+<table style="margin: 0 auto; text-align: center;">
+    <tr><td>线</td> <td>粘液球</td> <td>线</td></tr>
+    <tr><td>粘液球</td> <td>线</td> <td>粘液球</td></tr>
+    <tr><td>线</td> <td>粘液球</td> <td>线</td></tr>
+</table>
+
 ## 命令向
 
 命令的完整语法见 [Commands.md](Commands.md)。

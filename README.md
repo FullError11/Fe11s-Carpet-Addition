@@ -72,7 +72,7 @@
             <td>黑曜石</td> <td>黑曜石</td> <td>黑曜石</td>
         </tr>
     </table>
-- [ ] 可合成蜘蛛网  
+- [x] 可合成蜘蛛网  
     配方:
     <table style="margin: 0 auto; text-align: center;">
         <tr>

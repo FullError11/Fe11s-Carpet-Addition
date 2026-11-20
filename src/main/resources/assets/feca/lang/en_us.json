@@ -90,6 +90,13 @@
     "carpet.rule.craftableReinforcedDeepslate.extra.3": "[Obsidian] [Deepslate] [Obsidian]",
     "carpet.rule.craftableReinforcedDeepslate.extra.4": "[Obsidian] [Obsidian] [Obsidian]",
 
+    "carpet.rule.craftableCobweb.name": "Craftable Cobweb",
+    "carpet.rule.craftableCobweb.desc": "Adds a crafting recipe for cobweb",
+    "carpet.rule.craftableCobweb.extra.1": "Recipe:",
+    "carpet.rule.craftableCobweb.extra.2": "[ String  ] [SlimeBall] [ String  ]",
+    "carpet.rule.craftableCobweb.extra.3": "[SlimeBall] [ String  ] [SlimeBall]",
+    "carpet.rule.craftableCobweb.extra.4": "[ String  ] [SlimeBall] [ String  ]",
+
     "feca.msg.common.enterCommand": "Type the command into the chat box",
     "feca.msg.common.pageNumberOutOfRange": "Page %d does not exist; enter a number between %d and %d",
     "feca.msg.common.inventoryFull": "No space in inventory",
