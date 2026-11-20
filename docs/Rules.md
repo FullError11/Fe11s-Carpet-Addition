@@ -100,6 +100,15 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 > 只在查询上限时改写返回值，不动物品注册表，规则可随时开关；`-1` 时完全不干预，其它模组改过的上限也照旧。
 > 仅服务端生效：没装 FeCA 或未开该规则的客户端仍按上限 1 处理，合并/拆分的客户端预测会由服务端纠正。
 
+### 反向羊毛合成 (`reverseWoolCrafting`)
+
+允许用 **2×2 四格同色地毯** 合成 **2 个同色羊毛**。
+
+<table style="margin: 0 auto; text-align: center;">
+    <tr><td>地毯</td> <td>地毯</td></tr>
+    <tr><td>地毯</td> <td>地毯</td></tr>
+</table>
+
 ## 命令向
 
 命令的完整语法见 [Commands.md](Commands.md)。

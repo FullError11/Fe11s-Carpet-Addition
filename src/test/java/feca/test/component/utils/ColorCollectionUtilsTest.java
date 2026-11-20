@@ -88,4 +88,94 @@ class ColorCollectionUtilsTest {
         assertFalse(iterator.hasNext());
         assertThrows(NoSuchElementException.class, iterator::next);
     }
+
+    @Test
+    @DisplayName("toList 与 toArrayList 保持 16 色顺序一致")
+    void listConversionsKeepOrder() {
+        final ColorCollection<String> source = numbered();
+
+        final List<String> asList = ColorCollectionUtils.toList(source);
+        final List<String> asArrayList = ColorCollectionUtils.toArrayList(source);
+
+        assertEquals(16, asList.size());
+        assertEquals(16, asArrayList.size());
+        for (int i = 0; i < 16; i++) {
+            assertEquals("c" + i, asList.get(i));
+            assertEquals("c" + i, asArrayList.get(i));
+        }
+    }
+
+    @Test
+    @DisplayName("toArrayList 返回可变副本，不修改原集合")
+    void toArrayListIsMutableCopy() {
+        final ColorCollection<String> source = numbered();
+        final List<String> copy = ColorCollectionUtils.toArrayList(source);
+
+        copy.set(0, "changed");
+        assertEquals("c0", source.white(), "原集合不应被修改");
+    }
+
+    @Test
+    @DisplayName("fromList 往返保持顺序")
+    void fromListRoundTrips() {
+        final List<String> values = ColorCollectionUtils.toArrayList(numbered());
+        final ColorCollection<String> rebuilt = ColorCollectionUtils.fromList(values);
+
+        final List<String> flattened = ColorCollectionUtils.toArrayList(rebuilt);
+        for (int i = 0; i < 16; i++) {
+            assertEquals("c" + i, flattened.get(i), "第 " + i + " 个颜色往返后顺序错位");
+        }
+    }
+
+    @Test
+    @DisplayName("fromList 元素数不为 16 时抛 IllegalArgumentException")
+    void fromListRejectsWrongSize() {
+        assertThrows(IllegalArgumentException.class,
+                () -> ColorCollectionUtils.fromList(List.of("a", "b")));
+        assertThrows(IllegalArgumentException.class,
+                () -> ColorCollectionUtils.fromList(List.of()));
+    }
+
+    @Test
+    @DisplayName("colorAt 按 16 色顺序取色，越界抛 IndexOutOfBoundsException")
+    void colorAtIndexing() {
+        assertEquals(DyeColor.WHITE, ColorCollectionUtils.colorAt(0));
+        assertEquals(DyeColor.BLACK, ColorCollectionUtils.colorAt(15));
+        assertEquals(16, ColorCollectionUtils.COLOR_COUNT);
+
+        assertThrows(IndexOutOfBoundsException.class, () -> ColorCollectionUtils.colorAt(-1));
+        assertThrows(IndexOutOfBoundsException.class, () -> ColorCollectionUtils.colorAt(16));
+    }
+
+    @Test
+    @DisplayName("colorAt 与 toList 的顺序一一对应")
+    void colorAtMatchesListOrder() {
+        final List<DyeColor> colors = ColorCollectionUtils.toArrayList(ColorCollection.VALUES);
+        for (int i = 0; i < ColorCollectionUtils.COLOR_COUNT; i++) {
+            assertEquals(colors.get(i), ColorCollectionUtils.colorAt(i),
+                    "第 " + i + " 个颜色不对应");
+        }
+    }
+
+    @Test
+    @DisplayName("zipMap 按色号逐色配对")
+    void zipMapPairsByColor() {
+        final ColorCollection<String> first = ColorCollectionUtils.map(ColorCollection.VALUES, DyeColor::getSerializedName);
+        final ColorCollection<String> second = ColorCollectionUtils.map(ColorCollection.VALUES, Enum::name);
+
+        final ColorCollection<String> zipped =
+                ColorCollectionUtils.zipMap(first, second, (a, b) -> a + "|" + b);
+
+        assertEquals("white|WHITE", zipped.white());
+        assertEquals("black|BLACK", zipped.black());
+    }
+
+    @Test
+    @DisplayName("pick 按 DyeColor 取到对应元素")
+    void pickByColor() {
+        final ColorCollection<String> colors = ColorCollectionUtils.map(ColorCollection.VALUES, DyeColor::getSerializedName);
+
+        assertEquals("light_blue", ColorCollectionUtils.pick(colors, DyeColor.LIGHT_BLUE));
+        assertEquals("red", ColorCollectionUtils.pick(colors, DyeColor.RED));
+    }
 }

@@ -151,4 +151,8 @@ public final class Rules {
     @Rule(categories = {FECA, COMMAND})
     @RuleImplBy(CommandInfinityInventorySync.class)
     public static boolean commandInfinityInventorySync = false;
+
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(ReverseWoolCrafting.class)
+    public static boolean reverseWoolCrafting = false;
 }

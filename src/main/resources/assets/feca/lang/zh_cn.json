@@ -75,6 +75,9 @@
     "carpet.rule.commandInfinityInventorySync.name": "无限库存 sync 子命令",
     "carpet.rule.commandInfinityInventorySync.desc": "允许使用 /infinityInventory sync 手动请求服务端进行数据同步",
 
+    "carpet.rule.reverseWoolCrafting.name": "反向羊毛合成",
+    "carpet.rule.reverseWoolCrafting.desc": "允许用 2×2 同色地毯合成 2 个同色羊毛",
+
     "feca.msg.common.enterCommand": "输入命令到聊天框",
     "feca.msg.common.pageNumberOutOfRange": "页码 %d 不存在，请输入 %d ~ %d 间的数字",
     "feca.msg.common.inventoryFull": "背包内无空间",

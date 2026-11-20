@@ -7,7 +7,9 @@ import net.minecraft.commands.CommandSourceStack;
 import org.jspecify.annotations.NonNull;
 
 import java.util.HashMap;
+import java.util.function.Consumer;
 
+@SuppressWarnings("unused")
 public class RuleChangeCallbackRegistry {
     public interface Callback<T> {
         void exec(CommandSourceStack src, CarpetRule<?> changedRule, String userInput, T newOption);
@@ -31,6 +33,10 @@ public class RuleChangeCallbackRegistry {
     @SuppressWarnings("UnusedReturnValue")
     public static <T> boolean registerFor(@NonNull Class<? extends RuleImpl> impl, Callback<T> callback, Class<T> clazz) {
         return register(RuleImpl.getRuleName(impl), callback, clazz);
+    }
+    @SuppressWarnings("UnusedReturnValue")
+    public static <T> boolean registerFor(@NonNull Class<? extends RuleImpl> impl, Consumer<T> callback, Class<T> clazz) {
+        return register(RuleImpl.getRuleName(impl), (_, _, _, newOption) -> callback.accept(newOption), clazz);
     }
 
     private static <T> void dispatch(@NonNull Entry<T> entry, CommandSourceStack src, CarpetRule<?> changedRule, String userInput, Object value) {

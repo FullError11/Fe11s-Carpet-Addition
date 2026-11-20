@@ -75,6 +75,9 @@
     "carpet.rule.commandInfinityInventorySync.name": "Infinity Inventory sync subcommand",
     "carpet.rule.commandInfinityInventorySync.desc": "Allows using /infinityInventory sync to request a manual server-side data sync",
 
+    "carpet.rule.reverseWoolCrafting.name": "Reverse Wool Crafting",
+    "carpet.rule.reverseWoolCrafting.desc": "Allows crafting 2 wool of a colour from a 2×2 grid of carpets of the same colour",
+
     "feca.msg.common.enterCommand": "Type the command into the chat box",
     "feca.msg.common.pageNumberOutOfRange": "Page %d does not exist; enter a number between %d and %d",
     "feca.msg.common.inventoryFull": "No space in inventory",
