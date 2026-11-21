@@ -6,6 +6,7 @@ import feca.function.*;
 import feca.rule.options.*;
 import feca.rule.utils.RuleImpl;
 import feca.rule.utils.RuleImplBy;
+import feca.rule.validators.*;
 import feca.utils.ClassForceLoader;
 
 import java.lang.reflect.Modifier;
@@ -183,9 +184,10 @@ public final class Rules {
 
     @Rule(
             categories = {FECA, SURVIVAL},
-            options = {"0", "8", "16", "32", "64"},
-            strict = false
+            options = {"0", "4", "8", "16", "32", "64"},
+            strict = false,
+            validators = PickupRangeExtendMaxValidator.class
     )
     @RuleImplBy(ItemPickupRangeExtendMax.class)
-    public static int itemPickupRangeExtendMax = 0;
+    public static float itemPickupRangeExtendMax = 4.0F;
 }

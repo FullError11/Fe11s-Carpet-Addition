@@ -5,21 +5,21 @@ public final class PickupRangeHolder {
         PickupRangeHolder feca$getPickupRange();
     }
 
-    private int extraRange;
+    private float extraRange;
 
     /// @return 玩家的额外水平拾取距离
-    public int getExtraRange() {
+    public float getExtraRange() {
         return extraRange;
     }
 
     /// @return 设定后的值
     @SuppressWarnings("UnusedReturnValue")
-    public int setExtraRange(int extraRange) {
+    public float setExtraRange(float extraRange) {
         this.extraRange = extraRange;
         return extraRange;
     }
 
     public void clear() {
-        this.extraRange = 0;
+        this.extraRange = 0.0F;
     }
 }

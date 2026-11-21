@@ -3,6 +3,7 @@ package feca.function;
 import feca.command.ItemPickupRangeExtend;
 import feca.rule.Rules;
 import feca.rule.utils.RuleImpl;
+import feca.rule.validators.PickupRangeExtendMaxValidator;
 import feca.utils.ClassForceLoader;
 import feca.utils.mixin.PickupRangeHolder;
 import net.minecraft.server.level.ServerPlayer;
@@ -15,15 +16,15 @@ public class ItemPickupRangeExtendMax implements RuleImpl {
         ClassForceLoader.load(ItemPickupRangeExtend.class);
     }
 
-    public static final int LIMIT_MAX = 64;
+    public static final float LIMIT_MAX = PickupRangeExtendMaxValidator.LIMIT_MAX;
 
-    public static int getValue() {
+    public static float getValue() {
         return Rules.itemPickupRangeExtendMax;
     }
 
     /// @return 当前允许的最大额外水平拾取距离
-    public static int limit() {
-        return Math.clamp(getValue(), 0, LIMIT_MAX);
+    public static float limit() {
+        return Math.clamp(getValue(), 0.0F, LIMIT_MAX);
     }
 
     /// 玩家的 拾取范围拓展 设置
@@ -32,8 +33,7 @@ public class ItemPickupRangeExtendMax implements RuleImpl {
     }
 
     /// @return 该玩家实际的额外水平拾取距离
-    public static int extraRangeOf(@NonNull ServerPlayer player) {
-        if (limit() <= 0) return 0;
+    public static float extraRangeOf(@NonNull ServerPlayer player) {
         return Math.min(range(player).getExtraRange(), limit());
     }
 
@@ -41,8 +41,8 @@ public class ItemPickupRangeExtendMax implements RuleImpl {
     public static @NonNull AABB expandForPlayer(@NonNull Player player, @NonNull AABB searchBox) {
         if (!(player instanceof ServerPlayer serverPlayer)) return searchBox;
 
-        final int extra = extraRangeOf(serverPlayer);
-        if (extra <= 0) return searchBox;
+        final float extra = extraRangeOf(serverPlayer);
+        if (extra <= 0.0F) return searchBox;
 
         return searchBox.inflate(extra, 0.0, extra);
     }

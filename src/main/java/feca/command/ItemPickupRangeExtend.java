@@ -3,7 +3,7 @@ package feca.command;
 import carpet.utils.CommandHelper;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
-import feca.command.arguments.IntegerArgument;
+import feca.command.arguments.FloatArgument;
 import feca.command.utils.CommandResult;
 import feca.command.utils.PlayerExecutor;
 import feca.function.ItemPickupRangeExtendMax;
@@ -13,12 +13,10 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.TextColor;
 
-/// `/itemPickupRangeExtend`：玩家设置自己的拾取范围拓展距离（不持久化）。
 public class ItemPickupRangeExtend {
-    private static final IntegerArgument RANGE =
-            IntegerArgument.withRange("range", 0, ItemPickupRangeExtendMax.LIMIT_MAX);
+    private static final FloatArgument RANGE =
+            FloatArgument.withRange("range", 0, ItemPickupRangeExtendMax.LIMIT_MAX);
 
     static {
         OnInitializeCallbackRegistry.register(() -> {
@@ -70,7 +68,7 @@ public class ItemPickupRangeExtend {
             if (requested > limit) {
                 ctx.getSource().sendFailure(Component.translatable(
                         "feca.msg.cmd.itemPickupRangeExtend.capped", requested, limit
-                ).withColor(TextColor.RED));
+                ));
                 return CommandResult.FAILURE;
             }
 
