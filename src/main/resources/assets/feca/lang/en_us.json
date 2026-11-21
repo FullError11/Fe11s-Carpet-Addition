@@ -74,6 +74,8 @@
 
     "carpet.rule.commandInfinityInventorySync.name": "Infinity Inventory sync subcommand",
     "carpet.rule.commandInfinityInventorySync.desc": "Allows using /infinityInventory sync to request a manual server-side data sync",
+    "carpet.rule.commandInfinityInventoryStorePicked.name": "Pick up into infinity inventory",
+    "carpet.rule.commandInfinityInventoryStorePicked.desc": "Allows using /infinityInventory store picked so picked-up drops go straight into the infinity inventory",
 
     "carpet.rule.reverseWoolCrafting.name": "Reverse Wool Crafting",
     "carpet.rule.reverseWoolCrafting.desc": "Allows crafting 2 wool of a colour from a 2×2 grid of carpets of the same colour",
@@ -153,6 +155,9 @@
     "feca.msg.cmd.infinityInventory.store.allStackable.item": "Stored: %s × %d",
     "feca.msg.cmd.infinityInventory.store.allStackable.succ": "Stored %d item stack(s) in total",
     "feca.msg.cmd.infinityInventory.store.allStackable.fail": "Nothing was stored",
+    "feca.msg.cmd.infinityInventory.store.picked.enabled": "Enabled: picked-up drops now go straight into the infinity inventory",
+    "feca.msg.cmd.infinityInventory.store.picked.disabled": "Disabled: picked-up drops go into your inventory again",
+    "feca.msg.cmd.infinityInventory.store.picked.already": "Cannot set to %s: it is already in that state",
     "feca.msg.cmd.infinityInventory.take.notEnough": "Take failed: storage holds only %d, but %d was requested",
     "feca.msg.cmd.infinityInventory.take.noSpace": "Take failed: inventory can hold only %d, but %d was requested",
     "feca.msg.cmd.infinityInventory.take.succ": "Took %d × %s; %d left in storage",

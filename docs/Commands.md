@@ -48,6 +48,9 @@ FeCA 的命令全部由 carpet 规则 `command*` 控制权限：规则值为 `tr
 `take <物品[组件]> <数量>` 取出指定数量、`take <物品[组件]> full` 一直取到背包放不下；
 `count <物品[组件]>` 查询库存数量；`variants <物品>` 列出该物品在库存里的全部条目（无组件条目 + 带组件变体）。
 
+`store picked` 切换「拾取进入无限库存」：开启后玩家碰到的掉落物直接进入无限库存，不再进背包。
+`store picked enable` / `disable` 显式开关。
+
 面向容器方块（或实体容器）的操作：`storePointingContainer all` 把**准心指向的容器**里的物品全部存入库存
 （拒绝入库的槽位保持原样）；`storePointingContainer <物品[组件]>` 只存入该条目；
 `takeToPointingContainer <物品[组件]>` 从库存取出该条目并尽量填满指向的容器（先并入同类槽位，再填空槽；
@@ -75,6 +78,7 @@ FeCA 的命令全部由 carpet 规则 `command*` 控制权限：规则值为 `tr
 默认申请完整快照，`sync full` 同义；`sync partial` 申请增量补偿包（自上次完整快照以来的全部变化，数据量更小）。
 客户端发现增量包版本号跳号（断连/丢包）时会自动申请一次完整快照，通常无需手动执行。
 
-> 权限由规则 `infinityInventory` 控制；`menu` 另受规则 `infinityInventoryMenu` 控制。
+> 权限由规则 `infinityInventory` 控制；`menu` 另受规则 `infinityInventoryMenu` 控制，
+> `sync` 另受 `commandInfinityInventorySync` 控制，`store picked` 另受 `commandInfinityInventoryStorePicked` 控制。
 > 材料列表数量与轻松放置取材通过 Fabric 自定义数据包交互：服务端主动推送库存快照与增量，
 > 未安装 FeCA 的客户端不会收到同步包，功能不受影响只是缺少快捷入口。

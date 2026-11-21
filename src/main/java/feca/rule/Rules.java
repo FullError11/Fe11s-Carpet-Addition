@@ -153,6 +153,10 @@ public final class Rules {
     @RuleImplBy(CommandInfinityInventorySync.class)
     public static boolean commandInfinityInventorySync = false;
 
+    @Rule(categories = {FECA, COMMAND, SURVIVAL})
+    @RuleImplBy(CommandInfinityInventoryStorePicked.class)
+    public static boolean commandInfinityInventoryStorePicked = false;
+
     @Rule(categories = {FECA, SURVIVAL, RECIPE})
     @RuleImplBy(ReverseWoolCrafting.class)
     public static boolean reverseWoolCrafting = false;

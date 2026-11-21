@@ -205,3 +205,25 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 ### 无限库存 sync 子命令 (`commandInfinityInventorySync`)
 
 允许使用 `/infinityInventory sync` 手动请求服务端进行数据同步。
+
+### 拾取进入无限库存 (`commandInfinityInventoryStorePicked`)
+
+允许使用 `/infinityInventory store picked`，让玩家拾取的掉落物直接进入无限库存而非背包。
+
+命令有三种取值形式：
+
+| 形式               | 行为             |
+|------------------|----------------|
+| `picked`         | 切换当前状态         |
+| `picked enable`  | 显式开启；已是开启时提示失败 |
+| `picked disable` | 显式关闭；已是关闭时提示失败 |
+
+生效条件需要**三者同时满足**：
+- 规则 `commandInfinityInventoryStorePicked` 开启;
+- 规则 `infinityInventory` 开启;
+- 玩家自己通过命令打开了开关;
+
+该开关是**玩家单独激活的会话级状态**：不持久化、不写入存档，玩家重连后回到关闭。
+
+> 带有非空容器数据的掉落物（如装着东西的潜影盒等）不会被处理。
+

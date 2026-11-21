@@ -75,6 +75,9 @@
     "carpet.rule.commandInfinityInventorySync.name": "无限库存 sync 子命令",
     "carpet.rule.commandInfinityInventorySync.desc": "允许使用 /infinityInventory sync 手动请求服务端进行数据同步",
 
+    "carpet.rule.commandInfinityInventoryStorePicked.name": "拾取进入无限库存",
+    "carpet.rule.commandInfinityInventoryStorePicked.desc": "允许使用 /infinityInventory store picked 将玩家拾取的掉落物直接存入无限库存",
+
     "carpet.rule.reverseWoolCrafting.name": "反向羊毛合成",
     "carpet.rule.reverseWoolCrafting.desc": "允许用 2×2 同色地毯合成 2 个同色羊毛",
 
@@ -153,6 +156,9 @@
     "feca.msg.cmd.infinityInventory.store.allStackable.item": "储存: %s * %d",
     "feca.msg.cmd.infinityInventory.store.allStackable.succ": "共储存了 %d 次",
     "feca.msg.cmd.infinityInventory.store.allStackable.fail": "未进行储存",
+    "feca.msg.cmd.infinityInventory.store.picked.enabled": "已开启: 拾取的掉落物将直接进入无限库存",
+    "feca.msg.cmd.infinityInventory.store.picked.disabled": "已关闭: 拾取的掉落物将进入背包",
+    "feca.msg.cmd.infinityInventory.store.picked.already": "无法设置为 %s: 当前已是该状态",
     "feca.msg.cmd.infinityInventory.take.notEnough": "取出失败: 库存内只有 %d 个，但期望取出 %d 个",
     "feca.msg.cmd.infinityInventory.take.noSpace": "取出失败: 背包内只能容纳 %d 个，但期望为 %d 个",
     "feca.msg.cmd.infinityInventory.take.succ": "取出了 %d 个 %s；库存剩余 %d 个",

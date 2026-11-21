@@ -17,6 +17,7 @@ import feca.command.arguments.IntegerExpressionArgument;
 import feca.command.arguments.ItemArgument;
 import feca.command.utils.CommandResult;
 import feca.command.utils.PlayerExecutor;
+import feca.function.CommandInfinityInventoryStorePicked;
 import feca.function.CommandInfinityInventorySync;
 import feca.function.InfinityInventoryMenu;
 import feca.function.utils.InfinityInventoryStorage;
@@ -85,6 +86,8 @@ public class InfinityInventory {
         RuleChangeCallbackRegistry.registerFor(feca.function.InfinityInventory.class,
                 (source, _, _, _) -> resendCommands(source), CommandPermissionOptions.class);
         RuleChangeCallbackRegistry.registerFor(InfinityInventoryMenu.class,
+                (source, _, _, _) -> resendCommands(source), Boolean.class);
+        RuleChangeCallbackRegistry.registerFor(CommandInfinityInventoryStorePicked.class,
                 (source, _, _, _) -> resendCommands(source), Boolean.class);
 
         registerDebug();
@@ -190,6 +193,44 @@ public class InfinityInventory {
                                 }
                                 return CommandResult.SUCCESS;
                             }))
+                    )
+                    .then(storePicked());
+        }
+
+        private static ArgumentBuilder<CommandSourceStack, ?> storePicked() {
+            // 统一处理三种取值；{@code null} 表示切换
+            final Function<Boolean, Command<CommandSourceStack>> executor = enabled ->
+                    PlayerExecutor.requireExecByPlayer((ctx, player) -> {
+                        var holder = CommandInfinityInventoryStorePicked.pickUpToStorage(player);
+
+                        if (enabled != null) {
+                            var current = holder.isEnabled();
+                            if (current == enabled) {
+                                ctx.getSource().sendFailure(Component.translatable(
+                                        "feca.msg.cmd.infinityInventory.store.picked.already",
+                                        enabled ? "enabled" : "disabled"
+                                ));
+                                return CommandResult.FAILURE;
+                            }
+                        }
+
+                        var nowEnabled = enabled == null ? holder.toggle() : holder.setEnabled(enabled);
+
+                        ctx.getSource().sendSuccess(() -> Component.translatable(nowEnabled
+                                ? "feca.msg.cmd.infinityInventory.store.picked.enabled"
+                                : "feca.msg.cmd.infinityInventory.store.picked.disabled"
+                        ), false);
+                        return CommandResult.SUCCESS;
+                    });
+
+            return Commands.literal("picked")
+                    .requires(_ -> CommandInfinityInventoryStorePicked.isEnabled())
+                    .executes(executor.apply(null))
+                    .then(Commands.literal("enable")
+                            .executes(executor.apply(true))
+                    )
+                    .then(Commands.literal("disable")
+                            .executes(executor.apply(false))
                     );
         }
         private static ArgumentBuilder<CommandSourceStack, ?> storePointingContainer(CommandBuildContext buildContext) {

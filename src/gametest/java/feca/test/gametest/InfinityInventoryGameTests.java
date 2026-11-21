@@ -1,5 +1,6 @@
 package feca.test.gametest;
 
+import feca.function.CommandInfinityInventoryStorePicked;
 import feca.function.InfinityInventory;
 import feca.function.InfinityInventoryMenu;
 import feca.function.utils.InfinityInventoryStorage;
@@ -20,6 +21,7 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -165,6 +167,148 @@ public class InfinityInventoryGameTests {
             }
             if (storage.getCount(Items.STONE) != 16) {
                 throw helper.assertionException("规则关闭时库存不应变化");
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest
+    public void pickUpToStorageStoresDropInsteadOfInventory(@NonNull GameTestHelper helper) {
+        final ServerPlayer player = (ServerPlayer) helper.makeMockServerPlayer(GameType.SURVIVAL);
+
+        try (var ignoredRule = GameTestRules.swap("infinityInventory", CommandPermissionOptions.TRUE);
+             var ignoredPicked = GameTestRules.swap("commandInfinityInventoryStorePicked", true)) {
+            final InfinityInventoryStorage storage = InfinityInventory.getStorage(player);
+
+            // 会话级开关默认关闭
+            if (CommandInfinityInventoryStorePicked.isPickUpToStorageEnabled(player)) {
+                throw helper.assertionException("拾取进入无限库存默认应为关闭");
+            }
+
+            final var holder = CommandInfinityInventoryStorePicked.pickUpToStorage(player);
+            if (!holder.toggle() || !holder.isEnabled()) {
+                throw helper.assertionException("toggle 应把开关打开");
+            }
+            if (!CommandInfinityInventoryStorePicked.isPickUpToStorageEnabled(player)) {
+                throw helper.assertionException("两条规则开启且玩家开关打开时应生效");
+            }
+
+            final ItemStack stack = new ItemStack(Items.STONE, 16);
+            final ItemEntity drop = new ItemEntity(
+                    helper.getLevel(), player.getX(), player.getY(), player.getZ(), stack);
+            drop.setNoPickUpDelay();
+
+            if (!CommandInfinityInventoryStorePicked.tryPickUpToStorage(player, drop, drop.getItem())) {
+                throw helper.assertionException("一整份掉落物应被完整存入，返回 true");
+            }
+            if (storage.getCount(Items.STONE) != 16) {
+                throw helper.assertionException("掉落物应进入无限库存，实际 " + storage.getCount(Items.STONE));
+            }
+            if (player.getInventory().findSlotMatchingItem(new ItemStack(Items.STONE)) >= 0) {
+                throw helper.assertionException("掉落物不应进入背包");
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest
+    public void pickUpToStorageRequiresBothRulesAndPlayerSwitch(@NonNull GameTestHelper helper) {
+        final ServerPlayer player = (ServerPlayer) helper.makeMockServerPlayer(GameType.SURVIVAL);
+        final ItemStack stack = new ItemStack(Items.STONE, 4);
+        final ItemEntity drop = new ItemEntity(
+                helper.getLevel(), player.getX(), player.getY(), player.getZ(), stack);
+        drop.setNoPickUpDelay();
+
+        // 三条路径都应不接管：拾取规则关、无限库存规则关、玩家开关关
+        try (var ignoredRule = GameTestRules.swap("infinityInventory", CommandPermissionOptions.TRUE);
+             var ignoredPicked = GameTestRules.swap("commandInfinityInventoryStorePicked", false)) {
+            CommandInfinityInventoryStorePicked.pickUpToStorage(player).setEnabled(true);
+            if (CommandInfinityInventoryStorePicked.tryPickUpToStorage(player, drop, drop.getItem())) {
+                throw helper.assertionException("拾取规则关闭时不应接管");
+            }
+        }
+
+        try (var ignoredRule = GameTestRules.swap("infinityInventory", CommandPermissionOptions.FALSE);
+             var ignoredPicked = GameTestRules.swap("commandInfinityInventoryStorePicked", true)) {
+            CommandInfinityInventoryStorePicked.pickUpToStorage(player).setEnabled(true);
+            if (CommandInfinityInventoryStorePicked.tryPickUpToStorage(player, drop, drop.getItem())) {
+                throw helper.assertionException("无限库存规则关闭时不应接管");
+            }
+        }
+
+        try (var ignoredRule = GameTestRules.swap("infinityInventory", CommandPermissionOptions.TRUE);
+             var ignoredPicked = GameTestRules.swap("commandInfinityInventoryStorePicked", true)) {
+            CommandInfinityInventoryStorePicked.pickUpToStorage(player).setEnabled(false);
+            if (CommandInfinityInventoryStorePicked.tryPickUpToStorage(player, drop, drop.getItem())) {
+                throw helper.assertionException("玩家开关关闭时不应接管");
+            }
+        }
+
+        if (InfinityInventory.getStorage(player).getCount(Items.STONE) != 0) {
+            throw helper.assertionException("未接管时库存不应变化");
+        }
+        if (drop.getItem().getCount() != 4) {
+            throw helper.assertionException("未接管时掉落物应保持原样");
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest
+    public void pickUpToStorageSkipsFilledContainerItems(@NonNull GameTestHelper helper) {
+        final ServerPlayer player = (ServerPlayer) helper.makeMockServerPlayer(GameType.SURVIVAL);
+
+        try (var ignoredRule = GameTestRules.swap("infinityInventory", CommandPermissionOptions.TRUE);
+             var ignoredPicked = GameTestRules.swap("commandInfinityInventoryStorePicked", true)) {
+            CommandInfinityInventoryStorePicked.pickUpToStorage(player).setEnabled(true);
+
+            // 装着东西的潜影盒：不接管（内容物与盒子本身不能被当成同一条目入库）
+            final ItemStack filled = new ItemStack(Items.SHULKER_BOX);
+            try (var view = ShulkerBoxAccessor.openAutoSaved(filled)) {
+                view.list().set(0, new ItemStack(Items.DIRT, 4));
+            }
+
+            final ItemEntity drop = new ItemEntity(
+                    helper.getLevel(), player.getX(), player.getY(), player.getZ(), filled);
+            drop.setNoPickUpDelay();
+
+            if (CommandInfinityInventoryStorePicked.tryPickUpToStorage(player, drop, drop.getItem())) {
+                throw helper.assertionException("带非空容器数据的掉落物不应被接管");
+            }
+            if (drop.getItem().isEmpty()) {
+                throw helper.assertionException("未接管的掉落物应保持原样");
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest
+    public void pickUpToStorageRejectsUnstorableDrop(@NonNull GameTestHelper helper) {
+        final ServerPlayer player = (ServerPlayer) helper.makeMockServerPlayer(GameType.SURVIVAL);
+
+        try (var ignoredRule = GameTestRules.swap("infinityInventory", CommandPermissionOptions.TRUE);
+             var ignoredPicked = GameTestRules.swap("commandInfinityInventoryStorePicked", true)) {
+            CommandInfinityInventoryStorePicked.pickUpToStorage(player).setEnabled(true);
+
+            // 命名的物品不在白名单内：push 失败，不应接管
+            final ItemStack named = new ItemStack(Items.DIAMOND_SWORD);
+            named.set(DataComponents.CUSTOM_NAME, Component.literal("test"));
+
+            final ItemEntity drop = new ItemEntity(
+                    helper.getLevel(), player.getX(), player.getY(), player.getZ(), named);
+            drop.setNoPickUpDelay();
+
+            if (CommandInfinityInventoryStorePicked.tryPickUpToStorage(player, drop, drop.getItem())) {
+                throw helper.assertionException("不可入库的掉落物不应被接管");
+            }
+            if (drop.getItem().isEmpty()) {
+                throw helper.assertionException("未接管的掉落物应保持原样");
+            }
+            if (InfinityInventory.getStorage(player).variantSize() != 0) {
+                throw helper.assertionException("不可入库的物品不应进入库存");
             }
         }
 

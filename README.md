@@ -1,6 +1,8 @@
 # Fe11's Carpet Addition
 
-这是由 [Fe11](https://github.com/FullError11) 开发的 Carpet 拓展。
+这是由 [Fe11](https://github.com/FullError11) 开发的 Carpet 拓展，简称为 FeCA。  
+默认情况下，FeCA 不修改任何原版行为。  
+FeCA 不要求客户端安装，但在客户端安装时提供部分增强能力。
 
 ## 文档
 
@@ -38,13 +40,13 @@
     - false  
     - inventory: 背包  
     - infinitelyInventory: 无限库存，仅在启用无限库存时可用。  
-    **玩家通过命令单独激活**  
-- [ ] 拾取进入无限库存  
+    **玩家通过命令单独激活，不需要持久化保存**  
+- [x] 拾取进入无限库存  
     允许玩家执行命令 /infinitelyInventory store picked <enable/disable/[switch]>，将物品直接拾取到无限库存  
-    **玩家通过命令单独激活**
+    **玩家通过命令单独激活，不需要持久化保存**
 - [ ] 掉落物磁铁  
     扩大玩家的拾取范围  
-    **玩家通过命令单独激活**
+    **玩家通过命令单独激活，不需要持久化保存**
 
 #### 配方相关
 
