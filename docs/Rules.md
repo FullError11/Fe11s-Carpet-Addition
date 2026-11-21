@@ -141,6 +141,15 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 
 允许在熔炉内把混凝土粉末烧制为**同色**染色玻璃。
 
+### 拾取范围拓展上限 (`itemPickupRangeExtendMax`)
+
+玩家可设置的最大额外水平拾取距离（掉落物与经验球）。
+
+### 拾取范围拓展命令 (`commandItemPickupRangeExtend`)
+
+允许玩家执行 `/itemPickupRangeExtend` 设置自己的拾取范围拓展距离，
+重新登录后需要重新设置。
+
 ## 命令向
 
 命令的完整语法见 [Commands.md](Commands.md)。

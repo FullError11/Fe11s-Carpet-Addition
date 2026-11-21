@@ -176,4 +176,16 @@ public final class Rules {
     @Rule(categories = {FECA, SURVIVAL, RECIPE})
     @RuleImplBy(ConcretePowderFiredIntoGlass.class)
     public static boolean concretePowderFiredIntoGlass = false;
+
+    @Rule(categories = {FECA, SURVIVAL, COMMAND})
+    @RuleImplBy(CommandItemPickupRangeExtend.class)
+    public static CommandPermissionOptions commandItemPickupRangeExtend = CommandPermissionOptions.FALSE;
+
+    @Rule(
+            categories = {FECA, SURVIVAL},
+            options = {"0", "8", "16", "32", "64"},
+            strict = false
+    )
+    @RuleImplBy(ItemPickupRangeExtendMax.class)
+    public static int itemPickupRangeExtendMax = 0;
 }

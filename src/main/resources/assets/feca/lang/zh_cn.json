@@ -103,11 +103,24 @@
     "carpet.rule.concretePowderFiredIntoGlass.name": "混凝土粉末烧制为玻璃",
     "carpet.rule.concretePowderFiredIntoGlass.desc": "允许在熔炉内将混凝土粉末烧制为同色玻璃",
 
+    "carpet.rule.commandItemPickupRangeExtend.name": "拾取范围拓展命令",
+    "carpet.rule.commandItemPickupRangeExtend.desc": "允许玩家执行 /itemPickupRangeExtend 设置自己的水平拾取范围拓展距离",
+    "carpet.rule.commandItemPickupRangeExtend.extra.1": "重新登录后需要重新设置",
+    "carpet.rule.commandItemPickupRangeExtend.extra.2": "只扩展水平范围；经验球一并受影响",
+
+    "carpet.rule.itemPickupRangeExtendMax.name": "拾取范围拓展上限",
+    "carpet.rule.itemPickupRangeExtendMax.desc": "玩家可设置的最大额外水平拾取距离",
+
     "feca.msg.common.enterCommand": "输入命令到聊天框",
     "feca.msg.common.pageNumberOutOfRange": "页码 %d 不存在，请输入 %d ~ %d 间的数字",
     "feca.msg.common.inventoryFull": "背包内无空间",
 
     "feca.msg.cmd.util.requireExecByPlayer.err": "该命令必须由玩家执行",
+
+    "feca.msg.cmd.itemPickupRangeExtend.query": "当前设置: 额外水平拾取距离 %d，实际生效 %d（规则上限 %d）",
+    "feca.msg.cmd.itemPickupRangeExtend.reset": "已关闭拾取范围拓展",
+    "feca.msg.cmd.itemPickupRangeExtend.set": "已设置额外水平拾取距离为 %d",
+    "feca.msg.cmd.itemPickupRangeExtend.capped": "无法设置为 %d：超过上限 %d",
 
     "feca.msg.cmd.observerFreezeAreas.add.succ": "%s %s 间被设置为侦测器冻结区域",
     "feca.msg.cmd.observerFreezeAreas.add.fail": "添加失败: 该区域已存在",

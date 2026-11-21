@@ -41,6 +41,17 @@ FeCA 的命令全部由 carpet 规则 `command*` 控制权限：规则值为 `tr
 > 权限由规则 `commandVillagerTradableItem` 控制。刷新遵循原版交易规律，刷不出不在默认交易列表里的物品；
 > 迭代次数过大且持续未命中会阻塞服务器单 tick。目标村民必须已有职业且尚未交易过。
 
+### `/itemPickupRangeExtend`
+
+设置自己的拾取范围拓展距离。  
+
+- `query` 查询当前值。
+- `reset` 关闭，不带参数查询当前值。
+- `/set <0~64>` 设置额外水平拾取距离。
+
+> 权限由规则 `commandItemPickupRangeExtend`控制；  
+> 可设置的最大距离由规则 `itemPickupRangeExtendMax` 决定。  
+
 ### `/infinityInventory`
 
 按**物品 + 数据组件**存取无限库存。`store` 从背包存入，`store <物品[组件]> <数量>` 存入指定数量、

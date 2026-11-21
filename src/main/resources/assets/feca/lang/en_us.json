@@ -102,11 +102,24 @@
     "carpet.rule.concretePowderFiredIntoGlass.name": "Concrete Powder Fired Into Glass",
     "carpet.rule.concretePowderFiredIntoGlass.desc": "Allows smelting concrete powder into stained glass of the same colour in a furnace",
 
+    "carpet.rule.commandItemPickupRangeExtend.name": "Pickup Range Extension Command",
+    "carpet.rule.commandItemPickupRangeExtend.desc": "Allows players to run /itemPickupRangeExtend to set their own horizontal pickup range extension",
+    "carpet.rule.commandItemPickupRangeExtend.extra.1": "The setting must be re-applied after logging in again",
+    "carpet.rule.commandItemPickupRangeExtend.extra.2": "Only the horizontal range is extended; experience orbs are affected as well",
+
+    "carpet.rule.itemPickupRangeExtendMax.name": "Pickup Range Extension Limit",
+    "carpet.rule.itemPickupRangeExtendMax.desc": "Maximum extra horizontal pickup distance a player may set",
+
     "feca.msg.common.enterCommand": "Type the command into the chat box",
     "feca.msg.common.pageNumberOutOfRange": "Page %d does not exist; enter a number between %d and %d",
     "feca.msg.common.inventoryFull": "No space in inventory",
 
     "feca.msg.cmd.util.requireExecByPlayer.err": "This command must be run by a player",
+
+    "feca.msg.cmd.itemPickupRangeExtend.query": "Current: extra horizontal pickup distance %d, effective %d (rule limit %d)",
+    "feca.msg.cmd.itemPickupRangeExtend.reset": "Pickup range extension disabled",
+    "feca.msg.cmd.itemPickupRangeExtend.set": "Extra horizontal pickup distance set to %d",
+    "feca.msg.cmd.itemPickupRangeExtend.capped": "Cannot set to %d: exceeds the limit of %d",
 
     "feca.msg.cmd.observerFreezeAreas.add.succ": "Observer freeze area added at %s %s",
     "feca.msg.cmd.observerFreezeAreas.add.fail": "Add failed: that area already exists",
