@@ -257,28 +257,113 @@ public class InfinityInventoryGameTests {
     }
 
     @GameTest
-    public void pickUpToStorageSkipsFilledContainerItems(@NonNull GameTestHelper helper) {
+    public void pickUpToStorageAcceptsPureContainerItems(@NonNull GameTestHelper helper) {
         final ServerPlayer player = (ServerPlayer) helper.makeMockServerPlayer(GameType.SURVIVAL);
 
         try (var ignoredRule = GameTestRules.swap("infinityInventory", CommandPermissionOptions.TRUE);
              var ignoredPicked = GameTestRules.swap("commandInfinityInventoryStorePicked", true)) {
             CommandInfinityInventoryStorePicked.pickUpToStorage(player).setEnabled(true);
 
-            // 装着东西的潜影盒：不接管（内容物与盒子本身不能被当成同一条目入库）
-            final ItemStack filled = new ItemStack(Items.SHULKER_BOX);
-            try (var view = ContainerItemStackAccessor.openAutoSaved(filled)) {
+            // 只装一种物品、且没装满（PURE）：可以无损拆包（每格同种物品，取出时会回填成同样的散堆），
+            // 因此白名单放行
+            final ItemStack pure = new ItemStack(Items.SHULKER_BOX);
+            try (var view = ContainerItemStackAccessor.openAutoSaved(pure)) {
                 view.list().set(0, new ItemStack(Items.DIRT, 4));
+            }
+            if (ContainerItemStackAccessor.getStatus(pure) != ContainerItemStackAccessor.Status.PURE) {
+                throw helper.assertionException("准备的单种未满容器应为 PURE，实际 "
+                        + ContainerItemStackAccessor.getStatus(pure));
             }
 
             final ItemEntity drop = new ItemEntity(
-                    helper.getLevel(), player.getX(), player.getY(), player.getZ(), filled);
+                    helper.getLevel(), player.getX(), player.getY(), player.getZ(), pure);
+            drop.setNoPickUpDelay();
+
+            if (!CommandInfinityInventoryStorePicked.tryPickUpToStorage(player, drop, drop.getItem())) {
+                throw helper.assertionException("PURE 容器应被接管");
+            }
+
+            final InfinityInventoryStorage storage = InfinityInventory.getStorage(player);
+            if (storage.getCount(Items.DIRT) != 4) {
+                throw helper.assertionException("盒内泥土应被拆包入库，实际 " + storage.getCount(Items.DIRT));
+            }
+            if (storage.getCount(Items.SHULKER_BOX) != 1) {
+                throw helper.assertionException("拆包后的空盒应单独入库，实际 "
+                        + storage.getCount(Items.SHULKER_BOX));
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest
+    public void pickUpToStorageSkipsMixedContainerItems(@NonNull GameTestHelper helper) {
+        final ServerPlayer player = (ServerPlayer) helper.makeMockServerPlayer(GameType.SURVIVAL);
+
+        try (var ignoredRule = GameTestRules.swap("infinityInventory", CommandPermissionOptions.TRUE);
+             var ignoredPicked = GameTestRules.swap("commandInfinityInventoryStorePicked", true)) {
+            CommandInfinityInventoryStorePicked.pickUpToStorage(player).setEnabled(true);
+
+            // 装了两种不同物品（不纯）：拆包会打散玩家的收纳结构，白名单拒绝
+            final ItemStack mixed = new ItemStack(Items.SHULKER_BOX);
+            try (var view = ContainerItemStackAccessor.openAutoSaved(mixed)) {
+                view.list().set(0, new ItemStack(Items.DIRT, 4));
+                view.list().set(1, new ItemStack(Items.STONE, 4));
+            }
+            if (ContainerItemStackAccessor.getStatus(mixed) != ContainerItemStackAccessor.Status.DEFAULT) {
+                throw helper.assertionException("准备的混装容器应为 DEFAULT，实际 "
+                        + ContainerItemStackAccessor.getStatus(mixed));
+            }
+
+            final ItemEntity drop = new ItemEntity(
+                    helper.getLevel(), player.getX(), player.getY(), player.getZ(), mixed);
             drop.setNoPickUpDelay();
 
             if (CommandInfinityInventoryStorePicked.tryPickUpToStorage(player, drop, drop.getItem())) {
-                throw helper.assertionException("带非空容器数据的掉落物不应被接管");
+                throw helper.assertionException("混装容器不应被接管");
             }
             if (drop.getItem().isEmpty()) {
                 throw helper.assertionException("未接管的掉落物应保持原样");
+            }
+            if (InfinityInventory.getStorage(player).variantSize() != 0) {
+                throw helper.assertionException("未接管的容器不应改变库存");
+            }
+        }
+
+        helper.succeed();
+    }
+
+    @GameTest
+    public void pickUpToStorageSkipsFullMixedContainerItems(@NonNull GameTestHelper helper) {
+        final ServerPlayer player = (ServerPlayer) helper.makeMockServerPlayer(GameType.SURVIVAL);
+
+        try (var ignoredRule = GameTestRules.swap("infinityInventory", CommandPermissionOptions.TRUE);
+             var ignoredPicked = GameTestRules.swap("commandInfinityInventoryStorePicked", true)) {
+            CommandInfinityInventoryStorePicked.pickUpToStorage(player).setEnabled(true);
+
+            // 装满但内容混杂（FULL）：满不代表无损，混合内容拆包后仍会打散结构，白名单拒绝
+            final ItemStack full = new ItemStack(Items.SHULKER_BOX);
+            try (var view = ContainerItemStackAccessor.openAutoSaved(full)) {
+                for (int i = 0; i < view.size(); i++) {
+                    var item = i % 2 == 0 ? Items.DIRT : Items.STONE;
+                    // 必须显式给满堆叠：默认 ItemStack 数量是 1，否则状态会被判成 DEFAULT 而不是 FULL
+                    view.list().set(i, new ItemStack(item, item.getDefaultMaxStackSize()));
+                }
+            }
+            if (ContainerItemStackAccessor.getStatus(full) != ContainerItemStackAccessor.Status.FULL) {
+                throw helper.assertionException("准备的满盒混装容器应为 FULL，实际 "
+                        + ContainerItemStackAccessor.getStatus(full));
+            }
+
+            final ItemEntity drop = new ItemEntity(
+                    helper.getLevel(), player.getX(), player.getY(), player.getZ(), full);
+            drop.setNoPickUpDelay();
+
+            if (CommandInfinityInventoryStorePicked.tryPickUpToStorage(player, drop, drop.getItem())) {
+                throw helper.assertionException("满盒混装容器不应被接管");
+            }
+            if (InfinityInventory.getStorage(player).variantSize() != 0) {
+                throw helper.assertionException("未接管的容器不应改变库存");
             }
         }
 
