@@ -30,9 +30,14 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * <p>这里用反射统一验证「入口值 == 规则字段值」，一条用例覆盖全部规则。</p>
  */
 class RuleImplLinkageTest {
-    /// 没有 isEnabled/getOption 入口的规则（命令类规则，行为由命令树/事件直接驱动）
+    /// 没有 isEnabled/getOption 入口的规则：它们要么由命令树/事件直接驱动，要么是纯数值上限，
+    /// 都没有「开关」这个概念，因此不适用开关联动校验
     private static final Set<String> NO_SWITCH_ENTRY = Set.of(
-            "commandVillagerTradableItem", "commandHome", "infinityInventoryMenu");
+            "commandVillagerTradableItem",
+            "commandHome",
+            "infinityInventoryMenu",
+            "itemPickupRangeExtendMax"
+    );
 
     @BeforeAll
     static void bootstrap() {
