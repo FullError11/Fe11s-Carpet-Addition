@@ -2,8 +2,8 @@ package feca.function;
 
 import feca.rule.Rules;
 import feca.rule.utils.RuleImpl;
+import feca.utils.ContainerItemStackAccessor;
 import feca.utils.mixin.PickUpToStorageHolder;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.stats.Stats;
 import net.minecraft.world.entity.item.ItemEntity;
@@ -32,9 +32,11 @@ public class CommandInfinityInventoryStorePicked implements RuleImpl {
     public static boolean tryPickUpToStorage(ServerPlayer player, ItemEntity entity, @NonNull ItemStack stackRef) {
         if (!isPickUpToStorageEnabled(player)) return false;
 
-        // 跳过含有非空容器数据(如装着东西的潜影盒、箱子)。
-        var container = stackRef.get(DataComponents.CONTAINER);
-        if (container != null && container.nonEmptyItems().iterator().hasNext()) return false;
+        switch (ContainerItemStackAccessor.getStatus(stackRef)) {
+            // 仅允许 空的，纯净的，纯净且满的 容器
+            case EMPTY, PURE, FULL_AND_PURE: break;
+            default: return false;
+        }
 
         final var storage = InfinityInventory.getStorage(player);
 

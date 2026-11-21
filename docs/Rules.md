@@ -210,7 +210,7 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 
 允许使用 `/infinityInventory store picked`，让玩家拾取的掉落物直接进入无限库存而非背包。
 
-命令有三种取值形式：
+命令有两种取值形式：
 
 | 形式               | 行为             |
 |------------------|----------------|
@@ -223,7 +223,4 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 - 规则 `infinityInventory` 开启;
 - 玩家自己通过命令打开了开关;
 
-该开关是**玩家单独激活的会话级状态**：不持久化、不写入存档，玩家重连后回到关闭。
-
-> 带有非空容器数据的掉落物（如装着东西的潜影盒等）不会被处理。
-
+不支持杂盒(任何不纯净的带容器内容数据的物品)。

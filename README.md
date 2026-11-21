@@ -42,7 +42,7 @@ FeCA 不要求客户端安装，但在客户端安装时提供部分增强能力
     - infinitelyInventory: 无限库存，仅在启用无限库存时可用。  
     **玩家通过命令单独激活，不需要持久化保存**  
 - [x] 拾取进入无限库存  
-    允许玩家执行命令 /infinitelyInventory store picked <enable/disable/[switch]>，将物品直接拾取到无限库存  
+    允许玩家执行命令 /infinityInventory store picked <enable/disable>，将物品直接拾取到无限库存  
     **玩家通过命令单独激活，不需要持久化保存**
 - [ ] 掉落物磁铁  
     扩大玩家的拾取范围  

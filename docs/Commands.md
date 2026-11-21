@@ -49,7 +49,8 @@ FeCA 的命令全部由 carpet 规则 `command*` 控制权限：规则值为 `tr
 `count <物品[组件]>` 查询库存数量；`variants <物品>` 列出该物品在库存里的全部条目（无组件条目 + 带组件变体）。
 
 `store picked` 切换「拾取进入无限库存」：开启后玩家碰到的掉落物直接进入无限库存，不再进背包。
-`store picked enable` / `disable` 显式开关。
+`store picked enable` / `disable` 显式开关；
+详见 [Rules/commandinfinityinventorystorepicked](Rules.md#拾取进入无限库存-commandinfinityinventorystorepicked)。
 
 面向容器方块（或实体容器）的操作：`storePointingContainer all` 把**准心指向的容器**里的物品全部存入库存
 （拒绝入库的槽位保持原样）；`storePointingContainer <物品[组件]>` 只存入该条目；
