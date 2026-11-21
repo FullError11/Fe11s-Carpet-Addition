@@ -7,7 +7,7 @@ import feca.function.utils.InfinityInventoryStorage.ItemTemplate;
 import feca.rule.utils.RuleImpl;
 import feca.utils.CraftingRecipeCaches;
 import feca.utils.PlayerInventoryHelper;
-import feca.utils.ShulkerBoxAccessor;
+import feca.utils.ContainerItemStackAccessor;
 import feca.utils.ShulkerBoxPacker;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
@@ -508,7 +508,7 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
             if (storage.pop(Items.SHULKER_BOX, 1)) {
                 var shulker = Items.SHULKER_BOX.getDefaultInstance();
 
-                try (var box = ShulkerBoxAccessor.openAutoSaved(shulker)) {
+                try (var box = ContainerItemStackAccessor.openAutoSaved(shulker)) {
                     if (storage.tryPopTo(template, Integer.MAX_VALUE, box.list()) > 0) {
                         return shulker;
                     }
@@ -797,7 +797,7 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
                 return ItemStack.EMPTY;
             }
 
-            try (var accessor = ShulkerBoxAccessor.openAutoSaved(shulker)) {
+            try (var accessor = ContainerItemStackAccessor.openAutoSaved(shulker)) {
                 int remaining = ShulkerBoxPacker.fill(accessor, template, crafted.getCount());
                 if (remaining > 0) collectSideProduct(template.newStack(remaining));
             }

@@ -12,7 +12,7 @@ import feca.network.payload.InfinityInventoryStoragePayload;
 import feca.network.payload.InfinityInventorySyncRequestPayload;
 import feca.rule.options.CommandPermissionOptions;
 import feca.test.gametest.common.GameTestRules;
-import feca.utils.ShulkerBoxAccessor;
+import feca.utils.ContainerItemStackAccessor;
 import io.netty.buffer.Unpooled;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.minecraft.core.component.DataComponents;
@@ -96,7 +96,7 @@ public class InfinityInventoryGameTests {
     @GameTest
     public void shulkerBoxPushAddsInnerItemsToDelta(@NonNull GameTestHelper helper) {
         final ItemStack box = new ItemStack(Items.SHULKER_BOX);
-        try (var view = ShulkerBoxAccessor.openAutoSaved(box)) {
+        try (var view = ContainerItemStackAccessor.openAutoSaved(box)) {
             view.list().set(0, new ItemStack(Items.DIRT, 4));
         }
 
@@ -266,7 +266,7 @@ public class InfinityInventoryGameTests {
 
             // 装着东西的潜影盒：不接管（内容物与盒子本身不能被当成同一条目入库）
             final ItemStack filled = new ItemStack(Items.SHULKER_BOX);
-            try (var view = ShulkerBoxAccessor.openAutoSaved(filled)) {
+            try (var view = ContainerItemStackAccessor.openAutoSaved(filled)) {
                 view.list().set(0, new ItemStack(Items.DIRT, 4));
             }
 

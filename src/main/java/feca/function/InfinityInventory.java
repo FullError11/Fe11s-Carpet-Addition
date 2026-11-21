@@ -8,7 +8,7 @@ import feca.rule.Rules;
 import feca.rule.options.CommandPermissionOptions;
 import feca.rule.utils.RuleImpl;
 import feca.utils.ClassForceLoader;
-import feca.utils.ShulkerBoxAccessor;
+import feca.utils.ContainerItemStackAccessor;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentRegistry;
 import net.fabricmc.fabric.api.attachment.v1.AttachmentType;
 import net.minecraft.ChatFormatting;
@@ -18,8 +18,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.ShulkerBoxBlock;
 import org.jspecify.annotations.NonNull;
 
 public class InfinityInventory implements RuleImpl {
@@ -151,19 +149,14 @@ public class InfinityInventory implements RuleImpl {
         return false;
     }
 
-    /// 是否为潜影盒（任意颜色）
-    private static boolean isShulkerBox(@NonNull ItemStack stack) {
-        return Block.byItem(stack.getItem()) instanceof ShulkerBoxBlock;
-    }
-
     /// 空潜影盒（无 container 内容，可安全存入无限库存）
     private static boolean isEmptyShulkerBox(@NonNull ItemStack stack) {
-        return isShulkerBox(stack) && ShulkerBoxAccessor.open(stack).isEmptyShulkerBox();
+        return ContainerItemStackAccessor.isShulkerBox(stack) && ContainerItemStackAccessor.open(stack).isEmptyContainer();
     }
 
     /// 非空潜影盒（存入无限库存会被拆包，可能打乱玩家的潜影盒）
     private static boolean isNonEmptyShulkerBox(@NonNull ItemStack stack) {
-        return isShulkerBox(stack) && !ShulkerBoxAccessor.open(stack).isEmptyShulkerBox();
+        return ContainerItemStackAccessor.isShulkerBox(stack) && !ContainerItemStackAccessor.open(stack).isEmptyContainer();
     }
 
     /// 放下选中的快捷栏槽位并同步给客户端

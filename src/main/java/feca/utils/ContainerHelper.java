@@ -71,7 +71,7 @@ public final class ContainerHelper {
             if (slot.is(item)) {
                 count += slot.getCount();
             } else if (Block.byItem(slot.getItem()) instanceof ShulkerBoxBlock) {
-                count += ShulkerBoxAccessor.open(slot).countItem(item);
+                count += ContainerItemStackAccessor.open(slot).countItem(item);
             }
         }
         return count;

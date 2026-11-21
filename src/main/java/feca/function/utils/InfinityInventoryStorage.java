@@ -4,7 +4,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import feca.FeCA;
 import feca.utils.ColorCollectionUtils;
-import feca.utils.ShulkerBoxAccessor;
+import feca.utils.ContainerItemStackAccessor;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -789,12 +789,12 @@ public class InfinityInventoryStorage
             // 堆叠潜影盒，跳过
             if (stack.getCount() != 1) return ComplexItemPushProcessor.Result.FAILED;
 
-            var box = ShulkerBoxAccessor.open(stack);
+            var box = ContainerItemStackAccessor.open(stack);
 
             // 空盒：
             // 进入 ComplexItemPushProcessor 一般是带有 命名 等附加数据，
             // 该处理器只进行拆包，跳过这类情况（能否入库由白名单决定）
-            if (box.isEmptyShulkerBox()) {
+            if (box.isEmptyContainer()) {
                 return ComplexItemPushProcessor.Result.PASS;
             }
 

@@ -53,7 +53,7 @@ public final class ShulkerBoxPacker {
 
     /// {@link #fill(List, Item, int)} 的便捷重载，直接传入 accessor。
     public static int fill(
-            @NonNull ShulkerBoxAccessor accessor, @NonNull Item item, int totalCount) {
+            @NonNull ContainerItemStackAccessor accessor, @NonNull Item item, int totalCount) {
         return fill(accessor.list(), item, totalCount);
     }
 
@@ -82,7 +82,7 @@ public final class ShulkerBoxPacker {
 
     /// {@link #fill(List, InfinityInventoryStorage.ItemTemplate, int)} 的便捷重载，直接传入 accessor。
     public static int fill(
-            @NonNull ShulkerBoxAccessor accessor, InfinityInventoryStorage.@NonNull ItemTemplate template, int totalCount) {
+            @NonNull ContainerItemStackAccessor accessor, InfinityInventoryStorage.@NonNull ItemTemplate template, int totalCount) {
         return fill(accessor.list(), template, totalCount);
     }
 
@@ -107,7 +107,7 @@ public final class ShulkerBoxPacker {
         if (!storage.pop(Items.SHULKER_BOX, 1)) return ItemStack.EMPTY;
 
         ItemStack shulker = new ItemStack(Items.SHULKER_BOX);
-        try (var accessor = ShulkerBoxAccessor.openAutoSaved(shulker)) {
+        try (var accessor = ContainerItemStackAccessor.openAutoSaved(shulker)) {
             if (storage.tryPopTo(item, Integer.MAX_VALUE, accessor.list()) > 0) {
                 return shulker;
             }
