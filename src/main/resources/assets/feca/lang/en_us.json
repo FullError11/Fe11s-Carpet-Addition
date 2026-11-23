@@ -28,6 +28,9 @@
     "carpet.rule.betterWheatRipen.desc": "Using bone meal on fully grown wheat has a chance, given by the rule value, to drop 1 wheat directly",
     "carpet.rule.betterWheatRipen.extra.1": "The rule value is the trigger chance, between 0 and 1",
 
+    "carpet.rule.betterGlowLichenCopy.name": "Better Glow Lichen Copy",
+    "carpet.rule.betterGlowLichenCopy.desc": "Using bone meal on glow lichen drops 1 glow lichen directly",
+
     "carpet.rule.commandObserverFreezeAreas.name": "observerFreezeAreas command",
     "carpet.rule.commandObserverFreezeAreas.desc": "Allows players to run the observerFreezeAreas command to freeze observers inside an area",
     "carpet.rule.commandObserverFreezeAreas.extra.1": "This rule is set with setDefault by default",

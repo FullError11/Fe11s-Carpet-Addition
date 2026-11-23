@@ -10,6 +10,7 @@
         "CraftingRecipeMixin",
         "CropBlockMixin",
         "DecoratedPotBlockMixin",
+        "GlowLichenBlockMixin",
         "ItemEntityMixin",
         "ItemInstanceMixin",
         "LevelChunkMixin",

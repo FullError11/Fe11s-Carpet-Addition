@@ -135,6 +135,10 @@ public final class Rules {
     @RuleImplBy(BetterWheatRipen.class)
     public static float betterWheatRipen = 0F;
 
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(BetterGlowLichenCopy.class)
+    public static boolean betterGlowLichenCopy = false;
+
     /* ==================== 物品与装备 ==================== */
 
     @Rule(categories = {FECA, SURVIVAL})

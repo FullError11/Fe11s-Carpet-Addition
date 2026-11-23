@@ -28,6 +28,9 @@
     "carpet.rule.betterWheatRipen.desc": "对已成熟的小麦使用骨粉时，按规则值对应的概率直接掉落 1 个小麦",
     "carpet.rule.betterWheatRipen.extra.1": "规则值即触发概率，取值 0 ~ 1",
 
+    "carpet.rule.betterGlowLichenCopy.name": "更好的发光地衣复制",
+    "carpet.rule.betterGlowLichenCopy.desc": "当对发光地衣使用骨粉时，将直接掉落一个",
+
     "carpet.rule.commandObserverFreezeAreas.name": "observerFreezeAreas 命令",
     "carpet.rule.commandObserverFreezeAreas.desc": "允许玩家执行 observerFreezeAreas 命令以冻结区域内的侦测器",
     "carpet.rule.commandObserverFreezeAreas.extra.1": "此规则将会默认 setDefault",

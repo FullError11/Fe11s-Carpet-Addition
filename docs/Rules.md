@@ -51,6 +51,10 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 
 对**已成熟**的小麦植株使用骨粉，有概率(规则值)直接掉落 1 个小麦。
 
+### 更好的发光地衣复制 (`betterGlowLichenCopy`)
+
+当对发光地衣使用骨粉时，将直接掉落一个。
+
 ### 冰冰冰 (`fakeBrittleIce`)
 
 引入类似 26.4 脆冰的生成机制，但生成的是冰：水流流到蓝冰相邻位置时结冰。
