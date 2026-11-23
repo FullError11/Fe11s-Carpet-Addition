@@ -141,6 +141,10 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 
 允许在熔炉内把混凝土粉末烧制为**同色**染色玻璃。
 
+### 可清洗陶瓦 (`washableTerracotta`)
+
+允许把染色陶瓦洗回**无色陶瓦**：染色陶瓦 + 水桶 → 无色陶瓦。
+
 ### 拾取范围拓展上限 (`itemPickupRangeExtendMax`)
 
 玩家可设置的最大额外水平拾取距离（掉落物与经验球）。

@@ -110,6 +110,9 @@
     "carpet.rule.itemPickupRangeExtendMax.name": "Pickup Range Extension Limit",
     "carpet.rule.itemPickupRangeExtendMax.desc": "Maximum extra horizontal pickup distance a player may set",
 
+    "carpet.rule.washableTerracotta.name": "Washable Terracotta",
+    "carpet.rule.washableTerracotta.desc": "Allows crafting undyed terracotta from stained terracotta plus a water bucket, keeping the bucket",
+
     "feca.msg.common.enterCommand": "Type the command into the chat box",
     "feca.msg.common.pageNumberOutOfRange": "Page %d does not exist; enter a number between %d and %d",
     "feca.msg.common.inventoryFull": "No space in inventory",

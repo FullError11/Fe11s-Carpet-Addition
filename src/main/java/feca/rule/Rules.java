@@ -178,6 +178,10 @@ public final class Rules {
     @RuleImplBy(ConcretePowderFiredIntoGlass.class)
     public static boolean concretePowderFiredIntoGlass = false;
 
+    @Rule(categories = {FECA, SURVIVAL, RECIPE})
+    @RuleImplBy(WashableTerracotta.class)
+    public static boolean washableTerracotta = false;
+
     @Rule(categories = {FECA, SURVIVAL, COMMAND})
     @RuleImplBy(CommandItemPickupRangeExtend.class)
     public static CommandPermissionOptions commandItemPickupRangeExtend = CommandPermissionOptions.FALSE;

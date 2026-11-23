@@ -111,6 +111,9 @@
     "carpet.rule.itemPickupRangeExtendMax.name": "拾取范围拓展上限",
     "carpet.rule.itemPickupRangeExtendMax.desc": "玩家可设置的最大额外水平拾取距离",
 
+    "carpet.rule.washableTerracotta.name": "可清洗陶瓦",
+    "carpet.rule.washableTerracotta.desc": "允许用染色陶瓦 + 水桶合成无色陶瓦，水桶保留",
+
     "feca.msg.common.enterCommand": "输入命令到聊天框",
     "feca.msg.common.pageNumberOutOfRange": "页码 %d 不存在，请输入 %d ~ %d 间的数字",
     "feca.msg.common.inventoryFull": "背包内无空间",
