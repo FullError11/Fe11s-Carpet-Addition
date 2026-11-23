@@ -130,6 +130,7 @@ public final class Rules {
     @Rule(
             categories = {FECA, SURVIVAL},
             options = {"0", "0.5", "1"},
+            strict = false,
             validators = Validators.Probablity.class
     )
     @RuleImplBy(BetterWheatRipen.class)
