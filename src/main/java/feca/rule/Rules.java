@@ -53,17 +53,35 @@ public final class Rules {
     private static final String FECA = "FeCA";
     private static final String RECIPE = "recipe";
 
+    /* ==================== 环境与天气 ==================== */
+
     @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(NoThunder.class)
     public static boolean noThunder = false;
+
+    /* ==================== 生物行为 ==================== */
 
     @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(CollectibleSpawnEgg.class)
     public static CollectibleSpawnEggOptions collectibleSpawnEgg = CollectibleSpawnEggOptions.FALSE;
 
+    /* ==================== 生物行为 # 生物生成 ==================== */
+
     @Rule(categories = {FECA, SURVIVAL})
-    @RuleImplBy(LargeBucket.class)
-    public static boolean largeBucket = false;
+    @RuleImplBy(NoBabyNaturalSpawn.class)
+    public static boolean noBabyNaturalSpawn = false;
+
+    /* ==================== 生物行为 # 凋灵 ==================== */
+
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(WitherSpawnNoExplosion.class)
+    public static boolean witherSpawnNoExplosion = false;
+
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(WitherIgnorePlayer.class)
+    public static boolean witherIgnorePlayer = false;
+
+    /* ==================== 生物行为 # 不死 ==================== */
 
     @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(UndyingFakePlayer.class)
@@ -73,29 +91,11 @@ public final class Rules {
     @RuleImplBy(UndyingSnowGolem.class)
     public static UndyingEntityOptions undyingSnowGolem = UndyingEntityOptions.FALSE;
 
-    @Rule(categories = {FECA, SURVIVAL})
-    @RuleImplBy(ActiveMending.class)
-    public static ActiveMendingOptions activeMending = ActiveMendingOptions.FALSE;
+    /* ==================== 方块交互 ==================== */
 
     @Rule(categories = {FECA, SURVIVAL})
-    @RuleImplBy(RipenableSugarcane.class)
-    public static boolean ripenableSugarcane = false;
-
-    @Rule(categories = {FECA, SURVIVAL})
-    @RuleImplBy(RipenableCactus.class)
-    public static boolean ripenableCactus = false;
-
-    @Rule(categories = {FECA, COMMAND, CREATIVE})
-    @RuleImplBy(CommandObserverFreezeAreas.class)
-    public static CommandPermissionOptions commandObserverFreezeAreas = CommandPermissionOptions.FALSE;
-
-    @Rule(categories = {FECA, COMMAND, SURVIVAL})
-    @RuleImplBy(CommandVillagerTradableItem.class)
-    public static CommandPermissionOptions commandVillagerTradableItem = CommandPermissionOptions.FALSE;
-
-    @Rule(categories = {FECA, COMMAND, SURVIVAL})
-    @RuleImplBy(CommandHome.class)
-    public static CommandPermissionOptions commandHome = CommandPermissionOptions.FALSE;
+    @RuleImplBy(LargeBucket.class)
+    public static boolean largeBucket = false;
 
     @Rule(categories = {FECA, SURVIVAL, FEATURE})
     @RuleImplBy(FakeBrittleIce.class)
@@ -110,18 +110,6 @@ public final class Rules {
     public static boolean forceTurtleEggHatching = false;
 
     @Rule(categories = {FECA, SURVIVAL})
-    @RuleImplBy(WitherSpawnNoExplosion.class)
-    public static boolean witherSpawnNoExplosion = false;
-
-    @Rule(categories = {FECA, SURVIVAL})
-    @RuleImplBy(WitherIgnorePlayer.class)
-    public static boolean witherIgnorePlayer = false;
-
-    @Rule(categories = {FECA, SURVIVAL})
-    @RuleImplBy(NoBabyNaturalSpawn.class)
-    public static boolean noBabyNaturalSpawn = false;
-
-    @Rule(categories = {FECA, SURVIVAL})
     @RuleImplBy(ImpactResistantPot.class)
     public static boolean impactResistantPot = false;
 
@@ -129,9 +117,27 @@ public final class Rules {
     @RuleImplBy(PotBreakingDropMode.class)
     public static PotBreakingDropModeOptions potBreakingDropMode = PotBreakingDropModeOptions.FALSE;
 
+    /* ==================== 方块交互 # 骨粉 ==================== */
+
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(RipenableSugarcane.class)
+    public static boolean ripenableSugarcane = false;
+
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(RipenableCactus.class)
+    public static boolean ripenableCactus = false;
+
+    /* ==================== 物品与装备 ==================== */
+
+    @Rule(categories = {FECA, SURVIVAL})
+    @RuleImplBy(ActiveMending.class)
+    public static ActiveMendingOptions activeMending = ActiveMendingOptions.FALSE;
+
     @Rule(categories = {FECA, SURVIVAL}, options = {"-1", "1", "16", "64"})
     @RuleImplBy(StackableTotemOfUndying.class)
     public static int stackableTotemOfUndying = -1;
+
+    /* ==================== 无限库存 ==================== */
 
     @Rule(categories = {FECA})
     @RuleImplBy(InfinityInventory.class)
@@ -158,6 +164,23 @@ public final class Rules {
     @RuleImplBy(CommandInfinityInventoryStorePicked.class)
     public static boolean commandInfinityInventoryStorePicked = false;
 
+    /* ==================== 拾取范围 ==================== */
+
+    @Rule(
+            categories = {FECA, SURVIVAL},
+            options = {"0", "4", "8", "16", "32", "64"},
+            strict = false,
+            validators = PickupRangeExtendMaxValidator.class
+    )
+    @RuleImplBy(ItemPickupRangeExtendMax.class)
+    public static float itemPickupRangeExtendMax = 4.0F;
+
+    @Rule(categories = {FECA, SURVIVAL, COMMAND})
+    @RuleImplBy(CommandItemPickupRangeExtend.class)
+    public static CommandPermissionOptions commandItemPickupRangeExtend = CommandPermissionOptions.FALSE;
+
+    /* ==================== 配方 ==================== */
+
     @Rule(categories = {FECA, SURVIVAL, RECIPE})
     @RuleImplBy(ReverseWoolCrafting.class)
     public static boolean reverseWoolCrafting = false;
@@ -175,6 +198,10 @@ public final class Rules {
     public static boolean craftableCobweb = false;
 
     @Rule(categories = {FECA, SURVIVAL, RECIPE})
+    @RuleImplBy(CraftableAmethystBud.class)
+    public static boolean craftableAmethystBud = false;
+
+    @Rule(categories = {FECA, SURVIVAL, RECIPE})
     @RuleImplBy(ConcretePowderFiredIntoGlass.class)
     public static boolean concretePowderFiredIntoGlass = false;
 
@@ -182,20 +209,17 @@ public final class Rules {
     @RuleImplBy(WashableTerracotta.class)
     public static boolean washableTerracotta = false;
 
-    @Rule(categories = {FECA, SURVIVAL, RECIPE})
-    @RuleImplBy(CraftableAmethystBud.class)
-    public static boolean craftableAmethystBud = false;
+    /* ==================== 命令 ==================== */
 
-    @Rule(categories = {FECA, SURVIVAL, COMMAND})
-    @RuleImplBy(CommandItemPickupRangeExtend.class)
-    public static CommandPermissionOptions commandItemPickupRangeExtend = CommandPermissionOptions.FALSE;
+    @Rule(categories = {FECA, COMMAND, CREATIVE})
+    @RuleImplBy(CommandObserverFreezeAreas.class)
+    public static CommandPermissionOptions commandObserverFreezeAreas = CommandPermissionOptions.FALSE;
 
-    @Rule(
-            categories = {FECA, SURVIVAL},
-            options = {"0", "4", "8", "16", "32", "64"},
-            strict = false,
-            validators = PickupRangeExtendMaxValidator.class
-    )
-    @RuleImplBy(ItemPickupRangeExtendMax.class)
-    public static float itemPickupRangeExtendMax = 4.0F;
+    @Rule(categories = {FECA, COMMAND, SURVIVAL})
+    @RuleImplBy(CommandVillagerTradableItem.class)
+    public static CommandPermissionOptions commandVillagerTradableItem = CommandPermissionOptions.FALSE;
+
+    @Rule(categories = {FECA, COMMAND, SURVIVAL})
+    @RuleImplBy(CommandHome.class)
+    public static CommandPermissionOptions commandHome = CommandPermissionOptions.FALSE;
 }
