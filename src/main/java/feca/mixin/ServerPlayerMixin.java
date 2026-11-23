@@ -15,11 +15,11 @@ public class ServerPlayerMixin implements PickUpToStorageHolder.Getter, PickupRa
     // ===============================================
 
     @Unique
-    private final PickUpToStorageHolder feca$pickUpToStorage = new PickUpToStorageHolder();
+    private final PickUpToStorageHolder pickUpToStorage = new PickUpToStorageHolder();
 
     @Override
     public @NonNull PickUpToStorageHolder feca$getPickUpToStorage() {
-        return this.feca$pickUpToStorage;
+        return this.pickUpToStorage;
     }
 
     // ===============================================
@@ -27,10 +27,10 @@ public class ServerPlayerMixin implements PickUpToStorageHolder.Getter, PickupRa
     // ===============================================
 
     @Unique
-    private final PickupRangeHolder feca$pickupRange = new PickupRangeHolder();
+    private final PickupRangeHolder pickupRange = new PickupRangeHolder();
 
     @Override
     public @NonNull PickupRangeHolder feca$getPickupRange() {
-        return this.feca$pickupRange;
+        return this.pickupRange;
     }
 }

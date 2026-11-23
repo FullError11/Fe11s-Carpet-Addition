@@ -52,6 +52,17 @@ FeCA 追求尽可能少的在 mixin 内添加内容，
 
 对于必须在 mixin 内完成的内容(如添加字段等)，一般按服务规则进行分块。
 
+对于 Mixin 类的命名，FeCA 要求必须采用 `{TARGET_CLASS}Mixin`
+
+### Mixin方法命名
+
+FeCA 不鼓励社区常用的 `{MOD_ID}${FUNCTION_NAME}` 命名:
+
+- 对于 `@Inject` 等，其名称永远不会与其它模组冲突。
+- 对于 `@Shadow` / 自定义字段 等，使用 `@Unique` 是更优的方案。
+
+所以，除非必须(鸭子类型接口等)，不要使用此类命名。
+
 ## Utils 类
 
 FeCA 有多个 utils 包，其分类遵循以下规则：

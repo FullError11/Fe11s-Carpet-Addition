@@ -20,7 +20,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class InventoryUtilsMixin {
 
     @Inject(method = "schematicWorldPickBlock", at = @At("HEAD"), cancellable = true)
-    private static void feca$takeFromStorageBeforePick(
+    private static void takeFromStorageBeforePick(
             ItemStack stack, BlockPos pos, Level schematicWorld, @NonNull Minecraft mc, CallbackInfo ci) {
         var player = mc.player;
         if (player == null || player.hasInfiniteMaterials() || stack.isEmpty()) return;

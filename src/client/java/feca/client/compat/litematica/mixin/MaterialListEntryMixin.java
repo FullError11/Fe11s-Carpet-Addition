@@ -17,7 +17,7 @@ public abstract class MaterialListEntryMixin {
     public abstract ItemStack getStack();
 
     @Inject(method = "getCountAvailable", at = @At("RETURN"), cancellable = true)
-    private void feca$addStorageAvailable(CallbackInfoReturnable<Integer> cir) {
+    private void addStorageAvailable(CallbackInfoReturnable<Integer> cir) {
         ItemStack stack = getStack();
         if (stack.isEmpty()) return;
 
