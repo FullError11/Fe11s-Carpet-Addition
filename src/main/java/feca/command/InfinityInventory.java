@@ -587,7 +587,6 @@ public class InfinityInventory {
     ///
     /// @return 未指向容器时返回 {@code null}
     private static @Nullable Container pointingContainer(@NonNull ServerPlayer player) {
-        @SuppressWarnings("resource")
         var level = player.level();
 
         var hit = player.pick(player.blockInteractionRange(), 0.0F, false);
