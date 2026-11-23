@@ -17,7 +17,8 @@
 			"feca.test.gametest.ForceTurtleEggHatchingGameTests",
 			"feca.test.gametest.InfinityInventoryGameTests",
 			"feca.test.gametest.InfinityInventoryCraftRecursionGameTests",
-			"feca.test.gametest.FeCARecipeGameTests"
+			"feca.test.gametest.FeCARecipeGameTests",
+			"feca.test.gametest.RecipeRemainderGameTests"
 		]
 	},
 	"depends": {
