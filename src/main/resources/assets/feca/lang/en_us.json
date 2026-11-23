@@ -198,7 +198,6 @@
 
     "feca.msg.gui.infinityInventory.title": "Infinity Inventory",
     "feca.msg.gui.infinityInventory.label.storage": "Storage: ",
-    "feca.msg.gui.infinityInventory.label.components": "Data components: ",
     "feca.msg.gui.infinityInventory.label.craftable": "Craftable: ",
     "feca.msg.gui.infinityInventory.label.craftableApprox": "Approx. craftable: ",
     "feca.msg.gui.infinityInventory.label.countPrefix": "= ",
@@ -221,15 +220,6 @@
     "feca.msg.gui.infinityInventory.err.noShulker": "No shulker box in storage",
     "feca.msg.gui.infinityInventory.err.unsupportedData": "This item has unsupported data and cannot be stored",
 
-    "feca.msg.storage.rejected": "Cannot store: unsupported data component %s (%s)",
-    "feca.msg.storage.component.notWhitelisted": "This data component is not on the storage whitelist",
-    "feca.msg.storage.component.removed": "This item has default data components removed",
-    "feca.msg.storage.component.enchantments.empty": "The enchantment list is empty",
-    "feca.msg.storage.component.enchantments.notMaxLevel": "Enchantment %s is not at its max level",
-    "feca.msg.storage.component.potion.noPotion": "Potion data points to no potion",
-    "feca.msg.storage.component.potion.custom": "The potion has custom effects, color or name",
-    "feca.msg.storage.component.potion.notHighestLevel": "The potion is not at its highest level",
-    "feca.msg.storage.component.fireworks.explosions": "Firework rockets may only carry flight duration, not explosions",
     "feca.msg.gui.infinityInventory.err.addToInvFail": "Failed to store into the inventory",
     "feca.msg.cmd.infinityInventory.store.rejected": "Cannot store %s",
     "feca.msg.cmd.infinityInventory.count.variantsHint": "%d more component variant(s) exist; use /infinityInventory variants <item> to list them",

@@ -504,7 +504,7 @@ public class InfinityInventoryGameTests {
     public void unboundedComponentsAreRejected(@NonNull GameTestHelper helper) {
         final InfinityInventoryStorage storage = InfinityInventoryStorage.createWithDefaultProcessors();
 
-        // 命名：白名单外，显式拒绝且不清空物品
+        // 命名：清单外，显式拒绝且不清空物品
         final ItemStack named = new ItemStack(Items.DIAMOND_SWORD);
         named.set(DataComponents.CUSTOM_NAME, Component.literal("test"));
         if (storage.push(named)) {
@@ -512,9 +512,6 @@ public class InfinityInventoryGameTests {
         }
         if (named.isEmpty()) {
             throw helper.assertionException("被拒绝的 push 不应清空物品");
-        }
-        if (InfinityInventoryStorage.rejectionReason(named).isEmpty()) {
-            throw helper.assertionException("应给出拒绝原因");
         }
         if (storage.variantSize() != 0) {
             throw helper.assertionException("被拒绝的物品不应进入库存");

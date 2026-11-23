@@ -10,6 +10,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.world.item.Item;
@@ -34,9 +35,8 @@ import java.util.*;
 /// - **模板级**（参数为 {@link ItemTemplate} / {@link ItemStack}）：可以访问全部条目
 ///
 /// ## 可入库性
-/// 带组件的物品只有在 {@link ItemStoragePolicy} 的白名单规则下才允许入库；
-/// 其余带组件的物品（容器内容、命名、Lore 等取值无限的组件）会被显式拒绝，
-/// 拒绝原因见 {@link #rejectionReason(ItemStack)}。
+/// 带组件的物品只有在所属物品显式登记过处理方式时才允许入库；
+/// 其余带组件的物品会被拒绝。
 ///
 /// ## 顺序
 /// 迭代、{@link #subView(int, int)}、{@link #subVariantView(int, int)}、{@link #getVariants(Item)} 统一按
@@ -125,20 +125,6 @@ public class InfinityInventoryStorage
 
         /// 无数据组件（「白板」物品）
         public boolean isPlain() { return components.isEmpty(); }
-
-        /// @return 该模板携带的数据组件 id（组件注册表的 key 文本）；无组件条目返回空列表
-        ///
-        /// 供界面展示「这个变体带了什么数据组件」
-        public @NonNull List<String> componentIds() {
-            if (components.isEmpty()) return List.of();
-
-            List<String> result = new ArrayList<>(components.size());
-            for (var entry : components.entrySet()) {
-                var key = BuiltInRegistries.DATA_COMPONENT_TYPE.getKey(entry.getKey());
-                result.add(key == null ? String.valueOf(entry.getKey()) : key.toString());
-            }
-            return result;
-        }
 
         /// 按模板创建新物品堆，数量为 1
         @Contract(" -> new")
@@ -383,8 +369,8 @@ public class InfinityInventoryStorage
     ///
     /// 处理顺序：
     /// 1. 无组件物品：直接存入无组件条目
-    /// 2. 带组件物品且通过 {@link ItemStoragePolicy} 白名单：按模板存入
-    /// 3. 其余带组件物品：交给已注册的 {@link ComplexItemPushProcessor}（潜影盒拆包），
+    /// 2. 其余带组件物品：交给已注册的 {@link ComplexItemPushProcessor}，
+    ///    由它在判定「已知且有限」后调用 {@link #pushUnchecked} 手动放行；
     ///    全部不接管时显式拒绝
     ///
     /// @param stack 储存物品，在储存后将清空 {@code stack}
@@ -394,17 +380,7 @@ public class InfinityInventoryStorage
         if (stack.isEmpty() || stack.is(Items.AIR)) return false;
 
         if (isNormal(stack)) {
-            addTemplate(ItemTemplate.of(stack.getItem()), stack.getCount());
-            markChanged(ItemTemplate.of(stack.getItem()));
-            stack.setCount(0);
-            return true;
-        }
-
-        var template = ItemTemplate.of(stack);
-        if (isStorable(stack)) {
-            addTemplate(template, stack.getCount());
-            markChanged(template);
-            stack.setCount(0);
+            pushUnchecked(stack);
             return true;
         }
 
@@ -416,6 +392,19 @@ public class InfinityInventoryStorage
                 return true;
         }
         return false;
+    }
+
+    /// 不做任何校验，直接把整堆物品按模板存入。
+    ///
+    /// 供 {@link ComplexItemPushProcessor} 在自行判定物品「已知且有限」后手动放行使用：
+    /// 物品堆合法性(空校验，数据组件校验)由调用方负责，本方法只做存储。
+    ///
+    /// @param stack 待存储物品，成功后会被清空
+    public void pushUnchecked(@NonNull ItemStack stack) {
+        var template = ItemTemplate.of(stack);
+        addTemplate(template, stack.getCount());
+        markChanged(template);
+        stack.setCount(0);
     }
 
     private void addTemplate(@NonNull ItemTemplate template, int count) {
@@ -741,16 +730,6 @@ public class InfinityInventoryStorage
         return stack.getComponentsPatch().isEmpty();
     }
 
-    /// @return true: 该物品可以存入库存（无组件，或组件全部通过 {@link ItemStoragePolicy} 白名单）
-    public static boolean isStorable(@NonNull ItemStack stack) {
-        return ItemStoragePolicy.isStorable(stack);
-    }
-
-    /// @return 拒绝原因；可以入库时返回 {@link Optional#empty()}
-    public static @NonNull Optional<ItemStoragePolicy.Rejection> rejectionReason(@NonNull ItemStack stack) {
-        return ItemStoragePolicy.check(stack);
-    }
-
     // =========================================================
     // 特殊物品处理（潜影盒等）
     // =========================================================
@@ -784,7 +763,7 @@ public class InfinityInventoryStorage
 
 
     private static void registerDefaultComplexItemProcessor(@NonNull InfinityInventoryStorage storage) {
-        // 潜影盒拆包
+        // 潜影盒: 拆包
         final ComplexItemPushProcessor shulkerBoxUnwrapper = stack -> {
             // 堆叠潜影盒，跳过
             if (stack.getCount() != 1) return ComplexItemPushProcessor.Result.FAILED;
@@ -793,18 +772,9 @@ public class InfinityInventoryStorage
 
             // 空盒：
             // 进入 ComplexItemPushProcessor 一般是带有 命名 等附加数据，
-            // 该处理器只进行拆包，跳过这类情况（能否入库由白名单决定）
+            // 该处理器只进行拆包，跳过这类情况（能否入库由后续处理器决定）
             if (box.isEmptyContainer()) {
                 return ComplexItemPushProcessor.Result.PASS;
-            }
-
-            // 拆包后盒子本身也必须可入库（例如带命名的盒子会被白名单拒绝），
-            // 否则会出现「内容已入库、盒子丢失」的半完成状态，此时整体失败。
-            // 潜影盒的 CONTAINER 是默认组件，拆包后内容清空即回到默认值，因此直接忽略它再判定。
-            var remainingComponents = stack.getComponentsPatch()
-                    .forget(type -> type == DataComponents.CONTAINER);
-            if (ItemStoragePolicy.check(remainingComponents).isPresent()) {
-                return ComplexItemPushProcessor.Result.FAILED;
             }
 
             // 把盒子内的物品分别存入，并保存盒子数据
@@ -819,10 +789,7 @@ public class InfinityInventoryStorage
             }
             box.save();
 
-            // 1）若此时盒子已经为 normal：可以直接作为 normal 物品存入
-            // 2）若此时盒子仍然非 normal：说明存在白名单允许的组件，
-            //   但此时已处理部分数据，为防止半完成状态，重发盒子的 push 事件
-            // *）无论如何，都可以 push 这个盒子
+            // 内容清空后盒子回到 normal，重新走一次 push 决定盒子本身能否入库
             storage.push(stack);
 
             return ComplexItemPushProcessor.Result.SUCCESS;
@@ -831,5 +798,123 @@ public class InfinityInventoryStorage
         Items.DYED_SHULKER_BOX.forEach(item -> {
             storage.registerComplexItemPushProcessor(item, shulkerBoxUnwrapper);
         });
+
+        // 烟花火箭：爆炸效果带来无限组合，只接受纯飞行时长的
+        storage.registerComplexItemPushProcessor(Items.FIREWORK_ROCKET, stack -> {
+            if (stack.has(DataComponents.CUSTOM_NAME)) {
+                FeCA.LOGGER.debug("FireworkRocket has custom name, pass");
+                return ComplexItemPushProcessor.Result.PASS;
+            }
+
+            var fireworks = stack.get(DataComponents.FIREWORKS);
+            if (fireworks == null) {
+                FeCA.LOGGER.debug("FireworkRocket haven't fireworks, pass");
+                return ComplexItemPushProcessor.Result.PASS;
+            }
+
+            if (!fireworks.explosions().isEmpty()) {
+                FeCA.LOGGER.debug("FireworkRocket fireworks has explosions, pass");
+                return ComplexItemPushProcessor.Result.PASS;
+            }
+
+            return pushUncheckedAsSuccess(storage, stack);
+        });
+
+        // 附魔书：只含有最高等级有附魔
+        storage.registerComplexItemPushProcessor(Items.ENCHANTED_BOOK, stack -> {
+            if (stack.has(DataComponents.CUSTOM_NAME)) {
+                FeCA.LOGGER.debug("EnchantedBook has custom name, pass");
+                return ComplexItemPushProcessor.Result.PASS;
+            }
+
+            var enchantments = stack.get(DataComponents.STORED_ENCHANTMENTS);
+            if (enchantments == null || enchantments.isEmpty()) {
+                FeCA.LOGGER.debug("enchantments: {}", enchantments);
+
+                FeCA.LOGGER.debug("EnchantedBook haven't stored-enchantments, pass");
+                return ComplexItemPushProcessor.Result.PASS;
+            }
+
+            for (var enchantment : enchantments.keySet()) {
+                int level = enchantments.getLevel(enchantment);
+                if (level != enchantment.value().getMaxLevel()) {
+                    if (FeCA.DEBUG)
+                        FeCA.LOGGER.debug("EnchantedBook stored-enchantments has not max level enchantment: {}, pass",
+                                enchantment.unwrapKey().map(k -> k.identifier().toShortString()).orElse("UNKNOWN")
+                        );
+                    return ComplexItemPushProcessor.Result.PASS;
+                }
+            }
+
+            return pushUncheckedAsSuccess(storage, stack);
+        });
+
+        // 药水：单一效果
+        for (var potionItem : List.of(Items.POTION, Items.SPLASH_POTION, Items.LINGERING_POTION)) {
+            storage.registerComplexItemPushProcessor(potionItem, stack -> {
+                if (stack.has(DataComponents.CUSTOM_NAME)) {
+                    FeCA.LOGGER.debug("Potion has custom name, pass");
+                    return ComplexItemPushProcessor.Result.PASS;
+                }
+
+                final var potionContents = stack.get(DataComponents.POTION_CONTENTS);
+                if (potionContents == null) {
+                    FeCA.LOGGER.debug("Potion haven't potion-contents, pass");
+                    return ComplexItemPushProcessor.Result.PASS;
+                }
+
+                if (!potionContents.customEffects().isEmpty()) {
+                    FeCA.LOGGER.debug("Potion contents has custom effects, pass");
+                    return ComplexItemPushProcessor.Result.PASS;
+                }
+
+                if (potionContents.customName().isPresent()) {
+                    FeCA.LOGGER.debug("Potion contents has custom name, pass");
+                    return ComplexItemPushProcessor.Result.PASS;
+                }
+
+                if (potionContents.customColor().isPresent()) {
+                    FeCA.LOGGER.debug("Potion contents has custom color, pass");
+                    return ComplexItemPushProcessor.Result.PASS;
+                }
+
+                return pushUncheckedAsSuccess(storage, stack);
+            });
+        }
+
+        // 不祥之瓶
+        storage.registerComplexItemPushProcessor(Items.OMINOUS_BOTTLE, stack -> {
+            if (stack.has(DataComponents.CUSTOM_NAME)) {
+                FeCA.LOGGER.debug("OminousBottle has custom name, pass");
+                return ComplexItemPushProcessor.Result.PASS;
+            }
+
+            return pushUncheckedAsSuccess(storage, stack);
+        });
+
+        // 不祥旗帜
+        // 不祥旗帜 是带数据组件变体的 白色旗帜 (mojang 神了)
+        storage.registerComplexItemPushProcessor(Items.BANNER.white(), stack -> {
+            if (stack.has(DataComponents.CUSTOM_NAME)) {
+                FeCA.LOGGER.debug("Banner(white) has custom name, pass");
+                return ComplexItemPushProcessor.Result.PASS;
+            }
+
+            // 会放行通过指令修改图形数据的不祥旗帜
+            // 但这属于用户自己的行为，在这里过滤太复杂了，所以不管了，就这样吧
+            if (!stack.getItemName().equals(Component.translatable("block.minecraft.ominous_banner"))) {
+                FeCA.LOGGER.debug("Banner(white) item name isn't ominous_banner, pass");
+                return ComplexItemPushProcessor.Result.PASS;
+            }
+
+            return pushUncheckedAsSuccess(storage, stack);
+        });
+
+    }
+
+    private static ComplexItemPushProcessor.Result pushUncheckedAsSuccess(
+            @NonNull InfinityInventoryStorage storage, @NonNull ItemStack stack) {
+        storage.pushUnchecked(stack);
+        return ComplexItemPushProcessor.Result.SUCCESS;
     }
 }

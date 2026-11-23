@@ -4,10 +4,8 @@ import feca.function.utils.InfinityInventoryStorage;
 import feca.function.utils.InfinityInventoryStorage.ItemStorageData;
 import feca.function.utils.InfinityInventoryStorage.ItemStorageMap;
 import feca.function.utils.InfinityInventoryStorage.ItemTemplate;
-import feca.function.utils.ItemStoragePolicy;
 import feca.test.support.GameBootstrap;
 import io.netty.buffer.Unpooled;
-import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.core.component.DataComponents;
@@ -16,12 +14,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.item.alchemy.PotionContents;
-import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.item.component.Fireworks;
 import net.minecraft.world.level.block.ColorCollection;
 import org.jspecify.annotations.NonNull;
@@ -240,39 +234,9 @@ class InfinityInventoryStorageTest {
         assertEquals(3, storage.getCount(Items.FIREWORK_ROCKET));
     }
 
-    @Test
-    @DisplayName("组件白名单：有限且有意义的值放行，无限可能性的组件显式拒绝")
-    void componentWhitelist() {
-        // 命名 / 容器内容 / 自定义数据：不在白名单内
-        assertRejected(DataComponentPatch.builder()
-                .set(DataComponents.CUSTOM_NAME, Component.literal("test"))
-                .build());
-        // 只有时长的烟花火箭：放行
-        assertAllowed(fireworkPatch(2));
-        // 低于最高等级的药水：拒绝；最高等级的药水：放行
-        assertRejected(potionPatch(Potions.STRENGTH));
-        assertAllowed(potionPatch(Potions.STRONG_STRENGTH));
-        // 只有一种强度的药水本身就是最高等级
-        assertAllowed(potionPatch(Potions.FIRE_RESISTANCE));
-    }
-
-    private static void assertRejected(DataComponentPatch patch) {
-        assertTrue(ItemStoragePolicy.check(patch).isPresent(), "该组件应被拒绝: " + patch);
-    }
-
-    private static void assertAllowed(DataComponentPatch patch) {
-        assertTrue(ItemStoragePolicy.check(patch).isEmpty(), "该组件应被允许: " + patch);
-    }
-
     private static @NonNull DataComponentPatch fireworkPatch(@SuppressWarnings("SameParameterValue") int flightDuration) {
         return DataComponentPatch.builder()
                 .set(DataComponents.FIREWORKS, new Fireworks(flightDuration, List.of()))
-                .build();
-    }
-
-    private static @NonNull DataComponentPatch potionPatch(Holder<Potion> potion) {
-        return DataComponentPatch.builder()
-                .set(DataComponents.POTION_CONTENTS, new PotionContents(potion))
                 .build();
     }
 

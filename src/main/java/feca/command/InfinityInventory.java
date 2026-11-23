@@ -22,7 +22,6 @@ import feca.function.CommandInfinityInventorySync;
 import feca.function.InfinityInventoryMenu;
 import feca.function.utils.InfinityInventoryStorage;
 import feca.function.utils.InfinityInventoryStorage.ItemTemplate;
-import feca.function.utils.ItemStoragePolicy;
 import feca.network.InfinityInventoryNetworking;
 import feca.utils.ContainerHelper;
 import feca.registry.OnInitializeCallbackRegistry;
@@ -114,13 +113,6 @@ public class InfinityInventory {
                         var requested = countGetter.get(ctx, inventory, template);
                         if (!requireCountIsPositive(requested, ctx)) return CommandResult.FAILURE;
 
-                        // 模板本身不可入库（例如数据组件不在白名单内）时直接拒绝
-                        if (!InfinityInventoryStorage.isStorable(template.newStack(1))) {
-                            source.sendFailure(Component.translatable(
-                                    "feca.msg.cmd.infinityInventory.store.rejected", rejectReason(template)));
-                            return CommandResult.FAILURE;
-                        }
-
                         var hasCount = countInInventory(inventory, template);
                         var name = template.newStack(1).getHoverName();
                         if (hasCount < requested) {
@@ -146,11 +138,7 @@ public class InfinityInventory {
                                 // 存入失败（半完成或组件被拒）：把拆出来的数量放回原槽位
                                 stack.grow(pushed.getCount());
                                 source.sendFailure(Component.translatable(
-                                        "feca.msg.cmd.infinityInventory.store.rejected",
-                                        InfinityInventoryStorage.rejectionReason(pushed)
-                                                .map(ItemStoragePolicy.Rejection::describe)
-                                                .orElseGet(() -> Component.translatable(
-                                                        "feca.msg.gui.infinityInventory.err.addToInvFail"))));
+                                        "feca.msg.gui.infinityInventory.err.addToInvFail"));
                                 return CommandResult.FAILURE;
                             }
                             remaining -= toPush;
@@ -252,15 +240,8 @@ public class InfinityInventory {
                             return CommandResult.FAILURE;
                         }
 
-                        // 指定条目时先确认它本身可入库，避免遍历完只报“容器里没有”
-                        var single = filter == null ? null : filter.newStack(1);
-                        if (filter != null && !InfinityInventoryStorage.isStorable(single)) {
-                            source.sendFailure(Component.translatable(
-                                    "feca.msg.cmd.infinityInventory.store.rejected", rejectReason(filter)));
-                            return CommandResult.FAILURE;
-                        }
-
                         var storage = getStorage(player);
+                        var single = filter == null ? null : filter.newStack(1);
                         int storedSlots = 0;
                         int storedCount = 0;
                         int rejectedSlots = 0;
@@ -595,13 +576,6 @@ public class InfinityInventory {
             count += stack.getCount();
         }
         return count;
-    }
-
-    /// @return 模板不可入库时的拒绝原因
-    private static @NonNull Component rejectReason(@NonNull ItemTemplate template) {
-        return InfinityInventoryStorage.rejectionReason(template.newStack(1))
-                .map(ItemStoragePolicy.Rejection::describe)
-                .orElseGet(() -> Component.translatable("feca.msg.gui.infinityInventory.err.addToInvFail"));
     }
 
     // ============================== 指向的容器 ==============================

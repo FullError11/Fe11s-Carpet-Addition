@@ -467,7 +467,6 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
                             LoreUtils.label(Component.translatable("feca.msg.gui.infinityInventory.label.storage")),
                             LoreUtils.value(count())),
                     LoreUtils.buildCountBreakdown(template.item(), count()),
-                    componentLine(template),
                     LoreUtils.separator(),
                     LoreUtils.action(
                             Component.translatable("feca.msg.gui.infinityInventory.key.left"),
@@ -475,18 +474,6 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
                     LoreUtils.action(
                             Component.translatable("feca.msg.gui.infinityInventory.key.right"),
                             Component.translatable("feca.msg.gui.infinityInventory.action.takeBox"))
-            );
-        }
-
-        /// 「数据组件」行：变体条目列出携带的组件 id；
-        /// 无组件条目返回空组件（{@link LoreUtils#applyLore} 会把空行过滤掉）
-        private @NonNull Component componentLine(@NonNull ItemTemplate template) {
-            var ids = template.componentIds();
-            if (ids.isEmpty()) return Component.empty();
-
-            return LoreUtils.line(
-                    LoreUtils.label(Component.translatable("feca.msg.gui.infinityInventory.label.components")),
-                    LoreUtils.value(Component.literal(String.join(", ", ids)))
             );
         }
 
