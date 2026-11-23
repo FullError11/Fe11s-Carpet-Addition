@@ -45,13 +45,20 @@ FeCA 不要求客户端安装，但在客户端安装时提供部分增强能力
     - false  
     - inventory: 背包  
     - infinitelyInventory: 无限库存，仅在启用无限库存时可用。  
-    **玩家通过命令单独激活，不需要持久化保存**  
-- [x] 拾取进入无限库存  
-    允许玩家执行命令 /infinityInventory store picked <enable/disable>，将物品直接拾取到无限库存  
     **玩家通过命令单独激活，不需要持久化保存**
-- [x] 掉落物磁铁  
-    扩大玩家的拾取范围  
-    **玩家通过命令单独激活，不需要持久化保存**
+- [ ] 命令白名单  
+    有些模组会注册很多命令，但这些命令大多数时候都用不上  
+    commandWhitelist `add <cmd>`/ `remove <cmd>` / `addAll` / `removeAll`  
+    commandWhitelist 本身总是在白名单内  
+    对于安装 FeCA 的客户端，可以额外过滤一次  
+    暂时不支持子命令注册  
+- [ ] 命令别名  
+    有些高频命令很长，允许给其设置别名  
+    commandAlias `<alias-command>` `<command>`  
+    如 `/commandAlias "scale {value}" "attribute @s minecraft:scale base set ${value}"`  
+- [ ] 假人名称前缀  
+    我(Fe11)目前使用的 carpet 拓展对假人名称前缀都是直接修改其名称实现的，期望实现一个纯视觉版本。  
+
 
 #### 配方相关
 
@@ -59,4 +66,8 @@ FeCA 不要求客户端安装，但在客户端安装时提供部分增强能力
     允许在合成界面通过 `斧头` + `原木` 直接合成 `去皮原木`。  
     **可选平衡性项**：  
     合成会减少斧头n点耐久，
-    对于含附魔的工具，会进行损坏保护(不允许使用只有一点耐久的工具进行操作)
+    对于含附魔的工具，会进行损坏保护(不允许使用只有一点耐久的工具进行操作)  
+    --- 需要修改 recipe 系统的剩余物品 ---
+    提供一个剩余物品可合成次数接口，供外部预测可合成次数
+    对于 keep: 返回 inf
+    对于 damage: 返回 maxDamage
