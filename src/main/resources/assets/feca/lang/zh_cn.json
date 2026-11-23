@@ -114,6 +114,14 @@
     "carpet.rule.washableTerracotta.name": "可清洗陶瓦",
     "carpet.rule.washableTerracotta.desc": "允许用染色陶瓦 + 水桶合成无色陶瓦，水桶保留",
 
+    "carpet.rule.craftableAmethystBud.name": "可合成紫水晶芽",
+    "carpet.rule.craftableAmethystBud.desc": "添加紫水晶芽与紫水晶簇的合成配方",
+    "carpet.rule.craftableAmethystBud.extra.1": "配方：",
+    "carpet.rule.craftableAmethystBud.extra.2": "[紫水晶碎片] => [小型紫水晶芽]",
+    "carpet.rule.craftableAmethystBud.extra.3": "[紫水晶碎片] + [小型紫水晶芽] => [中型紫水晶芽]",
+    "carpet.rule.craftableAmethystBud.extra.4": "[紫水晶碎片] + [中型紫水晶芽] => [大型紫水晶芽]",
+    "carpet.rule.craftableAmethystBud.extra.5": "[紫水晶碎片] + [大型紫水晶芽] => [紫水晶簇]",
+
     "feca.msg.common.enterCommand": "输入命令到聊天框",
     "feca.msg.common.pageNumberOutOfRange": "页码 %d 不存在，请输入 %d ~ %d 间的数字",
     "feca.msg.common.inventoryFull": "背包内无空间",

@@ -182,6 +182,10 @@ public final class Rules {
     @RuleImplBy(WashableTerracotta.class)
     public static boolean washableTerracotta = false;
 
+    @Rule(categories = {FECA, SURVIVAL, RECIPE})
+    @RuleImplBy(CraftableAmethystBud.class)
+    public static boolean craftableAmethystBud = false;
+
     @Rule(categories = {FECA, SURVIVAL, COMMAND})
     @RuleImplBy(CommandItemPickupRangeExtend.class)
     public static CommandPermissionOptions commandItemPickupRangeExtend = CommandPermissionOptions.FALSE;

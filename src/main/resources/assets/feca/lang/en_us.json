@@ -113,6 +113,14 @@
     "carpet.rule.washableTerracotta.name": "Washable Terracotta",
     "carpet.rule.washableTerracotta.desc": "Allows crafting undyed terracotta from stained terracotta plus a water bucket, keeping the bucket",
 
+    "carpet.rule.craftableAmethystBud.name": "Craftable Amethyst Bud",
+    "carpet.rule.craftableAmethystBud.desc": "Adds crafting recipes for amethyst buds and amethyst clusters",
+    "carpet.rule.craftableAmethystBud.extra.1": "Recipes:",
+    "carpet.rule.craftableAmethystBud.extra.2": "[Amethyst Shard] => [Small Amethyst Bud]",
+    "carpet.rule.craftableAmethystBud.extra.3": "[Amethyst Shard] + [Small Amethyst Bud] => [Medium Amethyst Bud]",
+    "carpet.rule.craftableAmethystBud.extra.4": "[Amethyst Shard] + [Medium Amethyst Bud] => [Large Amethyst Bud]",
+    "carpet.rule.craftableAmethystBud.extra.5": "[Amethyst Shard] + [Large Amethyst Bud] => [Amethyst Cluster]",
+
     "feca.msg.common.enterCommand": "Type the command into the chat box",
     "feca.msg.common.pageNumberOutOfRange": "Page %d does not exist; enter a number between %d and %d",
     "feca.msg.common.inventoryFull": "No space in inventory",
