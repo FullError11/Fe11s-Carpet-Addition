@@ -19,7 +19,7 @@ public class CraftableCobweb implements RuleImpl {
 
     static {
         HANDLE = FeCARecipeManager.register("craftable_cobweb",
-                ShapedRecipeBuilder.shaped(CraftingBookCategory.MISC, Items.REINFORCED_DEEPSLATE, 1)
+                ShapedRecipeBuilder.shaped(CraftingBookCategory.MISC, Items.COBWEB, 1)
                         .pattern("XOX")
                         .pattern("OXO")
                         .pattern("XOX")
