@@ -47,6 +47,10 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 
 允许用骨粉催熟仙人掌，每次长高一格，最高 3 格。
 
+### 更好的小麦催熟 (`betterWheatRipen`)
+
+对**已成熟**的小麦植株使用骨粉，有概率(规则值)直接掉落 1 个小麦。
+
 ### 冰冰冰 (`fakeBrittleIce`)
 
 引入类似 26.4 脆冰的生成机制，但生成的是冰：水流流到蓝冰相邻位置时结冰。

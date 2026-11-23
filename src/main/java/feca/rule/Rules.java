@@ -127,6 +127,14 @@ public final class Rules {
     @RuleImplBy(RipenableCactus.class)
     public static boolean ripenableCactus = false;
 
+    @Rule(
+            categories = {FECA, SURVIVAL},
+            options = {"0", "0.5", "1"},
+            validators = Validators.Probablity.class
+    )
+    @RuleImplBy(BetterWheatRipen.class)
+    public static float betterWheatRipen = 0F;
+
     /* ==================== 物品与装备 ==================== */
 
     @Rule(categories = {FECA, SURVIVAL})

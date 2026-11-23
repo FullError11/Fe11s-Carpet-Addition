@@ -8,6 +8,7 @@
         "CactusBlockMixin",
         "CauldronInteractionsMixin",
         "CraftingRecipeMixin",
+        "CropBlockMixin",
         "DecoratedPotBlockMixin",
         "ItemEntityMixin",
         "ItemInstanceMixin",
