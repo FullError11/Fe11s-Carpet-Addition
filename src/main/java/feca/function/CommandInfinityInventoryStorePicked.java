@@ -39,6 +39,7 @@ public class CommandInfinityInventoryStorePicked implements RuleImpl {
         }
 
         final var storage = InfinityInventory.getStorage(player);
+        final var item = stackRef.getItem();
 
         int before = stackRef.getCount();
         storage.push(stackRef);
@@ -46,7 +47,7 @@ public class CommandInfinityInventoryStorePicked implements RuleImpl {
         if (moved <= 0) return false;
 
         player.take(entity, moved);
-        player.awardStat(Stats.ITEM_PICKED_UP.get(stackRef.getItem()), moved);
+        player.awardStat(Stats.ITEM_PICKED_UP.get(item), moved);
 
         return moved == before;
     }
