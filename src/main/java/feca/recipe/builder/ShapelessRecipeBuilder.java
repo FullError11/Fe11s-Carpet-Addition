@@ -1,7 +1,7 @@
 package feca.recipe.builder;
 
-import net.minecraft.core.NonNullList;
-import net.minecraft.world.item.ItemStack;
+import feca.recipe.RemainderRecipe;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.level.ItemLike;
 import org.jetbrains.annotations.Contract;
@@ -77,30 +77,28 @@ public class ShapelessRecipeBuilder extends AbstractCraftingRecipeBuilder<Shapel
             return new ShapelessRecipe(commonInfo(), bookInfo(), output, ingredients);
         }
 
-        return new ShapelessRecipe(commonInfo(), bookInfo(), output, List.copyOf(ingredients)) {
-            @Override
-            public @NonNull RecipeSerializer<ShapelessRecipe> getSerializer() {
-                return ShapelessRecipe.SERIALIZER;
-            }
+        return new RemainderShapelessRecipe(
+                commonInfo(), bookInfo(), output, List.copyOf(ingredients), Map.copyOf(catalysts)
+        );
+    }
 
-            @Override
-            public @NonNull NonNullList<ItemStack> getRemainingItems(@NonNull CraftingInput input) {
-                var remaining = CraftingRecipe.defaultCraftingReminder(input);
+    static final class RemainderShapelessRecipe extends ShapelessRecipe implements RemainderRecipe {
+        private final Map<Ingredient, Remainder> catalysts;
 
-                for (int i = 0; i < input.size(); i++) {
-                    var stack = input.getItem(i);
-                    if (stack.isEmpty()) continue;
+        RemainderShapelessRecipe(
+                Recipe.@NonNull CommonInfo commonInfo,
+                CraftingRecipe.@NonNull CraftingBookInfo bookInfo,
+                @NonNull ItemStackTemplate result,
+                @NonNull List<Ingredient> ingredients,
+                @NonNull Map<Ingredient, Remainder> catalysts
+        ) {
+            super(commonInfo, bookInfo, result, ingredients);
+            this.catalysts = catalysts;
+        }
 
-                    for (var entry : catalysts.entrySet()) {
-                        if (!entry.getKey().test(stack)) continue;
-
-                        remaining.set(i, entry.getValue().apply(stack, input, null));
-                        break;
-                    }
-                }
-
-                return remaining;
-            }
-        };
+        @Override
+        public @NonNull Map<Ingredient, Remainder> catalysts() {
+            return catalysts;
+        }
     }
 }

@@ -1,9 +1,13 @@
 package feca.recipe.builder;
 
-import net.minecraft.core.NonNullList;
-import net.minecraft.world.item.ItemStack;
+import feca.recipe.RemainderRecipe;
 import net.minecraft.world.item.ItemStackTemplate;
-import net.minecraft.world.item.crafting.*;
+import net.minecraft.world.item.crafting.CraftingBookCategory;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.item.crafting.ShapedRecipePattern;
 import net.minecraft.world.level.ItemLike;
 import org.jetbrains.annotations.Contract;
 import org.jspecify.annotations.NonNull;
@@ -66,7 +70,7 @@ public class ShapedRecipeBuilder extends AbstractCraftingRecipeBuilder<ShapedRec
         }
     }
     public ShapedRecipeBuilder define(final Character symbol, final Ingredient ingredient, Remainder remainder) {
-        define(symbol, ingredient);
+        this.define(symbol, ingredient);
         this.catalysts.put(ingredient, remainder);
         return this;
     }
@@ -80,45 +84,27 @@ public class ShapedRecipeBuilder extends AbstractCraftingRecipeBuilder<ShapedRec
         }
 
         return new RemainderShapedRecipe(
-                commonInfo(), bookInfo(), pattern, output, List.copyOf(catalysts.entrySet()));
+                commonInfo(), bookInfo(), pattern, output, Map.copyOf(catalysts)
+        );
     }
 
-    /// 带催化剂保留的有序合成配方。
-    static final class RemainderShapedRecipe extends ShapedRecipe {
-        private final List<Map.Entry<Ingredient, Remainder>> catalysts;
+    static final class RemainderShapedRecipe extends ShapedRecipe implements RemainderRecipe {
+        private final Map<Ingredient, Remainder> catalysts;
 
         RemainderShapedRecipe(
                 Recipe.CommonInfo commonInfo,
                 CraftingRecipe.CraftingBookInfo bookInfo,
                 ShapedRecipePattern pattern,
                 ItemStackTemplate result,
-                List<Map.Entry<Ingredient, Remainder>> catalysts) {
+                Map<Ingredient, Remainder> catalysts
+        ) {
             super(commonInfo, bookInfo, pattern, result);
             this.catalysts = catalysts;
         }
 
         @Override
-        public @NonNull RecipeSerializer<ShapedRecipe> getSerializer() {
-            return ShapedRecipe.SERIALIZER;
-        }
-
-        @Override
-        public @NonNull NonNullList<ItemStack> getRemainingItems(@NonNull CraftingInput input) {
-            var remaining = CraftingRecipe.defaultCraftingReminder(input);
-
-            for (int i = 0; i < input.size(); i++) {
-                var stack = input.getItem(i);
-                if (stack.isEmpty()) continue;
-
-                for (var entry : catalysts) {
-                    if (!entry.getKey().test(stack)) continue;
-
-                    remaining.set(i, entry.getValue().apply(stack, input, null));
-                    break;
-                }
-            }
-
-            return remaining;
+        public @NonNull Map<Ingredient, Remainder> catalysts() {
+            return catalysts;
         }
     }
 }

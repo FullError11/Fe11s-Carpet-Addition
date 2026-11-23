@@ -4,7 +4,6 @@ import com.mojang.datafixers.util.Pair;
 import feca.utils.CraftingRecipeCaches;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.crafting.CraftingInput;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -55,11 +54,15 @@ public final class InfinityInventoryCraftHelper {
     /// @param storage 原料来源
     /// @param input   配方输入，每个非空槽位视为消耗 1 个物品
     /// @return 可合成次数；输入为空或任一原料不足一次时返回 `0`
-    public static int canCraftTimes(@NonNull InfinityInventoryStorage storage, @NonNull CraftingInput input) {
-        // 统计每种物品单次合成需要消耗的数量（占用的非空槽位数）
-        Map<Item, Integer> perCraft = countSlotsPerItem(input);
+    public static int canCraftTimes(
+            @NonNull InfinityInventoryStorage storage,
+            @NonNull CraftingRecipe recipe,
+            @NonNull CraftingInput input) {
+        // 统计每种物品单次合成的净消耗（伪造输入减去剩余物）
+        Map<Item, Integer> perCraft = netConsumptionPerCraft(recipe, input);
         if (perCraft.isEmpty()) {
-            return 0;
+            // 全部原料都会被保留：不需要任何库存即可无限合成
+            return Integer.MAX_VALUE;
         }
 
         // 取库存最小
@@ -86,7 +89,7 @@ public final class InfinityInventoryCraftHelper {
             @NonNull InfinityInventoryStorage storage, @NonNull RecipeHolder<CraftingRecipe> recipe, @NonNull CraftingInput input) {
         var recipeOutput = recipe.value().assemble(input);
         if (recipeOutput.isEmpty()) return 0;
-        return canCraftTimes(storage, input) * recipeOutput.getCount();
+        return canCraftTimes(storage, recipe.value(), input) * recipeOutput.getCount();
     }
 
     // =========================================================
@@ -146,7 +149,7 @@ public final class InfinityInventoryCraftHelper {
         long produced = (long) perCraft.getCount() * times;
         if (produced > Integer.MAX_VALUE) return null;
 
-        ItemStack template = craftCore(storage, input, perCraft, times, remainderProcessor);
+        ItemStack template = craftCore(storage, holder.value(), input, perCraft, times, remainderProcessor);
         if (template == null) return null;
 
         return Pair.of(template, (int) produced);
@@ -173,11 +176,11 @@ public final class InfinityInventoryCraftHelper {
         ItemStack perCraft = holder.value().assemble(input);
         if (perCraft.isEmpty()) return Pair.of(ItemStack.EMPTY, 0);
 
-        int craftTimes = Math.min(times, canCraftTimes(storage, input));
+        int craftTimes = Math.min(times, canCraftTimes(storage, holder.value(), input));
         // 结果以 int 数量返回，超出可表示范围时截断次数
         craftTimes = Math.min(craftTimes, maxTimesWithinInt(perCraft.getCount()));
 
-        ItemStack template = craftCore(storage, input, perCraft, craftTimes, remainderProcessor);
+        ItemStack template = craftCore(storage, holder.value(), input, perCraft, craftTimes, remainderProcessor);
         if (template == null) return Pair.of(ItemStack.EMPTY, 0);
 
         return Pair.of(template, perCraft.getCount() * craftTimes);
@@ -218,7 +221,7 @@ public final class InfinityInventoryCraftHelper {
         if (perCraft.isEmpty()) return null;
 
         int times = ceilDiv(count, perCraft.getCount());
-        ItemStack template = craftCore(storage, input, perCraft, times, remainderProcessor);
+        ItemStack template = craftCore(storage, holder.value(), input, perCraft, times, remainderProcessor);
         if (template == null) return null;
 
         dispatchExcess(template, (long) perCraft.getCount() * times - count, excessPartProcessor);
@@ -251,8 +254,8 @@ public final class InfinityInventoryCraftHelper {
         ItemStack perCraft = holder.value().assemble(input);
         if (perCraft.isEmpty()) return Pair.of(ItemStack.EMPTY, 0);
 
-        int craftTimes = Math.min(ceilDiv(count, perCraft.getCount()), canCraftTimes(storage, input));
-        ItemStack template = craftCore(storage, input, perCraft, craftTimes, remainderProcessor);
+        int craftTimes = Math.min(ceilDiv(count, perCraft.getCount()), canCraftTimes(storage, holder.value(), input));
+        ItemStack template = craftCore(storage, holder.value(), input, perCraft, craftTimes, remainderProcessor);
         if (template == null) return Pair.of(ItemStack.EMPTY, 0);
 
         long produced = (long) perCraft.getCount() * craftTimes;
@@ -360,12 +363,14 @@ public final class InfinityInventoryCraftHelper {
 
         /// 估算当前输入最多能合成多少次。
         ///
-        /// @param input 配方输入（模板槽位），每个非空槽位每次合成消耗 1 个物品
-        /// @param depth 允许递归合成中间产物的次数，目标产物自身的合成不计入；{@code 0} 等价于只看库存
+        /// @param recipe 待执行的配方，用于按「伪造输入 − 剩余物」计算净消耗
+        /// @param input  配方输入（模板槽位）
+        /// @param depth  允许递归合成中间产物的次数，目标产物自身的合成不计入；{@code 0} 等价于只看库存
         /// @return 可合成次数；任一原料凑不出一次时返回 {@code 0}
-        public int approxCraftableTimes(@NonNull CraftingInput input, int depth) {
-            Map<Item, Integer> perCraft = countSlotsPerItem(input);
-            if (perCraft.isEmpty()) return 0;
+        public int approxCraftableTimes(
+                @NonNull CraftingRecipe recipe, @NonNull CraftingInput input, int depth) {
+            Map<Item, Integer> perCraft = netConsumptionPerCraft(recipe, input);
+            if (perCraft.isEmpty()) return Integer.MAX_VALUE;
 
             int result = Integer.MAX_VALUE;
             for (var e : perCraft.entrySet()) {
@@ -404,7 +409,7 @@ public final class InfinityInventoryCraftHelper {
             memo.clear();
 
             int times = ceilDiv(count, perCraft.getCount());
-            for (var e : countSlotsPerItem(input).entrySet()) {
+            for (var e : netConsumptionPerCraft(holder.value(), input).entrySet()) {
                 long needed = Math.min((long) e.getValue() * times, Integer.MAX_VALUE);
                 ensureCount(e.getKey(), (int) needed, depth, sideProductProcessor);
             }
@@ -452,7 +457,7 @@ public final class InfinityInventoryCraftHelper {
                 if (craftTimes <= 0) return;
 
                 // 先递归补齐子配方的原料
-                for (var e : countSlotsPerItem(subInput).entrySet()) {
+                for (var e : netConsumptionPerCraft(best.value(), subInput).entrySet()) {
                     long required = Math.min((long) e.getValue() * craftTimes, Integer.MAX_VALUE);
                     ensureCount(e.getKey(), (int) required, depth - 1, sideProductProcessor);
                 }
@@ -510,6 +515,7 @@ public final class InfinityInventoryCraftHelper {
     /// @return 产物模板（数量恒为 1）；库存不足或参数非法时返回 `null`，此时不修改库存
     private static @Nullable ItemStack craftCore(
             @NonNull InfinityInventoryStorage storage,
+            @NonNull CraftingRecipe recipe,
             @NonNull CraftingInput input,
             @NonNull ItemStack perCraft,
             int times,
@@ -517,14 +523,14 @@ public final class InfinityInventoryCraftHelper {
     ) {
         if (times <= 0 || perCraft.isEmpty()) return null;
 
-        Map<Item, Integer> perCraftSlots = countSlotsPerItem(input);
-        if (perCraftSlots.isEmpty() || !hasEnough(storage, perCraftSlots, times)) return null;
+        Map<Item, Integer> perCraftSlots = netConsumptionPerCraft(recipe, input);
+        if (!hasEnough(storage, perCraftSlots, times)) return null;
 
         for (var e : perCraftSlots.entrySet()) {
             // hasEnough 已保证扣除量不会溢出 int，且库存足够
             storage.pop(e.getKey(), e.getValue() * times);
         }
-        dispatchRemainders(input, times, remainderProcessor);
+        dispatchRemainders(recipe, input, times, remainderProcessor);
 
         return perCraft.copyWithCount(1);
     }
@@ -543,32 +549,66 @@ public final class InfinityInventoryCraftHelper {
         return true;
     }
 
-    /// 派发配方剩余物（如桶）。
+    /// 按槽位统计单次合成中每种物品的净消耗量。
     ///
-    /// 每个带剩余物的槽位会把「单次剩余物数量 × 合成次数」按物品最大堆叠数分块，
-    /// 因此回调次数为 `ceil(剩余物总数 / 最大堆叠数)`，而不是合成次数。
-    private static void dispatchRemainders(
-            @NonNull CraftingInput input,
-            int times,
-            @NonNull Consumer<ItemStack> remainderProcessor) {
+    /// 净消耗 = 伪造输入 − 配方剩余物：先如实算出该配方本次合成的剩余物，
+    /// 再把「投入量 - 剩余量」按物品汇总。这样催化剂（被保留的原料）自然净消耗为 0，
+    /// 扣耐久一类的剩余物也会按实际差值计算，不需要额外判断哪些槽位「特殊」。
+    ///
+    /// @return 物品 → 单次净消耗量；全部被保留时返回空表
+    private static @NonNull Map<Item, Integer> netConsumptionPerCraft(
+            @NonNull CraftingRecipe recipe, @NonNull CraftingInput input) {
+        var remaining = recipe.getRemainingItems(input);
+
+        Map<Item, Integer> net = new HashMap<>();
         for (int i = 0; i < input.size(); i++) {
             ItemStack inSlot = input.getItem(i);
             if (inSlot.isEmpty()) continue;
 
-            ItemStackTemplate remainderTemplate = inSlot.getCraftingRemainder();
-            if (remainderTemplate == null) continue;
+            net.merge(inSlot.getItem(), 1, Integer::sum);
 
-            int perCraft = remainderTemplate.count();
+            // 剩余物抵消投入：同物品按数量相减
+            if (i < remaining.size()) {
+                ItemStack kept = remaining.get(i);
+                if (!kept.isEmpty()) {
+                    net.merge(kept.getItem(), -kept.getCount(), Integer::sum);
+                }
+            }
+        }
+
+        // 净消耗为 0（或负）的条目直接剔除，避免它们参与库存预检
+        net.entrySet().removeIf(e -> e.getValue() <= 0);
+        return net;
+    }
+
+    /// 派发配方剩余物。
+    ///
+    /// 剩余物一律取自 {@link CraftingRecipe#getRemainingItems}，与工作台走同一套 API：
+    /// FeCA 的催化剂（实现 RemainderRecipe 的配方）与其它模组的覆盖实现都由此统一生效。
+    ///
+    /// 每个槽位的剩余物会把「单次剩余物数量 × 合成次数」按物品最大堆叠数分块，
+    /// 因此回调次数为 `ceil(剩余物总数 / 最大堆叠数)`，而不是合成次数。
+    private static void dispatchRemainders(
+            @NonNull CraftingRecipe recipe,
+            @NonNull CraftingInput input,
+            int times,
+            @NonNull Consumer<ItemStack> remainderProcessor) {
+        var remaining = recipe.getRemainingItems(input);
+
+        for (ItemStack perCraftStack : remaining) {
+            if (perCraftStack.isEmpty()) continue;
+
+            int perCraft = perCraftStack.getCount();
             if (perCraft <= 0) continue;
 
-            long remaining = (long) perCraft * times;
-            while (remaining > 0) {
-                ItemStack remainder = remainderTemplate.create();
+            long rest = (long) perCraft * times;
+            while (rest > 0) {
+                ItemStack remainder = perCraftStack.copy();
                 // 防御最大堆叠数为 0 的异常数据，避免分块大小恒为 0 导致死循环
                 int maxStack = Math.max(1, remainder.getMaxStackSize());
-                int chunk = (int) Math.min(remaining, maxStack);
+                int chunk = (int) Math.min(rest, maxStack);
                 remainder.setCount(chunk);
-                remaining -= chunk;
+                rest -= chunk;
 
                 if (!remainder.isEmpty()) {
                     remainderProcessor.accept(remainder);
@@ -583,20 +623,6 @@ public final class InfinityInventoryCraftHelper {
         if (excess > 0) {
             excessPartProcessor.accept(template.copyWithCount((int) excess));
         }
-    }
-
-    /// 按槽位统计单次合成中每种物品的消耗数量（每个非空槽位消耗 1 个）。
-    ///
-    /// @return 物品 → 单次消耗量；输入为空时返回空表
-    private static @NonNull Map<Item, Integer> countSlotsPerItem(@NonNull CraftingInput input) {
-        Map<Item, Integer> perCraft = new HashMap<>();
-        for (int i = 0; i < input.size(); i++) {
-            ItemStack stack = input.getItem(i);
-            if (!stack.isEmpty()) {
-                perCraft.merge(stack.getItem(), 1, Integer::sum);
-            }
-        }
-        return perCraft;
     }
 
     /// 向上取整的整数除法，等价于 `ceil(dividend / divisor)`。

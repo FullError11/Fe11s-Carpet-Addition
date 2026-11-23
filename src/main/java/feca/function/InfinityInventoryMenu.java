@@ -840,8 +840,8 @@ public final class InfinityInventoryMenu extends ChestMenu implements RuleImpl {
 
             var context = recursiveContext();
             long times = context == null
-                    ? InfinityInventoryCraftHelper.canCraftTimes(storage, craftData.input())
-                    : context.approxCraftableTimes(craftData.input(), recursionDepth());
+                    ? InfinityInventoryCraftHelper.canCraftTimes(storage, craftData.recipe().value(), craftData.input())
+                    : context.approxCraftableTimes(craftData.recipe().value(), craftData.input(), recursionDepth());
 
             long count = times * craftData.output().getCount();
             return (int) Math.min(count, Integer.MAX_VALUE);

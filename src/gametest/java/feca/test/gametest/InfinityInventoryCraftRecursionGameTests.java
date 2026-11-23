@@ -48,13 +48,18 @@ public class InfinityInventoryCraftRecursionGameTests {
         storage.push(new ItemStack(Items.OAK_LOG, 16));
 
         final CraftingInput input = woodenPickaxeTemplate();
-        if (InfinityInventoryCraftHelper.canCraftTimes(storage, input) != 0) {
+        final var recipe = helper.getLevel().recipeAccess()
+                .getRecipeFor(RecipeType.CRAFTING, input, helper.getLevel())
+                .orElseThrow(() -> helper.assertionException("木镐配方未命中"))
+                .value();
+
+        if (InfinityInventoryCraftHelper.canCraftTimes(storage, recipe, input) != 0) {
             throw helper.assertionException("库存只有原木时，木板与木棍都应视为不足");
         }
 
         final var context = InfinityInventoryCraftHelper.createRecursiveContext(
                 storage, helper.getLevel().recipeAccess());
-        final int times = context.approxCraftableTimes(input, 4);
+        final int times = context.approxCraftableTimes(recipe, input, 4);
         if (times <= 0) {
             throw helper.assertionException("递归口径应能从原木合成出木镐，实际可合成次数为 0");
         }
@@ -68,15 +73,19 @@ public class InfinityInventoryCraftRecursionGameTests {
         storage.push(new ItemStack(Items.OAK_LOG, 16));
 
         final CraftingInput input = woodenPickaxeTemplate();
+        final var recipe = helper.getLevel().recipeAccess()
+                .getRecipeFor(RecipeType.CRAFTING, input, helper.getLevel())
+                .orElseThrow(() -> helper.assertionException("木镐配方未命中"))
+                .value();
         final var context = InfinityInventoryCraftHelper.createRecursiveContext(
                 storage, helper.getLevel().recipeAccess());
 
         // 木镐 ← 木棍 ← 木板 ← 原木：木棍、木板各算一次递归，因此需要 2；
         // 只给 1 次时木棍还凑不出（1 次只够把原木变成木板）
-        if (context.approxCraftableTimes(input, 1) != 0) {
+        if (context.approxCraftableTimes(recipe, input, 1) != 0) {
             throw helper.assertionException("递归次数不足时不应报告可合成");
         }
-        if (context.approxCraftableTimes(input, 2) <= 0) {
+        if (context.approxCraftableTimes(recipe, input, 2) <= 0) {
             throw helper.assertionException("2 次递归应覆盖 木镐 ← 木棍 ← 木板 ← 原木");
         }
 
@@ -95,7 +104,11 @@ public class InfinityInventoryCraftRecursionGameTests {
 
         final var context = InfinityInventoryCraftHelper.createRecursiveContext(
                 storage, helper.getLevel().recipeAccess());
-        final int times = context.approxCraftableTimes(input, 4);
+        final var ironBlockRecipe = helper.getLevel().recipeAccess()
+                .getRecipeFor(RecipeType.CRAFTING, input, helper.getLevel())
+                .orElseThrow(() -> helper.assertionException("铁块配方未命中"))
+                .value();
+        final int times = context.approxCraftableTimes(ironBlockRecipe, input, 4);
 
         if (times < 1) {
             throw helper.assertionException("1 个铁块应能拆出 9 个铁锭以支撑 1 次合成，实际可合成次数为 " + times);
