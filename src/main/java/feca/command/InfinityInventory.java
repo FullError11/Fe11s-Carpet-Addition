@@ -77,6 +77,7 @@ public class InfinityInventory {
                                     return CommandResult.SUCCESS;
                                 }))
                         )
+                        .then(SubCommands.storePicked())
                 );
             });
         });
@@ -193,8 +194,7 @@ public class InfinityInventory {
                                 }
                                 return CommandResult.SUCCESS;
                             }))
-                    )
-                    .then(storePicked());
+                    );
         }
 
         private static ArgumentBuilder<CommandSourceStack, ?> storePicked() {
@@ -223,7 +223,7 @@ public class InfinityInventory {
                         return CommandResult.SUCCESS;
                     });
 
-            return Commands.literal("picked")
+            return Commands.literal("storePicked")
                     .requires(_ -> CommandInfinityInventoryStorePicked.isEnabled())
                     .executes(executor.apply(null))
                     .then(Commands.literal("enable")

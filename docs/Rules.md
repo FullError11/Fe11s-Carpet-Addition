@@ -217,7 +217,7 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 
 ### 拾取进入无限库存 (`commandInfinityInventoryStorePicked`)
 
-允许使用 `/infinityInventory store picked`，让玩家拾取的掉落物直接进入无限库存而非背包。
+允许使用 `/infinityInventory storePicked`，让玩家拾取的掉落物直接进入无限库存而非背包。
 
 命令有两种取值形式：
 

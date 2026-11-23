@@ -75,7 +75,7 @@
     "carpet.rule.commandInfinityInventorySync.name": "Infinity Inventory sync subcommand",
     "carpet.rule.commandInfinityInventorySync.desc": "Allows using /infinityInventory sync to request a manual server-side data sync",
     "carpet.rule.commandInfinityInventoryStorePicked.name": "Pick up into infinity inventory",
-    "carpet.rule.commandInfinityInventoryStorePicked.desc": "Allows using /infinityInventory store picked so picked-up drops go straight into the infinity inventory",
+    "carpet.rule.commandInfinityInventoryStorePicked.desc": "Allows using /infinityInventory storePicked so picked-up drops go straight into the infinity inventory",
 
     "carpet.rule.reverseWoolCrafting.name": "Reverse Wool Crafting",
     "carpet.rule.reverseWoolCrafting.desc": "Allows crafting 2 wool of a colour from a 2×2 grid of carpets of the same colour",

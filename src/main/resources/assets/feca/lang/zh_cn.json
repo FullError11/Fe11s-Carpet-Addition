@@ -76,7 +76,7 @@
     "carpet.rule.commandInfinityInventorySync.desc": "允许使用 /infinityInventory sync 手动请求服务端进行数据同步",
 
     "carpet.rule.commandInfinityInventoryStorePicked.name": "拾取进入无限库存",
-    "carpet.rule.commandInfinityInventoryStorePicked.desc": "允许使用 /infinityInventory store picked 将玩家拾取的掉落物直接存入无限库存",
+    "carpet.rule.commandInfinityInventoryStorePicked.desc": "允许使用 /infinityInventory storePicked 将玩家拾取的掉落物直接存入无限库存",
 
     "carpet.rule.reverseWoolCrafting.name": "反向羊毛合成",
     "carpet.rule.reverseWoolCrafting.desc": "允许用 2×2 同色地毯合成 2 个同色羊毛",
