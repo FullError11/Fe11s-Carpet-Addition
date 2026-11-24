@@ -30,7 +30,7 @@ public interface RemainderRecipe {
             for (var entry : catalysts.entrySet()) {
                 if (!entry.getKey().test(stack)) continue;
 
-                remaining.set(i, entry.getValue().apply(stack.getItem()));
+                remaining.set(i, entry.getValue().apply(stack));
                 break;
             }
         }
