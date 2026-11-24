@@ -128,6 +128,12 @@
     "carpet.rule.craftableAmethystBud.extra.4": "[Amethyst Shard] + [Medium Amethyst Bud] => [Large Amethyst Bud]",
     "carpet.rule.craftableAmethystBud.extra.5": "[Amethyst Shard] + [Large Amethyst Bud] => [Amethyst Cluster]",
 
+    "carpet.rule.fastOxidation.name": "Fast Oxidation",
+    "carpet.rule.fastOxidation.desc": "Allows crafting the next oxidation stage of copper from copper plus a water bucket, keeping the bucket",
+
+    "carpet.rule.fastOxidationBoost.name": "Fast Oxidation Boost (Waxed)",
+    "carpet.rule.fastOxidationBoost.desc": "Extends fast oxidation so that waxed copper takes part in the same recipes; Only takes effect while fast oxidation is enabled",
+
     "feca.msg.common.enterCommand": "Type the command into the chat box",
     "feca.msg.common.pageNumberOutOfRange": "Page %d does not exist; enter a number between %d and %d",
     "feca.msg.common.inventoryFull": "No space in inventory",

@@ -162,6 +162,17 @@ FeCA 的规则全部是 [carpet](https://github.com/gnembon/fabric-carpet) 规�
 - `紫水晶碎片` + `中型紫水晶芽` => `大型紫水晶芽`  
 - `紫水晶碎片` + `大型紫水晶芽` => `紫水晶簇`  
 
+### 快速氧化 (`fastOxidation`)
+
+允许用铜制品 + 水桶合成**下一个氧化阶段**的铜制品，水桶保留。
+
+### 快速氧化增强 (涂蜡) (`fastOxidationBoost`)
+
+`fastOxidation` 的增强项：让**涂蜡铜制品**也参与同样的配方。
+
+> **仅在 `fastOxidation` 启用时才实际生效**，
+> 关闭 `fastOxidation` 会一并停用本规则的全部配方。
+
 ### 拾取范围拓展上限 (`itemPickupRangeExtendMax`)
 
 玩家可设置的最大额外水平拾取距离（掉落物与经验球）。

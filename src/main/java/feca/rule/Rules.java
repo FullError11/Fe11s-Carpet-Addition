@@ -222,6 +222,14 @@ public final class Rules {
     @RuleImplBy(WashableTerracotta.class)
     public static boolean washableTerracotta = false;
 
+    @Rule(categories = {FECA, SURVIVAL, RECIPE})
+    @RuleImplBy(FastOxidation.class)
+    public static boolean fastOxidation = false;
+
+    @Rule(categories = {FECA, SURVIVAL, RECIPE})
+    @RuleImplBy(FastOxidationBoost.class)
+    public static boolean fastOxidationBoost = false;
+
     /* ==================== 命令 ==================== */
 
     @Rule(categories = {FECA, COMMAND, CREATIVE})

@@ -129,6 +129,11 @@
     "carpet.rule.craftableAmethystBud.extra.4": "[紫水晶碎片] + [中型紫水晶芽] => [大型紫水晶芽]",
     "carpet.rule.craftableAmethystBud.extra.5": "[紫水晶碎片] + [大型紫水晶芽] => [紫水晶簇]",
 
+    "carpet.rule.fastOxidation.name": "快速氧化",
+    "carpet.rule.fastOxidation.desc": "允许用 铜制品 + 水桶 合成 下一氧化阶段的铜制品，水桶保留",
+
+    "carpet.rule.fastOxidationBoost.name": "快速氧化增强 (涂蜡)",
+    "carpet.rule.fastOxidationBoost.desc": "扩展快速氧化，使涂蜡铜制品也能参与同样的配方；仅在 快速氧化(fastOxidation) 启用时生效",
     "feca.msg.common.enterCommand": "输入命令到聊天框",
     "feca.msg.common.pageNumberOutOfRange": "页码 %d 不存在，请输入 %d ~ %d 间的数字",
     "feca.msg.common.inventoryFull": "背包内无空间",
