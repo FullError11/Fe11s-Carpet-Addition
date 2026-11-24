@@ -48,7 +48,7 @@ FeCA 不要求客户端安装，但在客户端安装时提供部分增强能力
     **玩家通过命令单独激活，不需要持久化保存**
 - [ ] 命令白名单  
     有些模组会注册很多命令，但这些命令大多数时候都用不上  
-    commandWhitelist `add <cmd>`/ `remove <cmd>` / `addAll` / `removeAll`  
+    commandWhitelist `hide/disable/enable <cmd>`/ `hideAll` / `disableAll` / `enableAll`  
     commandWhitelist 本身总是在白名单内  
     对于安装 FeCA 的客户端，可以额外过滤一次  
     暂时不支持子命令注册  
